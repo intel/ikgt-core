@@ -1,0 +1,14 @@
+bin/
+mon/build/
+loader/pre_os/build/
+loader/startap/build/
+lk/
+plugins/
+build/
+loader/
+api/
+*.bin
+*.elf
+*.elf.z
+
+
