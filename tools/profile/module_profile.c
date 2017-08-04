@@ -71,7 +71,7 @@ static int get_gcpu_num(void *p, uint8_t guest_id)
 
 	for (i = 0; i < avail_sample_count; i++) {
 		if (ptmp->vmexit_guest_id == guest_id && ptmp->vmexit_gcpu_id > max_gcpu_id) {
-			max_gcpu_id = ptmp->vmexit_guest_id;
+			max_gcpu_id = ptmp->vmexit_gcpu_id;
 		}
 		ptmp ++;
 	}
@@ -124,6 +124,8 @@ static uint64_t get_cycles_for_gcpu(void *p, uint8_t guest_id, uint32_t gcpu_id)
 
 			if (pend) {
 				cycles += pend->vmexit_tsc - ptmp->vmenter_tsc;
+			} else {
+				cycles += (pmod->data + avail_sample_count -1)->vmenter_tsc - ptmp->vmenter_tsc;
 			}
 		}
 		ptmp ++;
@@ -252,6 +254,7 @@ static void output_result_summary(void *p)
 	int i = 0, j = 0;
 	int guest_num, gcpu_num;
 	uint64_t total_cycles;
+	uint64_t measured_duration_tsc;
 	uint64_t guest_cycles;
 	uint64_t gcpu_cycles;
 	uint64_t vmm_cycles;
@@ -260,10 +263,11 @@ static void output_result_summary(void *p)
 	guest_num = get_guest_num(p);
 	vmm_cycles = get_vmm_cycles(p);
 	total_cycles = get_total_cycles(p);
+	measured_duration_tsc = (ptmp + avail_sample_count - 1)->vmenter_tsc - ptmp->vmenter_tsc;
 
 	printf("\nSummary of the profile result: \n");
 	printf("    Total measured time: %2.2fs, Start at %2.2fs, End at: %2.2fs\n",
-			CYCLE_TO_S(total_cycles, (float)tsc_per_ms),
+			CYCLE_TO_S(measured_duration_tsc, (float)tsc_per_ms),
 			CYCLE_TO_S(ptmp->vmenter_tsc, (float)tsc_per_ms),
 			CYCLE_TO_S((ptmp + avail_sample_count - 1)->vmenter_tsc, (float)tsc_per_ms));
 
