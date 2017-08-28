@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
+* Copyright (c) 2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,23 +14,13 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef _LAPIC_IPI_H
-#define _LAPIC_IPI_H
+#ifndef _INTERRUPT_IPI_H_
+#define _INTERRUPT_IPI_H_
 
-#ifndef LIB_LAPIC_IPI
-#error "LIB_LAPIC_IPI is not defined"
+#ifndef MODULE_INTERRUPT_IPI
+#error "MODULE_EXT_INTR is not defined"
 #endif
 
-#include "vmm_base.h"
+void interrupt_ipi_init(void);
 
-boolean_t lapic_get_id(uint32_t *p_lapic_id);
-
-//broadcast is excluding self, send is specified.
-boolean_t broadcast_nmi(void);
-boolean_t broadcast_init(void);
-boolean_t broadcast_startup(uint32_t vector);
-boolean_t send_nmi(uint32_t lapic_id);
-boolean_t send_startup(uint32_t lapic_id, uint32_t vector);
-boolean_t send_self_ipi(uint32_t vector);
-
-#endif
+#endif /* _INTERRUPT_IPI_H_ */

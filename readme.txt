@@ -208,4 +208,7 @@ Config files
 	- AP_START_IN_HLT
 		Description: Set processors to HLT when init. Default is WAIT_FOR_SIPI.
 
+	- MODULE_INTERRUPT_IPI
+		Description: Deliver interrupt to Guest by Self-IPI.
+
 End of file

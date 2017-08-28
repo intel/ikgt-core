@@ -127,6 +127,10 @@
 #include "modules/profile.h"
 #endif
 
+#ifdef MODULE_INTERRUPT_IPI
+#include "modules/interrupt_ipi.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -380,6 +384,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 
 #ifdef MODULE_PROFILE
 		profile_init();
+#endif
+
+#ifdef MODULE_INTERRUPT_IPI
+		interrupt_ipi_init();
 #endif
 
 	} else {

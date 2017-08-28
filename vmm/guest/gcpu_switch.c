@@ -175,10 +175,15 @@ static void gcpu_inject_pending_intr(guest_cpu_handle_t gcpu)
 	uint32_t interruptibility;
 	uint64_t guest_rflags;
 	boolean_t allowed = FALSE;
+	boolean_t handled = FALSE;
 
 	// no need to assert gcpu, caller (vmexit_common_handler) makes sure it is valid
 
 	if (vector < 0x20) // no pending intr
+		return;
+
+	event_raise(gcpu, EVENT_INJECT_INTR, (void *)&handled);
+	if(handled)
 		return;
 
 	vmcs = gcpu->vmcs;

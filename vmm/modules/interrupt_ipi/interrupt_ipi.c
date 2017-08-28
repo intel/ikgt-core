@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
+* Copyright (c) 2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -13,24 +13,30 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
-
-#ifndef _LAPIC_IPI_H
-#define _LAPIC_IPI_H
-
-#ifndef LIB_LAPIC_IPI
-#error "LIB_LAPIC_IPI is not defined"
-#endif
-
 #include "vmm_base.h"
+#include "gcpu.h"
+#include "event.h"
 
-boolean_t lapic_get_id(uint32_t *p_lapic_id);
+#include "lib/lapic_ipi.h"
+#include "modules/interrupt_ipi.h"
 
-//broadcast is excluding self, send is specified.
-boolean_t broadcast_nmi(void);
-boolean_t broadcast_init(void);
-boolean_t broadcast_startup(uint32_t vector);
-boolean_t send_nmi(uint32_t lapic_id);
-boolean_t send_startup(uint32_t lapic_id, uint32_t vector);
-boolean_t send_self_ipi(uint32_t vector);
+static void inject_intr_by_ipi(guest_cpu_handle_t gcpu, void *pv)
+{
+	uint8_t vector;
+	boolean_t *handled = (boolean_t *)pv;
 
-#endif
+	for(vector = gcpu_get_pending_intr(gcpu); vector > 0x20; vector = gcpu_get_pending_intr(gcpu)) {
+		if(!send_self_ipi(vector)) {
+			print_warn("Inject INTR failed: failed to send self IPI!\n");
+			*handled = FALSE;
+			return;
+		}
+		gcpu_clear_pending_intr(gcpu, vector);
+	}
+	*handled = TRUE;
+}
+
+void interrupt_ipi_init(void)
+{
+	event_register(EVENT_INJECT_INTR, inject_intr_by_ipi);
+}
