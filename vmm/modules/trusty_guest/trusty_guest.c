@@ -54,16 +54,12 @@
 
 typedef enum {
 	TRUSTY_VMCALL_SMC             = 0x74727500,
-	TRUSTY_VMCALL_RESCHEDULE      = 0x74727501,
 	TRUSTY_VMCALL_PENDING_INTR    = 0x74727505,
 	TRUSTY_VMCALL_DUMP_INIT       = 0x74727507,
-	TRUSTY_VMCALL_GET_HOST_CPU_ID = 0x74727508
 }vmcall_id_t;
 
 /* 0x31 is not used in Android (in CHT, BXT, GSD simics) */
 #define LK_TIMER_INTR	0x31
-
-#define LK_RESCH        0xF7
 
 /* Trusted OS calls internal to secure monitor */
 #define	SMC_ENTITY_SECURE_MONITOR	60
@@ -182,15 +178,6 @@ static void relocate_trusty_image(void)
 #endif
 }
 
-#ifdef ENABLE_SGUEST_SMP
-static void launch_lk_ap(guest_cpu_handle_t gcpu, void *rip)
-{
-	vmcs_write(gcpu->vmcs, VMCS_GUEST_RIP, *(uint64_t *)rip);
-	vmcs_write(gcpu->vmcs, VMCS_GUEST_ACTIVITY_STATE,
-			ACTIVITY_STATE_ACTIVE);
-}
-#endif
-
 static void setup_trusty_startup_env(guest_cpu_handle_t gcpu)
 {
 	uint64_t rdi;
@@ -274,9 +261,7 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 					setup_trusty_startup_env(gcpu);
 
 					relocate_trusty_image();
-#ifdef ENABLE_SGUEST_SMP
-					ipc_exec_on_all_other_cpus(launch_lk_ap, (void *)&(trusty_desc->gcpu0_state.rip));
-#endif
+
 					vmcs_write(next_gcpu->vmcs, VMCS_GUEST_RIP, trusty_desc->gcpu0_state.rip);
 				}else{
 					smc_stage = SMC_STAGE_LK_DONE;
@@ -303,43 +288,6 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 			break;
 	}
 }
-
-#ifdef ENABLE_SGUEST_SMP
-static void ipc_sg_handler(guest_cpu_handle_t gcpu, void *arg)
-{
-	guest_cpu_handle_t next_gcpu = gcpu;
-
-	if (gcpu->guest->id == 0)
-		next_gcpu = gcpu->next_same_host_cpu;
-
-	gcpu_set_pending_intr(next_gcpu, LK_RESCH);
-}
-
-static void reschedule_vmcall_exit(guest_cpu_handle_t gcpu)
-{
-	uint64_t rdi = gcpu_get_gp_reg(gcpu, REG_RDI);
-	uint32_t cpu = 0;
-
-	if(!guest_in_ring0(gcpu))
-	{
-		return;
-	}
-
-	for (cpu=0; cpu<host_cpu_num; cpu++)
-		if (((rdi >> cpu) & 1) && (cpu != host_cpu_id()))
-			ipc_exec_on_host_cpu(cpu, ipc_sg_handler, NULL);
-}
-
-static void trusty_vmcall_get_host_cpu_id(guest_cpu_handle_t gcpu)
-{
-	if(!guest_in_ring0(gcpu))
-	{
-		return;
-	}
-
-	gcpu_set_gp_reg(gcpu, REG_RDI, host_cpu_id());
-}
-#endif
 
 // set pending interrupt to next gcpu
 static void trusty_vmcall_set_pending_intr(guest_cpu_handle_t gcpu)
@@ -385,10 +333,6 @@ static void guest_register_vmcall_services()
 	vmcall_register(0, TRUSTY_VMCALL_DUMP_INIT, trusty_vmcall_dump_init);
 	vmcall_register(1, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
 	vmcall_register(1, TRUSTY_VMCALL_PENDING_INTR, trusty_vmcall_set_pending_intr);
-#ifdef ENABLE_SGUEST_SMP
-	vmcall_register(1, TRUSTY_VMCALL_GET_HOST_CPU_ID, trusty_vmcall_get_host_cpu_id);
-	vmcall_register(1, TRUSTY_VMCALL_RESCHEDULE, reschedule_vmcall_exit);
-#endif
 }
 
 #ifdef AP_START_IN_HLT
@@ -412,8 +356,7 @@ static void trusty_set_gcpu_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
 		gcpu_set_init_state(gcpu, &trusty_desc->gcpu0_state);
 
 		if (gcpu->id != 0) {
-			vmcs_write(gcpu->vmcs, VMCS_GUEST_ACTIVITY_STATE,
-					ACTIVITY_STATE_HLT);
+			gcpu_set_reset_state(gcpu);
 		}
 	}
 }
@@ -466,6 +409,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	/* TODO: refine it later */
 #ifdef ENABLE_SGUEST_SMP
 	cpu_num = evmm_desc->num_of_cpu;
+	trusty_para->sipi_ap_wkup_addr = evmm_desc->sipi_ap_wkup_addr;
 #endif
 	create_guest(cpu_num, &(evmm_desc->evmm_file));
 	event_register(EVENT_GCPU_INIT, trusty_set_gcpu_state);
