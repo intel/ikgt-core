@@ -39,6 +39,9 @@ typedef struct _trusty_startup_info{
 
 	/* Used by keymaster */
 	uint64_t trusty_mem_base;
+
+	uint32_t sipi_ap_wkup_addr;
+	uint8_t  padding[4];
 }trusty_startup_info_t;
 
 /*
