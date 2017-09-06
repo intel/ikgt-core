@@ -61,7 +61,7 @@ static boolean_t ept_is_leaf(uint64_t entry, uint32_t level)
 
 static boolean_t ept_is_present(uint32_t attr)
 {
-	return attr & EPT_P_MASK;
+	return (attr & EPT_P_MASK) ? TRUE : FALSE;
 }
 
 static void ept_to_table(uint64_t *p_entry)
