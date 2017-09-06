@@ -446,13 +446,14 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		"initial guest selected: uint16_t: %d GUEST_CPU_ID: %d\n",
 		initial_gcpu->guest->id,
 		initial_gcpu->id);
-
+#ifdef SYNC_CPU_IN_BOOT
 	if (cpuid == 0) {
 		print_trace("Wait for APs to launch the first Guest CPU\n");
 		BSP_WAIT_FOR_AP(host_cpu_num - 1);
 	} else {
 		AP_SET_LAUNCHED();
 	}
+#endif
 
 	/* stage 6: launch guest */
 	print_info("CPU%d Launch first Guest\n", cpuid);

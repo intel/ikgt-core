@@ -14,21 +14,21 @@
 # limitations under the License.
 ################################################################################
 
-This readme covers instructionsfor building and launching evmm, which is a core
+This readme covers instructions for building and launching evmm, which is a core
 VTx layer.
 
 =============================================================================
 Content of the Source Package
 =============================================================================
 
-	core
+	vmm
 	This contains evmm source files and build makefiles
 
 	loader
 	This contains pre-OS loader for evmm launch
 
 	packer
-	This contains packer tool to build final image from core and loader
+	This contains packer tool to build final image from vmm and loader
 
 	product
 	This contains config file for different boards
@@ -59,6 +59,8 @@ Config files
 		Description: Used to check if the final evmm_pkg.bin (or ikgt_pkg.bin) exceeds the size.
 	- STACK_PROTECTOR
 		Description: make use of gcc to emit extra code and check buffer overflows.
+	- SYNC_CPU_IN_BOOT
+		Description: bsp wait for ap before the first guest launched.
 
 	- LIB_LAPIC_IPI
 		Description: Provide api to send IPI.
