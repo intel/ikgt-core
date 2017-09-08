@@ -26,81 +26,107 @@
 
 #include "lib/util.h"
 
-void cr0_write_register(uint16_t guest_id, cr_write_handler handler, uint64_t mask)
+static void cr_write_register(cr_access_t *cr_access, cr_pre_handler pre_handler, cr_handler handler,
+				cr_post_handler post_handler, uint64_t mask)
 {
-	uint32_t i;
-	guest_handle_t guest = guest_handle(guest_id);
+	cr_handlers_t *cr_handler;
 
-	VMM_ASSERT_EX(handler, "cr0 write handler is NULL\n");
+	cr_handler = (cr_handlers_t *)mem_alloc(sizeof(cr_handlers_t));
+	memset(cr_handler, 0, sizeof(cr_handlers_t));
+
+	cr_handler->pre_handler = pre_handler;
+	cr_handler->handler = handler;
+	cr_handler->post_handler = post_handler;
+
+	cr_access->cr_mask |= mask;
+	cr_handler->next = cr_access->cr_handlers;
+	cr_access->cr_handlers = cr_handler;
+}
+
+void cr0_write_register(guest_handle_t guest, cr_pre_handler pre_handler, cr_handler handler,
+				cr_post_handler post_handler, uint64_t mask)
+{
+	D(VMM_ASSERT(guest));
+
 	VMM_ASSERT_EX(mask, "cr0 write mask is 0\n");
-	VMM_ASSERT_EX(((mask & guest->cr0_mask) == 0),
+	VMM_ASSERT_EX(((mask & guest->cr0_access.cr_mask) == 0),
 			"mask(0x%llx) has already been registered\n", mask);
 
-	for (i=0; i<CR_HANDLER_NUM; i++)
-	{
-		if (guest->cr0_handlers[i] == NULL)
-		{
-			guest->cr0_handlers[i] = handler;
-			guest->cr0_mask |= mask;
-			return;
-		}
+	if (handler == NULL){
+		print_warn("%s:handler is NULL.\n", __FUNCTION__);
 	}
 
-	print_panic("cr0 write handler is full\n");
-	VMM_DEADLOOP();
+	cr_write_register(&guest->cr0_access, pre_handler, handler, post_handler, mask);
 }
 
-void cr4_write_register(uint16_t guest_id, cr_write_handler handler, uint64_t mask)
+void cr4_write_register(guest_handle_t guest, cr_pre_handler pre_handler, cr_handler handler,
+				cr_post_handler post_handler, uint64_t mask)
 {
-	uint32_t i;
-	guest_handle_t guest = guest_handle(guest_id);
+	D(VMM_ASSERT(guest));
 
-	VMM_ASSERT_EX(handler, "cr4 write handler is NULL\n");
 	VMM_ASSERT_EX(mask, "cr4 write mask is 0\n");
-	VMM_ASSERT_EX(((mask & guest->cr4_mask) == 0),
+	VMM_ASSERT_EX(((mask & guest->cr4_access.cr_mask) == 0),
 			"mask(0x%llx) has already been registered\n", mask);
 
-	for (i=0; i<CR_HANDLER_NUM; i++)
+	if (handler == NULL){
+		print_warn("%s:handler is NULL.\n", __FUNCTION__);
+	}
+
+	cr_write_register(&guest->cr4_access, pre_handler, handler, post_handler, mask);
+}
+
+static boolean_t cr_guest_write(guest_cpu_handle_t gcpu, uint64_t write_value, boolean_t is_cr0)
+{
+	guest_handle_t guest = gcpu->guest;
+	cr_access_t *cr_access;
+	vmcs_obj_t vmcs = gcpu->vmcs;
+	cr_handlers_t *cr_handler;
+	uint64_t cr_value;
+
+	if (is_cr0){
+		cr_access = &guest->cr0_access;
+	}else{
+		cr_access = &guest->cr4_access;
+	}
+
+	for (cr_handler = cr_access->cr_handlers; cr_handler; cr_handler = cr_handler->next)
 	{
-		if (guest->cr4_handlers[i] == NULL)
-		{
-			guest->cr4_handlers[i] = handler;
-			guest->cr4_mask |= mask;
-			return;
+		if (cr_handler->pre_handler){
+			if (cr_handler->pre_handler(write_value)){
+				gcpu_inject_gp0(gcpu);
+				return TRUE;
+			}
 		}
 	}
 
-	print_panic("cr4 write handler is full\n");
-	VMM_DEADLOOP();
-}
-
-static boolean_t call_cr0_write_handlers(guest_cpu_handle_t gcpu, uint64_t write_value, uint64_t* cr_value)
-{
-	uint32_t i;
-	guest_handle_t guest_handle = gcpu->guest;
-
-	for (i=0; i<CR_HANDLER_NUM; i++)
-	{
-		if (guest_handle->cr0_handlers[i] == NULL)
-			break;
-		if (guest_handle->cr0_handlers[i](gcpu, write_value, cr_value))
-			return TRUE;
+	if (is_cr0){
+		cr_value = vmcs_read(vmcs, VMCS_GUEST_CR0);
+	}else{
+		cr_value = vmcs_read(vmcs, VMCS_GUEST_CR4);
 	}
-	return FALSE;
-}
 
-static boolean_t call_cr4_write_handlers(guest_cpu_handle_t gcpu, uint64_t write_value, uint64_t* cr_value)
-{
-	uint32_t i;
-	guest_handle_t guest_handle = gcpu->guest;
-
-	for (i=0; i<CR_HANDLER_NUM; i++)
+	for (cr_handler = cr_access->cr_handlers; cr_handler; cr_handler = cr_handler->next)
 	{
-		if (guest_handle->cr4_handlers[i] == NULL)
-			break;
-		if (guest_handle->cr4_handlers[i](gcpu, write_value, cr_value))
-			return TRUE;
+		if (cr_handler->handler){
+			cr_handler->handler(write_value, &cr_value);
+		}
 	}
+
+	if (is_cr0){
+		vmcs_write(vmcs, VMCS_GUEST_CR0, cr_value);
+		vmcs_write(vmcs, VMCS_CR0_SHADOW, write_value);
+	}else{
+		vmcs_write(vmcs, VMCS_GUEST_CR4, cr_value);
+		vmcs_write(vmcs, VMCS_CR4_SHADOW, write_value);
+	}
+
+	for (cr_handler = cr_access->cr_handlers; cr_handler; cr_handler = cr_handler->next)
+	{
+		if (cr_handler->post_handler){
+			cr_handler->post_handler(gcpu);
+		}
+	}
+
 	return FALSE;
 }
 
@@ -111,83 +137,57 @@ static boolean_t call_cr4_write_handlers(guest_cpu_handle_t gcpu, uint64_t write
 */
 boolean_t cr0_guest_write(guest_cpu_handle_t gcpu, uint64_t write_value)
 {
-	uint64_t cr0_value;
-	vmcs_obj_t vmcs;
-
 	D(VMM_ASSERT(gcpu));
-	vmcs = gcpu->vmcs;
 
-	cr0_value = vmcs_read(vmcs, VMCS_GUEST_CR0);
-	if (call_cr0_write_handlers(gcpu, write_value, &cr0_value))
-	{
-		gcpu_inject_gp0(gcpu);
-		return TRUE;
-	}
-	else
-	{
-		vmcs_write(vmcs, VMCS_CR0_SHADOW, write_value);
-		vmcs_write(vmcs, VMCS_GUEST_CR0, cr0_value);
-		return FALSE;
-	}
+	return cr_guest_write(gcpu, write_value, TRUE);
 }
 
 /* same as cr0_guest_write() */
 boolean_t cr4_guest_write(guest_cpu_handle_t gcpu, uint64_t write_value)
 {
-	uint64_t cr4_value;
-	vmcs_obj_t vmcs;
-
 	D(VMM_ASSERT(gcpu));
-	vmcs = gcpu->vmcs;
 
-	cr4_value = vmcs_read(vmcs, VMCS_GUEST_CR4);
-	if (call_cr4_write_handlers(gcpu, write_value, &cr4_value))
-	{
-		gcpu_inject_gp0(gcpu);
-		return TRUE;
-	}
-	else
-	{
-		 /* TODO: check may1/may0 on the cr_value.
-		 ** CR0.may0 is affected by whether EPT is enabled, it makes the logic complicated
-		 ** that's why it is not checked now.
-		 */
-		vmcs_write(vmcs, VMCS_CR4_SHADOW, write_value);
-		vmcs_write(vmcs, VMCS_GUEST_CR4, cr4_value);
-		return FALSE;
-	}
-
+	return cr_guest_write(gcpu, write_value, FALSE);
 }
 
-static boolean_t cr0_ne_handler(UNUSED guest_cpu_handle_t gcpu, UNUSED uint64_t write_value, uint64_t* cr_value)
+static void cr0_ne_handler(UNUSED uint64_t write_value, uint64_t* cr_value)
 {
 	// CR0.NE is always 1 due to HW requirement
 	*cr_value |= CR0_NE;
-	return FALSE;
 }
 
-static boolean_t cr4_vmxe_handler(UNUSED guest_cpu_handle_t gcpu, uint64_t write_value, uint64_t* cr_value)
+static boolean_t cr4_vmxe_pre_handler(uint64_t write_value)
 {
 	if (write_value & CR4_VMXE) // nested VT is not supported by eVmm
 	{
 		print_warn("%s(), write_value=0x%llx, injecting #GP\n", __FUNCTION__, write_value);
 		return TRUE;
 	}
-	// CR4.VMXE is always 1 due to HW requirement
-	*cr_value |= CR4_VMXE;
+
 	return FALSE;
 }
 
-static boolean_t cr4_smxe_handler(UNUSED guest_cpu_handle_t gcpu, uint64_t write_value, uint64_t* cr_value)
+static void cr4_vmxe_handler(UNUSED uint64_t write_value, uint64_t* cr_value)
+{
+	// CR4.VMXE is always 1 due to HW requirement
+	*cr_value |= CR4_VMXE;
+}
+
+static boolean_t cr4_smxe_pre_handler(uint64_t write_value)
 {
 	if (write_value & CR4_SMXE) // smx is not allowed by eVmm
 	{
 		print_warn("%s(), write_value=0x%llx, injecting #GP\n", __FUNCTION__, write_value);
 		return TRUE;
 	}
+
+	return FALSE;
+}
+
+static void cr4_smxe_handler(UNUSED uint64_t write_value, uint64_t* cr_value)
+{
 	// CR4.SMXE is always 0
 	*cr_value &= ~CR4_SMXE;
-	return FALSE;
 }
 
 void cr_write_gcpu_init(guest_cpu_handle_t gcpu)
@@ -197,25 +197,27 @@ void cr_write_gcpu_init(guest_cpu_handle_t gcpu)
 	D(VMM_ASSERT(gcpu));
 
 	guest_handle = gcpu->guest;
-	vmcs_write(gcpu->vmcs, VMCS_CR0_MASK, guest_handle->cr0_mask);
-	vmcs_write(gcpu->vmcs, VMCS_CR4_MASK, guest_handle->cr4_mask);
+	vmcs_write(gcpu->vmcs, VMCS_CR0_MASK, guest_handle->cr0_access.cr_mask);
+	vmcs_write(gcpu->vmcs, VMCS_CR4_MASK, guest_handle->cr4_access.cr_mask);
 }
 
-void cr_write_guest_init(uint16_t guest_id)
+void cr_write_guest_init(guest_handle_t guest)
 {
 	uint64_t cr0_may0;
 	uint64_t cr4_may1;
+
+	D(VMM_ASSERT(guest));
 
 	get_cr0_cap(&cr0_may0);
 	cr4_may1 = get_cr4_cap(NULL);
 
 	if (cr0_may0 & CR0_NE)
-		cr0_write_register(guest_id, cr0_ne_handler, CR0_NE);
+		cr0_write_register(guest, NULL, cr0_ne_handler, NULL, CR0_NE);
 
-	cr4_write_register(guest_id, cr4_vmxe_handler, CR4_VMXE);
+	cr4_write_register(guest, cr4_vmxe_pre_handler, cr4_vmxe_handler, NULL, CR4_VMXE);
 
 	if (cr4_may1 & CR4_SMXE)
-		cr4_write_register(guest_id, cr4_smxe_handler, CR4_SMXE);
+		cr4_write_register(guest, cr4_smxe_pre_handler, cr4_smxe_handler, NULL, CR4_SMXE);
 }
 
 void cr_write_init(void)

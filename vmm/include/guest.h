@@ -30,10 +30,8 @@
 struct guest_descriptor_t {
 	guest_cpu_handle_t          gcpu_list;
 	mam_handle_t                gpa_to_hpa;
-	uint64_t                    cr0_mask;
-	uint64_t                    cr4_mask;
-	cr_write_handler            cr0_handlers[CR_HANDLER_NUM];
-	cr_write_handler            cr4_handlers[CR_HANDLER_NUM];
+	cr_access_t                 cr0_access;
+	cr_access_t                 cr4_access;
 	uint16_t                    id;
 	uint16_t                    padding;
 	ept_policy_t                ept_policy;
