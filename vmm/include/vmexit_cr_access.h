@@ -26,9 +26,25 @@
 **     otherwise, if we only set CR0.PG to 1 and leave CR0.PE to 0, after resume, #GP will occur
 ** return: TRUE mean needs to inject #GP
 */
-typedef boolean_t (*cr_write_handler) (guest_cpu_handle_t gcpu, uint64_t write_value, uint64_t* cr_value);
-void cr0_write_register(uint16_t guest_id, cr_write_handler handler, uint64_t mask);
-void cr4_write_register(uint16_t guest_id, cr_write_handler handler, uint64_t mask);
+typedef boolean_t (*cr_pre_handler) (uint64_t write_value);
+typedef void (*cr_handler) (uint64_t write_value, uint64_t* cr_value);
+typedef void (*cr_post_handler) (guest_cpu_handle_t gcpu);
+
+void cr0_write_register(guest_handle_t guest, cr_pre_handler pre_handler, cr_handler handler, cr_post_handler post_handler, uint64_t mask);
+void cr4_write_register(guest_handle_t guest, cr_pre_handler pre_handler, cr_handler handler, cr_post_handler post_handler, uint64_t mask);
+
+typedef struct cr_handlers_t{
+	cr_pre_handler  pre_handler;
+	cr_handler      handler;
+	cr_post_handler post_handler;
+	struct cr_handlers_t *next;
+} cr_handlers_t;
+
+typedef struct {
+	uint64_t cr_mask;
+	cr_handlers_t *cr_handlers;
+} cr_access_t;
+
 /* cr0_guest_write() will set value to shadow and call registered handlers to
 ** update bits from existing VMCS_GUEST_CR0.
 ** when new CR0 is assigned from host (not guest), a vmcs write to VMCS_GUEST_CR0
@@ -39,7 +55,7 @@ boolean_t cr0_guest_write(guest_cpu_handle_t gcpu, uint64_t write_value);
 boolean_t cr4_guest_write(guest_cpu_handle_t gcpu, uint64_t write_value);
 void cr_write_init(void);
 
-void cr_write_guest_init(uint16_t guest_id);
+void cr_write_guest_init(guest_handle_t guest);
 void cr_write_gcpu_init(guest_cpu_handle_t gcpu);
 
 void vmexit_cr_access(guest_cpu_handle_t gcpu);

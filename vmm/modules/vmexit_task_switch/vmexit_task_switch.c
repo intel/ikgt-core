@@ -997,20 +997,20 @@ static void set_seg_access(guest_cpu_handle_t gcpu, task_info_t *new_task)
 
 static void load_cr(guest_cpu_handle_t gcpu, tss32_t *new_tss)
 {
-	cr0_t cr0;
+	uint64_t cr0;
 	vmcs_obj_t vmcs = gcpu->vmcs;
 
-	cr0.uint64 = gcpu_get_visible_cr0(gcpu);
+	cr0 = gcpu_get_visible_cr0(gcpu);
 
 	/* Load new cr3. */
-	if (cr0.bits.pg) {
+	if (cr0 & CR0_PG) {
 		vmcs_write(vmcs, VMCS_GUEST_CR3, new_tss->cr3);
 	}
 
 	/* Set the TS bit in CR0. */
-	cr0.bits.ts = 1;
-	vmcs_write(vmcs, VMCS_GUEST_CR0, cr0.uint64);
-	VMM_ASSERT_EX((cr0_guest_write(gcpu, cr0.uint64) == FALSE),
+	cr0 |= CR0_TS;
+	vmcs_write(vmcs, VMCS_GUEST_CR0, cr0);
+	VMM_ASSERT_EX((cr0_guest_write(gcpu, cr0) == FALSE),
 			"task switch: #GP happened when writing new CR0\n");
 }
 

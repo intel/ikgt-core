@@ -102,37 +102,51 @@ static void ept_disable(guest_cpu_handle_t gcpu)
 }
 
 // cr0_pg_handler() is registered for policy "ug_real_mode" only
-static boolean_t cr0_pg_handler(guest_cpu_handle_t gcpu, uint64_t write_value, uint64_t* cr_value)
+static boolean_t cr0_pg_pre_handler(uint64_t write_value)
 {
-	cr0_t *p_cr_value = (cr0_t*)cr_value;
-	cr0_t *p_write_value = (cr0_t*)&write_value;
-	vmcs_obj_t vmcs;
-	msr_efer_t efer;
-	uint32_t entry_ctrl;
 
-	if (p_write_value->bits.pg)
+	if (write_value & CR0_PG)
 	{
-		if (p_write_value->bits.pe)
-		{
-			ept_disable(gcpu);
-		}
-		else
+		if ((write_value & CR0_PE) == 0)
 		{
 			print_warn("%s(), write_value=0x%llx, injecting #GP\n", __FUNCTION__, write_value);
 			return TRUE;
 		}
 	}
+
+	return FALSE;
+}
+
+static void cr0_pg_handler(uint64_t write_value, uint64_t* cr_value)
+{
+	uint64_t mask;
+
+	// change both PG and PE, if no need to inject #GP
+	mask = CR0_PG | CR0_PE;
+	*cr_value = (*cr_value&~mask) | (write_value&mask);
+}
+
+static void cr0_pg_post_handler(guest_cpu_handle_t gcpu)
+{
+	vmcs_obj_t vmcs;
+	msr_efer_t efer;
+	uint32_t entry_ctrl;
+	uint64_t cr0;
+
+	cr0 = gcpu_get_visible_cr0(gcpu);
+
+	if (cr0 & CR0_PG)
+	{
+		ept_disable(gcpu);
+	}
 	else
 	{
 		ept_enable(gcpu, TRUE);
 	}
-	// change both PG and PE, if no need to inject #GP
-	p_cr_value->bits.pg = p_write_value->bits.pg;
-	p_cr_value->bits.pe = p_write_value->bits.pe;
 	// update vmentry_control
 	vmcs = gcpu->vmcs;
 	efer.uint64 = vmcs_read(vmcs, VMCS_GUEST_EFER);
-	efer.bits.lma = (p_write_value->bits.pg & efer.bits.lme);
+	efer.bits.lma = (((cr0 & CR0_PG) == CR0_PG) & efer.bits.lme);
 	entry_ctrl = (uint32_t)vmcs_read(vmcs, VMCS_ENTRY_CTRL);
 
 	vmcs_write(vmcs, VMCS_GUEST_EFER, efer.uint64);
@@ -144,7 +158,6 @@ static boolean_t cr0_pg_handler(guest_cpu_handle_t gcpu, uint64_t write_value, u
 	}
 
 	vmcs_write(vmcs, VMCS_ENTRY_CTRL, entry_ctrl);
-	return FALSE;
 }
 
 void vmexit_ept_violation(UNUSED guest_cpu_handle_t gcpu)
@@ -227,7 +240,7 @@ void ept_guest_init(guest_handle_t guest)
 		{
 			VMM_ASSERT_EX((get_proctl2_cap(NULL) & PROC2_UNRESTRICTED_GUEST),
 				"the unrestricted guest is not supported\n");
-			cr0_write_register(guest->id, cr0_pg_handler, CR0_PG);
+			cr0_write_register(guest, cr0_pg_pre_handler, cr0_pg_handler, cr0_pg_post_handler, CR0_PG);
 		}
 	}
 }

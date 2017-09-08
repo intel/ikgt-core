@@ -26,6 +26,8 @@
 #include "event.h"
 #include "vmexit_cr_access.h"
 
+#include "lib/util.h"
+
 static struct guest_descriptor_t *guests;
 
 guest_handle_t guest_handle(uint16_t guest_id)
@@ -54,23 +56,13 @@ fail:
 
 static guest_handle_t guest_register(void)
 {
-	uint32_t i;
 	struct guest_descriptor_t *guest;
 
 	guest = (struct guest_descriptor_t *)mem_alloc(sizeof(struct guest_descriptor_t));
 
+	memset(guest, 0, sizeof(struct guest_descriptor_t));
+
 	guest->id = guests ? (guests->id + 1) : 0;
-
-	guest->gcpu_list = NULL;
-
-	for (i=0; i<CR_HANDLER_NUM; i++)
-	{
-		guest->cr0_handlers[i] = NULL;
-		guest->cr4_handlers[i] = NULL;
-	}
-
-	guest->cr0_mask = 0;
-	guest->cr4_mask = 0;
 
 	guest->ept_policy.uint32 = EPT_POLICY;
 
@@ -114,7 +106,7 @@ guest_handle_t create_guest(uint32_t gcpu_count, const module_file_info_t *evmm_
 	/* remove eVMM area from guest */
 	gpm_remove_mapping(guest, evmm_file->runtime_addr, evmm_file->runtime_total_size);
 
-	cr_write_guest_init(guest->id);
+	cr_write_guest_init(guest);
 
 	ept_guest_init(guest);
 

@@ -85,27 +85,6 @@ typedef struct {
 #define CR0_CD          (1ull << 30)
 #define CR0_PG          (1ull << 31)
 
-typedef union {
-	struct {
-		uint64_t pe:1;                 /* Protection Enable */
-		uint64_t mp:1;                 /* Monitor Coprocessor */
-		uint64_t em:1;                 /* Emulation */
-		uint64_t ts:1;                 /* Task Switched */
-		uint64_t et:1;                 /* Extension Type */
-		uint64_t ne:1;                 /* Numeric Error */
-		uint64_t resv_6_15:10;        /* reserved */
-		uint64_t wp:1;                 /* Write Protect */
-		uint64_t resv_17:1;         /* reserved */
-		uint64_t am:1;                 /* Alignment Mask */
-		uint64_t resv_19_28:10;        /* reserved */
-		uint64_t nw:1;                 /* Not Write-through */
-		uint64_t cd:1;                 /* Cache Disable */
-		uint64_t pg:1;                 /* Paging */
-		uint64_t resv_32_63:32;        /* Must be zero */
-	}  bits;
-	uint64_t uint64;
-}  cr0_t;
-
 /*
  * IA-32 Control Register #4 (CR4)
  */
@@ -127,37 +106,6 @@ typedef union {
 #define CR4_OSXSAVE     (1ull << 18)
 #define CR4_SMAP        (1ull << 21)
 #define CR4_PKE         (1ull << 22)
-
-typedef union {
-	struct {
-		uint64_t vme:1;                /* Virtual-8086 Mode Extensions */
-		uint64_t pvi:1;                /* Protected-Mode Virtual Interrupts */
-		uint64_t tsd:1;                /* Time Stamp Disable */
-		uint64_t de:1;                 /* Debugging Extensions */
-		uint64_t pse:1;                /* Page Size Extensions */
-		uint64_t pae:1;                /* Physical Address Extension */
-		uint64_t mce:1;                /* Machine Check Enable */
-		uint64_t pge:1;                /* Page Global Enable */
-		uint64_t pce:1;                /* Performance Monitoring Counter Enable */
-		uint64_t osfxsr:1;             /* Operating System Support for FXSAVE and FXRSTOR instructions */
-		uint64_t osxmmexcpt:1;         /* Operating System Support for Unmasked SIMD Floating Point Exceptions */
-		uint64_t umip:1;               /* User-Mode Instruction Prevention */
-		uint64_t resv_12:1;         /* reserved */
-		uint64_t vmxe:1;               /* VMX Enable */
-		uint64_t smxe:1;               /* SMX Enable */
-		uint64_t resv_15:1;         /* Reseved */
-		uint64_t fsgsbase:1;           /* Enables the instructions RDFSBASE, RDGSBASE, WRFSBASE, and WRGSBASE. */
-		uint64_t pcide:1;              /* PCIDE */
-		uint64_t osxsave:1;            /* XSAVE and Processor Extended States-Enable Bit */
-		uint64_t resv_19:1;         /* Reseved */
-		uint64_t smep:1;               /* Supervisor Mode Execution Prevention */
-		uint64_t smap:1;               /* Supervisor Mode ACCESS Prevention */
-		uint64_t pke:1;                /* Protection-Key-Enable Bit */
-		uint64_t resv_23_31:9;         /* reserved */
-		uint64_t resv_32_63:32;        /* reserved, must be zero */
-	}  bits;
-	uint64_t uint64;
-}  cr4_t;
 
 /*
  * VMCS Exit Reason Structure
