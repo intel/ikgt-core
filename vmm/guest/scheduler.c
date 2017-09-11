@@ -107,12 +107,12 @@ guest_cpu_handle_t schedule_initial_gcpu()
 /*
  * Schedule to next gcpu on same host as the initial gcpu
  */
-void schedule_next_gcpu_as_init(uint16_t host_cpu_id)
+void schedule_next_gcpu_as_init(uint16_t host_cpu)
 {
 	VMM_ASSERT_EX(g_current_gcpu, "%s is called before gcpu registered!\n", __func__);
-	VMM_ASSERT_EX(host_cpu_id < host_cpu_num, "%s: Wrong host_cpu_id(%d), host_cpu_num=%d\n",
-					__func__, host_cpu_id, host_cpu_num);
+	VMM_ASSERT_EX(host_cpu < host_cpu_num, "%s: Wrong host_cpu_id(%d), host_cpu_num=%d\n",
+					__func__, host_cpu, host_cpu_num);
 
-	g_current_gcpu[host_cpu_id] =
-		g_current_gcpu[host_cpu_id]->next_same_host_cpu;
+	g_current_gcpu[host_cpu] =
+		g_current_gcpu[host_cpu]->next_same_host_cpu;
 }
