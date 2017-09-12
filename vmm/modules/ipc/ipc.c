@@ -266,7 +266,7 @@ void ipc_exec_on_all_other_cpus(ipc_func_t func, void* arg)
 	uint32_t mask, i;
 	uint16_t this_hcpu_id = host_cpu_id();
 
-	D(VMM_ASSERT_EX(arg, "%s: func is NULL\n"));
+	D(VMM_ASSERT_EX(func, "%s: func is NULL\n", __FUNCTION__));
 	VMM_ASSERT_EX(g_ipc_data, "%s: g_ipc_data is NULL\n", __FUNCTION__);
 
 	mask = ipc_setup_func(func, arg);
@@ -297,7 +297,7 @@ void ipc_exec_on_host_cpu(uint16_t hcpu_id, ipc_func_t func, void* arg)
 	uint32_t mask;
 	uint16_t this_hcpu_id = host_cpu_id();
 
-	D(VMM_ASSERT_EX(arg, "%s: func is NULL\n"));
+	D(VMM_ASSERT_EX(func, "%s: func is NULL\n", __FUNCTION__));
 	VMM_ASSERT_EX(g_ipc_data, "%s: g_ipc_data is NULL\n", __FUNCTION__);
 	VMM_ASSERT_EX((this_hcpu_id != hcpu_id),
 		"ipc is called on the same hcpu id\n");
