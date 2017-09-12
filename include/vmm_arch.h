@@ -370,31 +370,15 @@ typedef enum {
  */
 typedef union {
 	struct {
-		uint32_t scaling:2;                 /* 0=None, 1=By 2, 2=By 4, 3=By 8. Must be 0 */
-		uint32_t resv_2:1;              /* Must be 0 */
-		uint32_t register1:4;               /* 0=EAX, 1=ECX, 2=EDX, 3=EBX, 4=ESP, 5=EBP, 6=ESI, 7=EDI, 8-15=R8-R15 */
-		uint32_t address_size:3;            /* 0=16-bit, 1=32-bit */
-		uint32_t register_memory:1;         /* 0=Memory, 1=Register */
-		uint32_t operand_size:2;            /* 0=16-bit, 1=32-bit, 2=64-bit */
-		uint32_t resv_13_14:2;              /* Must be 0 */
-		uint32_t segment:3;                 /* 0=ES, 1=CS, 2=SS, 3=DS, 4=FS, 5=GS */
-		uint32_t index_register:4;          /* 0=EAX, 1=ECX, 2=EDX, 3=EBX, 4=ESP, 5=EBP, 6=ESI, 7=EDI, 8-15=R8-R15 */
-		uint32_t index_register_invalid:1;  /* 0=Valid, 1=Invalid */
-		uint32_t base_register:4;           /* 0=EAX, 1=ECX, 2=EDX, 3=EBX, 4=ESP, 5=EBP, 6=ESI, 7=EDI, 8-15=R8-R15 */
-		uint32_t base_register_invalid:1;   /* 0=Valid, 1=Invalid */
-		uint32_t register2:4;               /* 0=EAX, 1=ECX, 2=EDX, 3=EBX, 4=ESP, 5=EBP, 6=ESI, 7=EDI, 8-15=R8-R15 */
-	} bits;
-
-	struct {
 		uint32_t resv_0_6:7;   /* Undefined */
 		uint32_t addr_size:3;    /* 0=16bit, 1=32bit, 2=64bit, other invalid */
 		uint32_t resv_10_14:5;   /* Undefined */
 		uint32_t seg_reg:3;      /* 0=ES, 1=CS, 2=SS, 3=DS, 4=FS, 5=GS, other invalid. Undef for INS */
 		uint32_t resv_18_31:14;  /* Undefined */
-	} ins_outs_instruction;
+	} ins_outs_instr;
 
 	uint32_t uint32;
-} vmx_exit_instruction_info_t;
+} vmx_exit_instr_info_t;
 
 /*
  * Interruptibility state

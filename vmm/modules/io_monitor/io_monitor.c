@@ -178,7 +178,7 @@ static seg_id_t get_ios_seg(guest_cpu_handle_t gcpu,
 	const char *direction;
 	const char *seg_name;
 	vmx_exit_qualification_t qualification;
-	vmx_exit_instruction_info_t ios_instr_info;
+	vmx_exit_instr_info_t ios_instr_info;
 
 	qualification.uint64 = vmcs_read(gcpu->vmcs, VMCS_EXIT_QUAL);
 
@@ -190,7 +190,7 @@ static seg_id_t get_ios_seg(guest_cpu_handle_t gcpu,
 		direction = "OUTS";
 		ios_instr_info.uint32 =
 			(uint32_t)vmcs_read(gcpu->vmcs, VMCS_EXIT_INSTR_INFO);
-		switch (ios_instr_info.ins_outs_instruction.seg_reg) {
+		switch (ios_instr_info.ins_outs_instr.seg_reg) {
 		case 0: /* ES */
 			seg_name = "ES";
 			seg_id = SEG_ES;
@@ -220,7 +220,7 @@ static seg_id_t get_ios_seg(guest_cpu_handle_t gcpu,
 			seg_id = SEG_COUNT;
 			print_panic("Undefined value %d for segment register"
 				" in the VM-Exit Instruction-Information Field\n",
-				ios_instr_info.ins_outs_instruction.seg_reg);
+				ios_instr_info.ins_outs_instr.seg_reg);
 			VMM_DEADLOOP();
 		}
 	}
