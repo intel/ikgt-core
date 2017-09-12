@@ -21,9 +21,9 @@
 
 typedef struct {
 	volatile uint32_t	uint32_lock;
-	uint32_t pad;
-	//volatile uint16_t	owner_cpu_id;
-	//char			padding[2];
+#ifdef DEBUG
+	uint32_t count[MAX_CPU_NUM];
+#endif
 } vmm_lock_t;
 
 void lock_init(vmm_lock_t *lock);

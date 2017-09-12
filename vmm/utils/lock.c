@@ -17,7 +17,7 @@
 #include "vmm_asm.h"
 #include "lock.h"
 #include "dbg.h"
-
+#include "host_cpu.h"
 #include "lib/print.h"
 
 #define WRITELOCK_MASK  0x80000000
@@ -36,10 +36,12 @@ void lock_acquire_read(vmm_lock_t *lock)
 	uint32_t new_value;
 
 	D(VMM_ASSERT(lock));
+	D(VMM_ASSERT(not_in_isr()));
 
 	for (orig_value = lock->uint32_lock;; orig_value = lock->uint32_lock) {
 		new_value = orig_value + 1;
 		if (WRITELOCK_MASK == orig_value) {
+			D(VMM_ASSERT(lock->count[host_cpu_id()] == 0));
 			asm_pause();
 		}else if (orig_value == asm_lock_cmpxchg32((&lock->uint32_lock),
 			    new_value,
@@ -47,15 +49,15 @@ void lock_acquire_read(vmm_lock_t *lock)
 			break;
 		}
 	}
+	D(asm_inc32(&lock->count[host_cpu_id()]));
 }
 
 void lock_acquire_write(vmm_lock_t *lock)
 {
 	uint32_t orig_value;
-	//uint16_t this_cpu_id = host_cpu_id();
 
 	D(VMM_ASSERT(lock));
-
+	D(VMM_ASSERT(not_in_isr()));
 	for (;;) {
 		orig_value = asm_lock_cmpxchg32((&lock->uint32_lock),
 				WRITELOCK_MASK,
@@ -63,10 +65,11 @@ void lock_acquire_write(vmm_lock_t *lock)
 		if (0 == orig_value) {
 			break;
 		}
+		D(VMM_ASSERT(lock->count[host_cpu_id()] == 0));
 		asm_pause();
 	}
 
-	//lock->owner_cpu_id = this_cpu_id;
+	D(asm_inc32(&lock->count[host_cpu_id()]));
 }
 
 void lock_release(vmm_lock_t *lock)
@@ -78,6 +81,7 @@ void lock_release(vmm_lock_t *lock)
 
 	if (WRITELOCK_MASK == lock->uint32_lock) {
 		lock->uint32_lock = 0;
+		D(asm_dec32(&lock->count[host_cpu_id()]));
 		return;
 	}
 
@@ -93,6 +97,7 @@ void lock_release(vmm_lock_t *lock)
 			break;
 		}
 	}
+	D(asm_dec32(&lock->count[host_cpu_id()]));
 }
 
 

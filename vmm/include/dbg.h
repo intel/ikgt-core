@@ -18,7 +18,6 @@
 #define _VMM_DBG_H_
 
 #include "lock.h"
-#include "host_cpu.h"
 #include "isr.h"
 #include "lib/print.h"
 
