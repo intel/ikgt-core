@@ -14,153 +14,90 @@
 # limitations under the License.
 ################################################################################
 
-ifndef PROJS
 export PROJS = $(CURDIR)
 
-debug ?= 0
-ifeq ($(debug), 1)
-export XMON_CMPL_OPT_FLAGS = -DDEBUG
-export OUTPUTTYPE = debug
+include $(PROJS)/product/$(TARGET_PRODUCT).cfg
+export EVMM_CMPL_FLAGS
+
+ifneq (, $(findstring -DDEBUG, $(EVMM_CMPL_FLAGS)))
+OUTPUTTYPE = debug
 else
-export XMON_CMPL_OPT_FLAGS =
-export OUTPUTTYPE = release
+OUTPUTTYPE = release
 endif
 
-export BINDIR = $(PROJS)/bin/linux/$(OUTPUTTYPE)/
-export OUTDIR = $(PROJS)/build/linux/$(OUTPUTTYPE)/
+export BUILD_DIR ?= $(PROJS)/build_$(OUTPUTTYPE)/
 
-$(shell mkdir -p $(OUTDIR))
-$(shell mkdir -p $(BINDIR))
-endif  # PROJS
+export CC = $(COMPILE_TOOLCHAIN)gcc
+export AS = $(COMPILE_TOOLCHAIN)gcc
+export LD = $(COMPILE_TOOLCHAIN)ld
 
-ifeq ($(debug), 1)
-LDFLAGS = -T core/linker.lds -pie -z max-page-size=4096 -z common-page-size=4096
+CFLAGS = -c $(EVMM_CMPL_FLAGS) -O2 -std=gnu99
+
+# product position indepent code for relocation.
+CFLAGS += -fPIC
+
+# print error type like [-Werror=packed].
+CFLAGS += -fdiagnostics-show-option
+
+# without this flag, the highest bit will be treated as sign bit
+# e.g. int a:2 = 3, but it's printf("%d", a) is -1.
+CFLAGS += -funsigned-bitfields
+
+# the program running on the 64bit extension Pentium 4 CPU.
+CFLAGS += -m64 -march=nocona
+
+# if function don't need frame-pointer(rbp), don't store it in a register.
+CFLAGS += -fomit-frame-pointer
+
+# don't need extended instruction sets.
+CFLAGS += -mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-3dnow
+
+# don't link dynamic library and don't rely on standard library.
+CFLAGS += -static -nostdinc -fno-hosted
+
+# add warning checks as much as possible.
+# -Wconversion option will cause a warning like i += 1, so we strip this
+# warning option
+CFLAGS += -Wall -Wextra -Werror -Wbad-function-cast -Wpacked -Wpadded \
+	-Winit-self -Wswitch-default -Wtrampolines -Wdeclaration-after-statement \
+	-Wredundant-decls -Wnested-externs -Winline -Wstack-protector \
+	-Woverlength-strings -Wlogical-op -Waggregate-return \
+	-Wmissing-field-initializers -Wpointer-arith -Wcast-qual \
+	-Wcast-align -Wwrite-strings
+
+ifneq (, $(findstring -DSTACK_PROTECTOR, $(EVMM_CMPL_FLAGS)))
+CFLAGS += -fstack-protector-strong
 else
-LDFLAGS = -T core/linker.lds -pie -s -z max-page-size=4096 -z common-page-size=4096
+CFLAGS += -fno-stack-protector
 endif
 
-export CC = gcc
-export AS = gcc
-export LD = ld
-export AR = ar
+AFLAGS = -c -m64 $(EVMM_CMPL_FLAGS) -fPIC -static -nostdinc
+# treat warnings as errors
+AFLAGS += -Wa,--fatal-warnings
 
-XMON_ELF := xmon.elf
+export CFLAGS
+export AFLAGS
 
-include core/rule.linux
+.PHONY: lib vmm loader packer pack clean
 
-.PHONY: core api plugins loader $(XMON_ELF) dist clean distclean install uninstall
+all: pack
 
-TARGET := core
+vmm: lib
+	$(MAKE) -C $(PROJS)/vmm
 
-api_dir := $(findstring api, $(shell dir $(PROJS)))
-ifdef api_dir
-  XMON_CMPL_OPT_FLAGS += -DEXTERN_EVENT_HANDLER
-  TARGET += api
-endif  # api_dir
-
-plugin_dir := $(findstring plugins, $(shell dir $(PROJS)))
-ifdef plugin_dir
-  plugin_subdirs := $(sort $(subst /,,$(shell dir $(PROJS)/plugins)))
-  XMON_CMPL_OPT_FLAGS += -DPLUGIN_EXISTS
-  # Loader build (which produces the final ikgt_pkg.bin) is not included
-  # as it requires an xmon.elf which is built with a handler from plugin
-  # usage code and the plugin usage code is not a must component if one
-  # chooses to build just libraries: libmon.a, libapi.a, and libtmsl.a
-  TARGET += plugins
-endif  # plugin_dir
-
-TARGET += $(XMON_ELF) loader
-
-INSTALL      = install
-INSTALL_DIR  = $(INSTALL) -d -m 0755 -p
-INSTALL_DATA = $(INSTALL) -m 0644 -p
-INSTALL_PROG = $(INSTALL) -m 0755 -p
-IKGT_TARGET  = ikgt_pkg.bin
-IKGT_CONFIG  = ikgt.cfg
-
-# for dist targets
-ifdef DESTDIR
-DISTDIR = $(DESTDIR)
-else
-DISTDIR ?= /
-endif
-
-DESTDIR ?= $(PROJS)/dist
-
-export XMON_CMPL_OPT_FLAGS
-
-all: $(TARGET)
-
-core:
-	$(MAKE) -C $(PROJS)/core
-
-api:
-	$(MAKE) -C $(PROJS)/api
-
-plugins:
-	$(foreach D, $(plugin_subdirs), $(MAKE) -C $(PROJS)/plugins/$(D);)
-
-ifeq ($(call find_xmon_opt,EXTERN_EVENT_HANDLER),)
-xmon.elf:
-	$(LD) $(LDFLAGS) -o $(BINDIR)$@ $(wildcard $(OUTDIR)core/*.o)
-else
-ifeq ($(call find_xmon_opt,PLUGIN_EXISTS),)
-xmon.elf:
-	$(LD) $(LDFLAGS) -o $(BINDIR)$@ $(wildcard $(OUTDIR)core/*.o) $(wildcard $(OUTDIR)api/*.o)
-else
-ifeq ($(call find_xmon_opt,HANDLER_EXISTS),)
-xmon.elf:
-	$(LD) $(LDFLAGS) -o $(BINDIR)$@ $(wildcard $(OUTDIR)core/*.o) $(wildcard $(OUTDIR)api/*.o) $(wildcard $(OUTDIR)plugin/*.o)
-else
-xmon.elf:
-	$(LD) $(LDFLAGS) -o $(BINDIR)$@ $(wildcard $(OUTDIR)handler/*.o) $(wildcard $(OUTDIR)plugin/*.o) $(wildcard $(OUTDIR)core/*.o) $(wildcard $(OUTDIR)api/*.o)
-endif  # HANDLER_EXISTS
-endif  # PLUGIN_EXISTS
-endif  # EXTERN_EVENT_HANDLER
-
-loader:
+loader: lib
 	$(MAKE) -C $(PROJS)/loader
 
+packer:
+	$(MAKE) -C $(PROJS)/packer
+
+pack: vmm loader packer
+	$(MAKE) -C $(PROJS)/packer pack
+
+lib :
+	$(MAKE) -C $(PROJS)/lib
+
 clean:
-	-rm -rf $(OUTDIR)
-	-rm -rf $(BINDIR)
-	$(foreach D, $(plugin_subdirs), $(MAKE) -C $(PROJS)/plugins/$(D) clean;)
-	$(MAKE) -C $(PROJS)/loader clean
-
-dist: DISTDIR=$(DESTDIR)
-dist: install
-
-distclean:
-	rm -rf dist/
-
-install:
-	[ -d $(DISTDIR) ] || $(INSTALL_DIR) $(DISTDIR)
-	[ -d $(DISTDIR)/boot ] || $(INSTALL_DIR) $(DISTDIR)/boot
-	$(INSTALL_DATA) $(BINDIR)$(IKGT_TARGET) $(DISTDIR)/boot/$(IKGT_TARGET)
-	[ -d $(DISTDIR)/etc/grub.d ] || $(INSTALL_DIR) $(DISTDIR)/etc/grub.d
-	$(INSTALL) -m 755 -t $(DISTDIR)/etc/grub.d $(PROJS)/package/20*
-	[ -d $(DISTDIR)/etc/default/grub.d ] || $(INSTALL_DIR) $(DISTDIR)/etc/default/grub.d
-	$(INSTALL_DATA) $(PROJS)/package/$(IKGT_CONFIG) $(DISTDIR)/etc/default/grub.d/$(IKGT_CONFIG)
-	@if [ "x$(DISTDIR)" = "x/" ]; then \
-	if [ "`which grub2-mkconfig`" != "" ]; then \
-	grub2-mkconfig -o /boot/grub2/grub.cfg; \
-	elif [ "`which grub-mkconfig`" != "" ]; then \
-	grub-mkconfig -o /boot/grub/grub.cfg; \
-	else \
-	echo "ERROR: failed to find grub-mkconfig or grub2-mkconfig"; \
-	fi \
-	fi
-
-uninstall:
-	rm -rf /boot/$(IKGT_TARGET)
-	rm -rf /etc/grub.d/20_linux_ikgt*
-	rm -rf /etc/default/grub.d/ikgt*
-	@if [ "`which grub2-mkconfig`" != "" ]; then \
-	grub2-mkconfig -o /boot/grub2/grub.cfg; \
-	elif [ "`which grub-mkconfig`" != "" ]; then \
-	grub-mkconfig -o /boot/grub/grub.cfg; \
-	else \
-	echo "ERROR: failed to find grub-mkconfig or grub2-mkconfig"; \
-	fi
+	-rm -rf $(BUILD_DIR)
 
 # End of file
