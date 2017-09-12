@@ -35,7 +35,7 @@
 ** if want to support other level number, the code should be re-considered
 */
 
-struct mam_t{
+struct PACKED mam_t{
 	uint64_t* pml4_table;
 	mam_entry_ops_t * entry_ops;
 	vmm_lock_t lock;
