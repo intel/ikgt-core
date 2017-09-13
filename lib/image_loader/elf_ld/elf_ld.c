@@ -28,7 +28,7 @@
 
 static boolean_t
 elf_get_segment_info(const void *p_image,
-		     uint16_t segment_no, elf_segment_info_t *p_info)
+			 uint16_t segment_no, elf_segment_info_t *p_info)
 {
 	if (!elf_header_is_valid((const elf64_ehdr_t *)p_image))
 		return FALSE;

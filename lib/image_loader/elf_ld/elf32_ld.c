@@ -26,7 +26,7 @@
 //#define local_print(fmt, ...) printf(fmt, ##__VA_ARGS__)
 boolean_t
 elf32_get_segment_info(const elf32_ehdr_t *ehdr,
-		       uint16_t segment_no, elf_segment_info_t *p_info)
+				uint16_t segment_no, elf_segment_info_t *p_info)
 {
 	const uint8_t *phdrtab;
 	const elf32_phdr_t *phdr;
@@ -114,9 +114,9 @@ elf32_update_rela_section(uint32_t relocation_offset, elf32_dyn_t *dyn_section, 
 
 	/* handle DT_RELA tag: */
 	if ((NULL != rela)
-	    && rela_sz && (NULL != symtab)
-	    && (sizeof(elf32_rela_t) == rela_entsz)
-	    && (sizeof(elf32_sym_t) == symtab_entsz)) {
+		&& rela_sz && (NULL != symtab)
+		&& (sizeof(elf32_rela_t) == rela_entsz)
+		&& (sizeof(elf32_sym_t) == symtab_entsz)) {
 		for (i = 0; i < rela_sz / rela_entsz; ++i) {
 			uint32_t *target_addr =
 				(uint32_t *)(uint64_t)(rela[i].r_offset +
@@ -146,7 +146,7 @@ elf32_update_rela_section(uint32_t relocation_offset, elf32_dyn_t *dyn_section, 
 
 	/* handle DT_REL tag: */
 	if ((NULL != rel) && (NULL != symtab)
-	    && rel_sz && (sizeof(elf32_rel_t) == rel_entsz)) {
+		&& rel_sz && (sizeof(elf32_rel_t) == rel_entsz)) {
 		/* Only elf32_rela_t and elf64_rela_t entries contain an explicit addend.
 		 * Entries of type elf32_rel_t and elf64_rel_t store an implicit addend in
 		 * the location to be modified. Depending on the processor
@@ -244,7 +244,7 @@ elf32_load_executable(module_file_info_t *file_info, uint64_t *p_entry)
 	/* map Program Segment header Table to phdrtab */
 	phsize = ehdr->e_phnum * sizeof(elf32_phdr_t);
 	phdrtab = (uint8_t *)image_offset
-		    (file_info, (uint64_t)ehdr->e_phoff, (uint64_t)phsize);
+			(file_info, (uint64_t)ehdr->e_phoff, (uint64_t)phsize);
 	if (!phdrtab){
 		return FALSE;
 	}

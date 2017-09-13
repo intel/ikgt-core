@@ -26,7 +26,7 @@
 
 boolean_t
 elf64_get_segment_info(const elf64_ehdr_t *ehdr,
-		       uint16_t segment_no, elf_segment_info_t *p_info)
+				uint16_t segment_no, elf_segment_info_t *p_info)
 {
 	const uint8_t *phdrtab;
 	const elf64_phdr_t *phdr;
@@ -92,10 +92,10 @@ elf64_update_rela_section(uint16_t e_type, uint64_t relocation_offset, elf64_dyn
 	}
 
 	if (NULL == rela
-	    || 0 == rela_sz
-	    || NULL == symtab
-	    || sizeof(elf64_rela_t) != rela_entsz
-	    || sizeof(elf64_sym_t) != symtab_entsz) {
+		|| 0 == rela_sz
+		|| NULL == symtab
+		|| sizeof(elf64_rela_t) != rela_entsz
+		|| sizeof(elf64_sym_t) != symtab_entsz) {
 
 		if (e_type == ET_DYN) {
 			local_print("for DYN type relocation section is optional\n");
@@ -190,7 +190,7 @@ elf64_load_executable(module_file_info_t *file_info, uint64_t *p_entry)
 	/* map Program Segment header Table to phdrtab */
 	phsize = ehdr->e_phnum * sizeof(elf64_phdr_t);
 	phdrtab = (uint8_t *)image_offset(file_info, (uint64_t)ehdr->e_phoff,
-		    (uint64_t)phsize);
+			(uint64_t)phsize);
 	if (!phdrtab){
 		return FALSE;
 	}
@@ -288,7 +288,7 @@ elf64_load_executable(module_file_info_t *file_info, uint64_t *p_entry)
 
 	if (NULL != phdr_dyn) {
 		dyn_section = (elf64_dyn_t *)image_offset
-		   (file_info, (uint64_t)phdr_dyn->p_offset, (uint64_t)phdr_dyn->p_filesz);
+			(file_info, (uint64_t)phdr_dyn->p_offset, (uint64_t)phdr_dyn->p_filesz);
 		if (!elf64_update_rela_section(ehdr->e_type, relocation_offset, dyn_section, phdr_dyn->p_filesz))
 			return FALSE;
 	}

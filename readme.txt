@@ -50,7 +50,7 @@ Config files
 		Description: Optional, in some platform, it is must have. It can be got from kernel log, eg. "[    0.000000] tsc: Detected 1881.600 MHz processor". TSC_PER_MS is defined in KHz.
 	- CPU_NUM
 		Description: Optional (if you don't know the value, or it should be calculated dynamically, you should remove it). It is the number of the cpus in your board.
-			     When it is defined, it must be equal to MAX_CPU_NUM.
+					 When it is defined, it must be equal to MAX_CPU_NUM.
 	- LOADER_STAGE0_SUB
 		Description: Must have. it specifies which stage0 is used.
 	- EPT_POLICY

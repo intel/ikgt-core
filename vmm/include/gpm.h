@@ -54,9 +54,9 @@ void gpm_set_mapping(IN guest_handle_t guest,
  *  Return Value: TRUE in case the mapping successful (it exists).
  *------------------------------------------------------------------------- */
 boolean_t gpm_gpa_to_hpa(IN guest_handle_t guest,
-			     IN uint64_t gpa,
-			     OUT uint64_t *p_hpa,
-			     OUT ept_attr_t *p_attr);
+				 IN uint64_t gpa,
+				 OUT uint64_t *p_hpa,
+				 OUT ept_attr_t *p_attr);
 
 /*-------------------------------------------------------------------------
  * Function: gpm_gpa_to_hva

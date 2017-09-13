@@ -331,8 +331,8 @@ static void msr_mtrrs_monitor(uint16_t guest_id)
 
 	/* Variable range MTRRs */
 	for (msr_addr = MSR_MTRR_PHYSBASE0, i = 0;
-	     i < MTRRCAP_VCNT(asm_rdmsr(MSR_MTRRCAP));
-	     msr_addr += 2, i++) {
+		i < MTRRCAP_VCNT(asm_rdmsr(MSR_MTRRCAP));
+		msr_addr += 2, i++) {
 
 		/* Register all MTRR PHYSBASE */
 		monitor_msr_write(guest_id, msr_addr, msr_mtrr_write_handler);

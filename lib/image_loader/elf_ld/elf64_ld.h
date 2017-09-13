@@ -116,7 +116,7 @@ typedef struct {
 	uint64_t	st_size;        /* Size of associated object. */
 } elf64_sym_t;
 boolean_t elf64_get_segment_info(const elf64_ehdr_t *ehdr,
-		       uint16_t segment_no, elf_segment_info_t *p_info);
+				uint16_t segment_no, elf_segment_info_t *p_info);
 boolean_t elf64_load_executable(module_file_info_t *p_info, uint64_t *p_entry);
 
 

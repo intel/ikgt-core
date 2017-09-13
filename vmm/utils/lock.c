@@ -44,8 +44,8 @@ void lock_acquire_read(vmm_lock_t *lock)
 			D(VMM_ASSERT(lock->count[host_cpu_id()] == 0));
 			asm_pause();
 		}else if (orig_value == asm_lock_cmpxchg32((&lock->uint32_lock),
-			    new_value,
-			    orig_value)) {
+				new_value,
+				orig_value)) {
 			break;
 		}
 	}

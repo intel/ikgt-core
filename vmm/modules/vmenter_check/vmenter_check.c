@@ -40,15 +40,15 @@
 #define MSR_DEBUGCTL_FREEZE_WHILE_SMM_EN   (1ull << 14)
 #define MSR_DEBUGCTL_RESERVED                                           \
 	~(MSR_DEBUGCTL_LBR                                                  \
-	  | MSR_DEBUGCTL_BTF                                                \
-	  | MSR_DEBUGCTL_TR                                                 \
-	  | MSR_DEBUGCTL_BTS                                                \
-	  | MSR_DEBUGCTL_BTINT                                              \
-	  | MSR_DEBUGCTL_BTS_OFF_OS                                         \
-	  | MSR_DEBUGCTL_BTS_OFF_USR                                        \
-	  | MSR_DEBUGCTL_FREEZE_LBRS_ON_PMI                                 \
-	  | MSR_DEBUGCTL_FREEZE_PERFMON_ON_PMI                              \
-	  | MSR_DEBUGCTL_FREEZE_WHILE_SMM_EN)
+	| MSR_DEBUGCTL_BTF                                                \
+	| MSR_DEBUGCTL_TR                                                 \
+	| MSR_DEBUGCTL_BTS                                                \
+	| MSR_DEBUGCTL_BTINT                                              \
+	| MSR_DEBUGCTL_BTS_OFF_OS                                         \
+	| MSR_DEBUGCTL_BTS_OFF_USR                                        \
+	| MSR_DEBUGCTL_FREEZE_LBRS_ON_PMI                                 \
+	| MSR_DEBUGCTL_FREEZE_PERFMON_ON_PMI                              \
+	| MSR_DEBUGCTL_FREEZE_WHILE_SMM_EN)
 
 #define MSR_PERF_GLOBAL_CTRL_PMC0          (1ull << 0)
 #define MSR_PERF_GLOBAL_CTRL_PMC1          (1ull << 1)

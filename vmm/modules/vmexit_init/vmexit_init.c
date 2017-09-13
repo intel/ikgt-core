@@ -26,8 +26,8 @@ static void vmexit_init_event(guest_cpu_handle_t gcpu)
 	uint16_t cpu_id = host_cpu_id();
 
 	/* comment out all the debug logs in this handler, otherwise it
-	   causes the subsequent SIPI signal loss.
-	*/
+	 * causes the subsequent SIPI signal loss.
+	 */
 	/*
 	print_trace(
 		"INIT signal in Guest#%d GuestCPU#%d HostCPU#%d\n",

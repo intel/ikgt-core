@@ -51,7 +51,7 @@ static int append_buf_to_file(FILE *f, const void *input_buf, uint32_t input_buf
 {
 	fwrite(input_buf, input_buf_len, 1, f);
 	if (ferror(f) != 0 ||
-	    feof(f) != 0) {
+		feof(f) != 0) {
 		printf("!ERROR(packer): failed to append %d bytes\r\n",
 			(uint32_t)input_buf_len);
 		return -1;
@@ -84,7 +84,7 @@ static void *read_file_to_buf(const char *fname, uint32_t buf_size)
 
 	fread(pbuf, buf_size, 1, f);
 	if (ferror(f) != 0 ||
-	    feof(f) != 0) {
+		feof(f) != 0) {
 		printf("!ERROR(packer): failed to read %d bytes in file %s\r\n",
 			buf_size,
 			fname);
