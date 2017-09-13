@@ -69,27 +69,32 @@ typedef enum {
 	VMCS_HOST_IDTR_BASE,
 	VMCS_HOST_RSP,
 	VMCS_HOST_RIP,
-	VMCS_HOST_SYSENTER_CS,
-	VMCS_HOST_SYSENTER_ESP,
-	VMCS_HOST_SYSENTER_EIP,
 	VMCS_HOST_PAT,
 	VMCS_HOST_EFER,
 	VMCS_HOST_PERF_G_CTRL,
-	VMCS_EXIT_MSR_STORE_COUNT,// = VMCS_INIT_TO_ZERO_FISRT
-	VMCS_EXIT_MSR_STORE_ADDR,
-	VMCS_EXIT_MSR_LOAD_COUNT,
-	VMCS_EXIT_MSR_LOAD_ADDR,
-	VMCS_ENTRY_MSR_LOAD_COUNT,
-	VMCS_ENTRY_MSR_LOAD_ADDR,
-	VMCS_EXCEPTION_BITMAP,
-	VMCS_CR3_TARGET_COUNT,
+	VMCS_EXIT_MSR_STORE_COUNT,     // init as 0 (see dirty_bitmap in vmcs_create)
+	                               // = VMCS_INIT_TO_ZERO_FISRT
+	VMCS_EXIT_MSR_STORE_ADDR,      // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_EXIT_MSR_LOAD_COUNT,      // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_EXIT_MSR_LOAD_ADDR,       // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_ENTRY_MSR_LOAD_COUNT,     // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_ENTRY_MSR_LOAD_ADDR,      // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_EXCEPTION_BITMAP,         // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_HOST_SYSENTER_CS,         // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_HOST_SYSENTER_ESP,        // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_HOST_SYSENTER_EIP,        // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_CR3_TARGET_COUNT,         // init as 0 (see dirty_bitmap in vmcs_create)
 	/*SW rw, CPU rw*/
-	VMCS_ENTRY_INTR_INFO,// = VMCS_ALWAYS_VALID_COUNT
-	VMCS_ENTRY_ERR_CODE,// = VMCS_INIT_TO_ZERO_LAST
+	VMCS_ENTRY_INTR_INFO,          // init as 0 (see dirty_bitmap in vmcs_create)
+	                               // = VMCS_ALWAYS_VALID_COUNT
+	VMCS_GUEST_DBGCTL,             // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_GUEST_INTERRUPTIBILITY,   // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_GUEST_PEND_DBG_EXCEPTION, // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_ENTRY_ERR_CODE,           // init as 0 (see dirty_bitmap in vmcs_create)
+	                               // = VMCS_INIT_TO_ZERO_LAST
 	VMCS_ENTRY_CTRL,
 	VMCS_ENTRY_INSTR_LEN,
 	VMCS_PREEMPTION_TIMER,
-	VMCS_GUEST_DBGCTL,
 	VMCS_GUEST_PAT,
 	VMCS_GUEST_EFER,
 	VMCS_GUEST_PERF_G_CTRL,
@@ -105,7 +110,6 @@ typedef enum {
 	VMCS_GUEST_GDTR_LIMIT,
 	VMCS_GUEST_IDTR_BASE,
 	VMCS_GUEST_IDTR_LIMIT,
-	VMCS_GUEST_INTERRUPTIBILITY,
 	VMCS_GUEST_ACTIVITY_STATE,
 	VMCS_GUEST_SYSENTER_CS,
 	VMCS_GUEST_SYSENTER_ESP,
@@ -145,7 +149,6 @@ typedef enum {
 	VMCS_GUEST_RSP,
 	VMCS_GUEST_RIP,
 	VMCS_GUEST_RFLAGS,
-	VMCS_GUEST_PEND_DBG_EXCEPTION,
 	/*SW readonly, CPU writable*/
 	VMCS_GUEST_PHY_ADDR,
 	VMCS_GUEST_LINEAR_ADDR,
