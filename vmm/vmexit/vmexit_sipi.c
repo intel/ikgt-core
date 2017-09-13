@@ -68,8 +68,6 @@ void vmexit_sipi_event(guest_cpu_handle_t gcpu)
 
 		vmcs_write(gcpu->vmcs, VMCS_GUEST_ACTIVITY_STATE,
 				ACTIVITY_STATE_ACTIVE);
-		/* set state in vmenter control fields */
-		gcpu_set_vmenter_control(gcpu);
 	} while (0);
 
 	print_trace("sipi vector=0x%x, selector=0x%x, base=0x%x\n",
