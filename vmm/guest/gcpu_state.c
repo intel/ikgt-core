@@ -37,7 +37,6 @@ void gcpu_set_host_state(guest_cpu_handle_t gcpu)
 	idtr64_t idtr;
 	uint64_t gcpu_stack;
 	uint16_t cpu;
-	uint32_t exit_controls;
 
 	D(VMM_ASSERT(gcpu));
 
@@ -51,6 +50,11 @@ void gcpu_set_host_state(guest_cpu_handle_t gcpu)
 	vmcs_write(vmcs, VMCS_HOST_CR0, asm_get_cr0());
 	vmcs_write(vmcs, VMCS_HOST_CR3, asm_get_cr3());
 	vmcs_write(vmcs, VMCS_HOST_CR4, asm_get_cr4());
+
+	if (get_exitctl_cap(NULL) & EXIT_LOAD_IA32_PERF_CTRL)
+	{
+		vmcs_write(vmcs, VMCS_HOST_PERF_G_CTRL, 0);
+	}
 
 	/*
 	 *  EIP, ESP
@@ -105,17 +109,11 @@ void gcpu_set_host_state(guest_cpu_handle_t gcpu)
 	/*
 	 *  MSRS
 	 */
-	vmcs_write(vmcs, VMCS_HOST_SYSENTER_CS,0);
-	vmcs_write(vmcs, VMCS_HOST_SYSENTER_ESP,0);
-	vmcs_write(vmcs, VMCS_HOST_SYSENTER_EIP,0);
 
 	//EXIT_LOAD_IA32_EFER support is checked in vmx_cap_init()
 	vmcs_write(vmcs, VMCS_HOST_EFER,asm_rdmsr(MSR_EFER));
 	//EXIT_LOAD_IA32_PAT support is checked in vmx_cap_init()
 	vmcs_write(vmcs, VMCS_HOST_PAT, asm_rdmsr(MSR_PAT));
-
-	exit_controls = (uint32_t)vmcs_read(vmcs, VMCS_EXIT_CTRL);
-	vmcs_write(vmcs, VMCS_EXIT_CTRL, exit_controls);
 }
 
 void gcpu_set_ctrl_state(guest_cpu_handle_t gcpu)
@@ -145,19 +143,6 @@ void gcpu_set_ctrl_state(guest_cpu_handle_t gcpu)
 		vmcs_write(vmcs, VMCS_XSS_EXIT_BITMAP, 0);
 	}
 
-	vmcs_write(vmcs, VMCS_GUEST_DBGCTL, 0);
-	vmcs_write(vmcs, VMCS_GUEST_DR7, 0x00000400);
-
-	if (get_entryctl_cap(NULL) & ENTRY_LOAD_IA32_PERF_CTRL)
-	{
-		vmcs_write(vmcs, VMCS_GUEST_PERF_G_CTRL, 0);
-	}
-
-	if (get_exitctl_cap(NULL) & EXIT_LOAD_IA32_PERF_CTRL)
-	{
-		vmcs_write(vmcs, VMCS_HOST_PERF_G_CTRL, 0);
-	}
-
 	if (get_proctl2_cap(NULL) & PROC2_ENABLEC_VPID)
 	{
 		// The values of VMCS_VPID start from 1
@@ -168,10 +153,6 @@ void gcpu_set_ctrl_state(guest_cpu_handle_t gcpu)
 	vmcs_write(vmcs, VMCS_MSR_BITMAP, stack_get_zero_page());
 
 	vmcs_write(vmcs, VMCS_LINK_PTR, (uint64_t)-1);
-
-	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_CS, 0);
-	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_ESP, 0);
-	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_EIP, 0);
 }
 
 /*
@@ -185,15 +166,7 @@ void gcpu_set_init_state(guest_cpu_handle_t gcpu, const gcpu_state_t *initial_st
 	vmcs_obj_t vmcs;
 
 	D(VMM_ASSERT(gcpu));
-
-	if (!initial_state) {
-		return;
-	}
-
-	/* init gp registers */
-	for (idx = REG_RAX; idx < REG_GP_COUNT; ++idx)
-		gcpu_set_gp_reg(gcpu, (gp_reg_t)idx,
-			initial_state->gp_reg[idx]);
+	D(VMM_ASSERT(initial_state));
 
 	/* init segment registers */
 	for (idx = SEG_CS; idx < SEG_COUNT; ++idx) {
@@ -204,7 +177,19 @@ void gcpu_set_init_state(guest_cpu_handle_t gcpu, const gcpu_state_t *initial_st
 			initial_state->segment[idx].attributes);
 	}
 
+	/* init gp registers */
+	for (idx = REG_RAX; idx < REG_GP_COUNT; ++idx)
+		gcpu_set_gp_reg(gcpu, (gp_reg_t)idx,
+			initial_state->gp_reg[idx]);
+
 	vmcs = gcpu->vmcs;
+
+	vmcs_write(vmcs, VMCS_GUEST_DR7, 0x00000400);
+
+	if (get_entryctl_cap(NULL) & ENTRY_LOAD_IA32_PERF_CTRL)
+	{
+		vmcs_write(vmcs, VMCS_GUEST_PERF_G_CTRL, 0);
+	}
 
 	/* init RSP and RFLAGS */
 	vmcs_write(vmcs, VMCS_GUEST_RIP, initial_state->rip);
@@ -224,13 +209,10 @@ void gcpu_set_init_state(guest_cpu_handle_t gcpu, const gcpu_state_t *initial_st
 
 	/* init selected model-specific registers */
 	vmcs_write(vmcs, VMCS_GUEST_EFER, initial_state->msr_efer);
+	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_CS, 0);
 	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_ESP, 0);
 	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_EIP, 0);
-	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_CS, 0);
 	vmcs_write(vmcs, VMCS_GUEST_PAT, asm_rdmsr(MSR_PAT));
-
-	vmcs_write(vmcs, VMCS_GUEST_PEND_DBG_EXCEPTION, 0);
-	vmcs_write(vmcs, VMCS_GUEST_INTERRUPTIBILITY, 0);
 
 	/* set cached value to the same in order not to trigger events */
 	vmcs_write(vmcs, VMCS_GUEST_ACTIVITY_STATE,
@@ -249,16 +231,8 @@ void gcpu_set_reset_state(guest_cpu_handle_t gcpu)
 
 	D(VMM_ASSERT(gcpu));
 	vmcs = gcpu->vmcs;
-	/*------------------ Set Control Registers ------------------*/
-
-	vmcs_write(vmcs, VMCS_GUEST_CR0, 0x60000010);
-	cr0_guest_write(gcpu, 0x60000010);
-	vmcs_write(vmcs, VMCS_GUEST_CR3, 0);
-	vmcs_write(vmcs, VMCS_GUEST_CR4, 0);
-	cr4_guest_write(gcpu, 0);
 	/*------------------ Set Segment Registers ------------------*/
 	/* Attribute set bits: Present, R/W, Accessed */
-
 	gcpu_set_seg(gcpu, SEG_CS,
 				0xF000, 0xFFFF0000, 0xFFFF, 0x9B);
 	gcpu_set_seg(gcpu, SEG_DS, 0, 0, 0xFFFF, 0x93);
@@ -271,14 +245,6 @@ void gcpu_set_reset_state(guest_cpu_handle_t gcpu)
 	gcpu_set_seg(gcpu, SEG_TR, 0, 0, 0xFFFF, 0x8B);
 	gcpu_set_seg(gcpu, SEG_LDTR, 0, 0, 0xFFFF, 0x82);
 
-	/*------------------ Set Memory Mgmt Registers ------------------*/
-
-	vmcs_write(vmcs, VMCS_GUEST_GDTR_BASE, 0xFFFF);
-	vmcs_write(vmcs, VMCS_GUEST_GDTR_LIMIT, 0xFFFF);
-
-	vmcs_write(vmcs, VMCS_GUEST_IDTR_BASE, 0xFFFF);
-	vmcs_write(vmcs, VMCS_GUEST_IDTR_LIMIT, 0xFFFF);
-
 	/*------------------ Set General Purpose Registers ------------------*/
 	gcpu_set_gp_reg(gcpu, REG_RAX, 0);
 	gcpu_set_gp_reg(gcpu, REG_RBX, 0);
@@ -288,19 +254,45 @@ void gcpu_set_reset_state(guest_cpu_handle_t gcpu)
 	gcpu_set_gp_reg(gcpu, REG_RSI, 0);
 	gcpu_set_gp_reg(gcpu, REG_RBP, 0);
 	gcpu_set_gp_reg(gcpu, REG_RSP, 0);
+
+	vmcs_write(vmcs, VMCS_GUEST_DR7, 0x00000400);
+
+	if (get_entryctl_cap(NULL) & ENTRY_LOAD_IA32_PERF_CTRL)
+	{
+		vmcs_write(vmcs, VMCS_GUEST_PERF_G_CTRL, 0);
+	}
+
+	/* init RSP and RFLAGS */
 	vmcs_write(vmcs, VMCS_GUEST_RIP, 0xFFF0);
 	vmcs_write(vmcs, VMCS_GUEST_RFLAGS, 2);
 
-	/* Put guest CPU into the WAIT-FOR-SIPI state */
-	/*  wait-for-SIPI support is checked in vmx_cap_init() */
-	vmcs_write(vmcs, VMCS_GUEST_ACTIVITY_STATE,
-			ACTIVITY_STATE_WAIT_FOR_SIPI);
+	/*------------------ Set Control Registers ------------------*/
+	vmcs_write(vmcs, VMCS_GUEST_CR0, 0x60000010);
+	cr0_guest_write(gcpu, 0x60000010);
+	vmcs_write(vmcs, VMCS_GUEST_CR3, 0);
+	vmcs_write(vmcs, VMCS_GUEST_CR4, 0);
+	cr4_guest_write(gcpu, 0);
+
+	/*------------------ Set Memory Mgmt Registers ------------------*/
+	vmcs_write(vmcs, VMCS_GUEST_GDTR_BASE, 0xFFFF);
+	vmcs_write(vmcs, VMCS_GUEST_GDTR_LIMIT, 0xFFFF);
+
+	vmcs_write(vmcs, VMCS_GUEST_IDTR_BASE, 0xFFFF);
+	vmcs_write(vmcs, VMCS_GUEST_IDTR_LIMIT, 0xFFFF);
 
 	/*
 	 * According to IA32 Manual, MSR state are left unchanged during a INIT
 	 */
 	vmcs_write(vmcs, VMCS_GUEST_EFER, 0);
+	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_CS, 0);
+	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_ESP, 0);
+	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_EIP, 0);
 	vmcs_write(vmcs, VMCS_GUEST_PAT, asm_rdmsr(MSR_PAT));
+
+	/* Put guest CPU into the WAIT-FOR-SIPI state */
+	/*  wait-for-SIPI support is checked in vmx_cap_init() */
+	vmcs_write(vmcs, VMCS_GUEST_ACTIVITY_STATE,
+			ACTIVITY_STATE_WAIT_FOR_SIPI);
 	gcpu_set_vmenter_control(gcpu);
 }
 
