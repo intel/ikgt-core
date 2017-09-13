@@ -465,7 +465,7 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 }
 
 void vmm_main(uint32_t cpuid,
-		    uint64_t evmm_desc_u)
+			uint64_t evmm_desc_u)
 {
 	evmm_desc_t *evmm_desc = (evmm_desc_t *) evmm_desc_u;
 	uint64_t new_stack_pointer = 0;

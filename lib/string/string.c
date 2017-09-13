@@ -61,20 +61,20 @@ static uint32_t to_digit(char character, uint32_t base)
  */
 uint32_t strnlen_s (const char *str, uint32_t maxlen)
 {
-    uint32_t count;
+	uint32_t count;
 
-    if (str == NULL) {
-        return 0;
-    }
+	if (str == NULL) {
+		return 0;
+	}
 
-    count = 0;
-    while (*str && maxlen) {
-        count++;
-        maxlen--;
-        str++;
-    }
+	count = 0;
+	while (*str && maxlen) {
+		count++;
+		maxlen--;
+		str++;
+	}
 
-    return count;
+	return count;
 }
 
 /*
@@ -169,9 +169,9 @@ uint32_t str2uint(const char *str, uint32_t maxlen, const char **endptr, uint32_
 
 	/* skip 0x/0X */
 	if ((base == 16) &&
-	    (maxlen >= 2) &&
-	    (str[0] == '0') &&
-	    (TOLOWER(str[1]) == 'x')) {
+		(maxlen >= 2) &&
+		(str[0] == '0') &&
+		(TOLOWER(str[1]) == 'x')) {
 		str += 2;
 		maxlen -= 2;
 	}

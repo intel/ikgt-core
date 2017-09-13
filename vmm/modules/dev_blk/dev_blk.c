@@ -84,7 +84,7 @@ typedef struct pci_block_guest {
 
 typedef struct {
 	acpi_table_header_t	header;
-  	uint64_t		reserved_1;
+	uint64_t		reserved_1;
 	uint64_t		mmcfg_base_addr;
 	uint16_t		pci_segment_num;
 	uint8_t			start_bus_num;

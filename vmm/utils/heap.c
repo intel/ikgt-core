@@ -94,7 +94,7 @@ static void vmm_heap_show(void)
 }
 
 void vmm_heap_initialize(IN uint64_t heap_buffer_address,
-			      IN uint64_t heap_buffer_size)
+				  IN uint64_t heap_buffer_size)
 {
 	uint64_t unaligned_heap_base;
 	uint32_t number_of_pages;
@@ -521,7 +521,7 @@ static void pool_free_node(pool_node_t * node)
 	}
 
 	if (node->prev != NULL) {
-	      node->prev->next = node->next;
+			node->prev->next = node->next;
 	} else {
 		pool_head = node->next;
 	}
@@ -593,9 +593,9 @@ static void pool_free(void *ptr)
 	/* check if the next to the last freed block is available */
 	/* and if so merge both regions */
 	if (id_to < POOL_BLOCK_NUM_IN_NODE &&
-	    1 == BITARRAY_GET(&node->status_array[0], id_to) &&
-	    (id_to + node->cont_num_array[id_to]) <=
-	    POOL_BLOCK_NUM_IN_NODE) {
+		1 == BITARRAY_GET(&node->status_array[0], id_to) &&
+		(id_to + node->cont_num_array[id_to]) <=
+		POOL_BLOCK_NUM_IN_NODE) {
 		/* merge the following available blocks */
 		blocks_to_free += node->cont_num_array[id_to];
 		/* NOTE: id_to is not changed here
@@ -604,8 +604,8 @@ static void pool_free(void *ptr)
 
 	/* move backward, to merge all previous available blocks, trying to prevent fragmentation */
 	if (id_from > 0 &&
-	       1 == BITARRAY_GET(&node->status_array[0], (id_from - 1)) &&
-	       0 != node->cont_num_array[id_from - 1]) {
+		1 == BITARRAY_GET(&node->status_array[0], (id_from - 1)) &&
+		0 != node->cont_num_array[id_from - 1]) {
 		buf = (uint32_t *)&node->block[id_from - 1];
 		/* merge the previous available blocks*/
 		blocks_to_free += *buf;

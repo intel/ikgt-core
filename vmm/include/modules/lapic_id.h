@@ -24,7 +24,7 @@
 #include "vmm_base.h"
 
 /*IA32 spec, volume3, chapter 10 APIC->Local APIC->Local APIC ID
-  Local APIC ID usually not be changed*/
+ *Local APIC ID usually not be changed*/
 uint32_t get_lapic_id(uint16_t hcpu);
 
 // need to be called for all cpus

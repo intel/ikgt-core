@@ -70,7 +70,7 @@ extern uint64_t isr_entries_end;
 *  RETURNS      : void
 *-------------------------------------------------------*/
 static void idt_register_handler(uint8_t vector_id,
-			     uint64_t isr_handler_address)
+				 uint64_t isr_handler_address)
 {
 	/* fill IDT entries with it */
 	idt[vector_id].offset_0_15 =

@@ -67,11 +67,11 @@ typedef struct {
 #define IS_SOFTWARE_VECTOR(vec) \
 	( \
 		((vec.bits.interrupt_type == \
-		  VECTOR_TYPE_SW_INT) || \
+			VECTOR_TYPE_SW_INT) || \
 		 (vec.bits.interrupt_type == \
-		  VECTOR_TYPE_PRI_SW_INT) || \
+			VECTOR_TYPE_PRI_SW_INT) || \
 		 (vec.bits.interrupt_type == \
-		  VECTOR_TYPE_SW_EXCEPTION) \
+			VECTOR_TYPE_SW_EXCEPTION) \
 		) \
 	)
 
@@ -1022,7 +1022,7 @@ static void load_general_regs(guest_cpu_handle_t gcpu, tss32_t *new_tss)
 	/* Load new flags. */
 	ts_src = get_task_switch_source(gcpu);
 	if ((ts_src == TASK_SWITCH_TYPE_CALL) ||
-	    (ts_src == TASK_SWITCH_TYPE_IDT)) {
+		(ts_src == TASK_SWITCH_TYPE_IDT)) {
 		new_tss->eflags |= RFLAGS_NT;
 	}
 

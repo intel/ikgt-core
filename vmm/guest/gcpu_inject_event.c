@@ -133,7 +133,7 @@ void gcpu_check_nmi_iret(guest_cpu_handle_t gcpu)
 			if (!interrupt_info.bits.valid)
 				return;
 			if ((interrupt_info.bits.interrupt_type == VECTOR_TYPE_HW_EXCEPTION) &&
-			    (interrupt_info.bits.vector == EXCEPTION_DF))
+				(interrupt_info.bits.vector == EXCEPTION_DF))
 				return;
 			uint32 = interrupt_info.uint32;
 			break;

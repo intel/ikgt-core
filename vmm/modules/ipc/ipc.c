@@ -305,7 +305,7 @@ void ipc_exec_on_host_cpu(uint16_t hcpu_id, ipc_func_t func, void* arg)
 	mask = ipc_setup_func(func, arg);
 	asm_lock_or32(&(g_ipc_data->request[hcpu_id]), mask);
 	/*IA32 spec, volume3, chapter 10 APIC->Local APIC->Local APIC ID
-	  Local APIC ID usually not be changed*/
+	 *Local APIC ID usually not be changed */
 	VMM_ASSERT_EX(send_nmi(get_lapic_id(hcpu_id)), "%s(): send_nmi to hcpu%d failed\n", __FUNCTION__, hcpu_id);
 	VMM_ASSERT_EX(send_startup(get_lapic_id(hcpu_id), 0xff), "%s():send startup failed to hcpu%d\n", __FUNCTION__, hcpu_id); // use 0xff as an indicator
 }

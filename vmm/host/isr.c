@@ -97,7 +97,7 @@ void isr_c_handler(IN isr_parameters_on_stack_t *p_stack)
 *  RETURNS      : void
 *-------------------------------------------------------*/
 static void isr_register_handler(IN isr_handler_t handler,
-			  IN uint8_t vector_id)
+				IN uint8_t vector_id)
 {
 	D(VMM_ASSERT(vector_id < EXCEPTION_COUNT));
 

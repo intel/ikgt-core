@@ -29,7 +29,7 @@
 *  RETURNS  : void
 *-------------------------------------------------------*/
 void vmm_heap_initialize(IN uint64_t heap_base_address,
-			      IN uint64_t heap_size);
+				  IN uint64_t heap_size);
 
 /*-------------------------------------------------------*
 *  FUNCTION : page_alloc()

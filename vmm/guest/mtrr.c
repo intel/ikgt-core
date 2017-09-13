@@ -57,8 +57,8 @@ static cache_type_t mtrr_get_fixed_range_memtype(IN uint64_t addr, OUT uint64_t 
 
 	/* Fixed Range */
 	if (!((mtrrcap_reg & MTRRCAP_FIX_SUPPORTED) &&
-	    (mtrr_def_type & MTRR_FIX_ENABLE) &&
-	    addr <= MTRR_FIXED_MAX)) {
+		(mtrr_def_type & MTRR_FIX_ENABLE) &&
+		addr <= MTRR_FIXED_MAX)) {
 		return CACHE_TYPE_UNDEFINED;
 	}
 
@@ -176,7 +176,7 @@ static cache_type_t caculate_mem_type(cache_type_t type, cache_type_t type_prev)
 	if (type_prev == CACHE_TYPE_UNDEFINED)
 		return type;
 	if (((type == CACHE_TYPE_WT) && (type_prev == CACHE_TYPE_WB)) ||
-	    ((type == CACHE_TYPE_WB) && (type_prev == CACHE_TYPE_WT)))
+		((type == CACHE_TYPE_WB) && (type_prev == CACHE_TYPE_WT)))
 		return CACHE_TYPE_WT;
 
 	/* For overlaps not defined by the above rules, processor behavior
@@ -304,7 +304,7 @@ void mtrr_init(void)
 		}
 
 		/* Note: mtrr_ptr will never be NULL because mtrr_init() will be called only
-                 *       once. Check below is to pass the static code scan. */
+		 *       once. Check below is to pass the static code scan. */
 		if (!mtrr_ptr)
 			break;
 
@@ -349,7 +349,7 @@ static void print_mtrr()
 	}
 
 	if ((mtrrcap_reg & MTRRCAP_FIX_SUPPORTED) &&
-	    (mtrr_def_type & MTRR_FIX_ENABLE)) {
+		(mtrr_def_type & MTRR_FIX_ENABLE)) {
 		print_info("\nMTRR FIXED Range:\n");
 		print_info("MTRR_FIX64K: 0x%08llx\n", asm_rdmsr(MSR_MTRR_FIX64K_00000));
 		print_info("MTRR_FIX16K: 0x%08llx\n", asm_rdmsr(MSR_MTRR_FIX16K_80000));
@@ -386,8 +386,8 @@ static void mtrr_bsp_save(void)
 	VMM_ASSERT(vcnt <= MTRR_NUM_OF_VAR);
 
 	if ((bsp_mtrrcap_reg & MTRRCAP_FIX_SUPPORTED) &&
-	    (bsp_mtrr_def_type & MTRR_ENABLE) &&
-	    (bsp_mtrr_def_type & MTRR_FIX_ENABLE)) {
+		(bsp_mtrr_def_type & MTRR_ENABLE) &&
+		(bsp_mtrr_def_type & MTRR_FIX_ENABLE)) {
 		bsp_mtrr_fixed_range[0] = asm_rdmsr(MSR_MTRR_FIX64K_00000);
 		bsp_mtrr_fixed_range[1] = asm_rdmsr(MSR_MTRR_FIX16K_80000);
 		bsp_mtrr_fixed_range[2] = asm_rdmsr(MSR_MTRR_FIX16K_A0000);
@@ -424,8 +424,8 @@ static void mtrr_ap_check(void)
 	VMM_ASSERT(bsp_mtrr_def_type == asm_rdmsr(MSR_MTRR_DEF_TYPE));
 
 	if ((bsp_mtrrcap_reg & MTRRCAP_FIX_SUPPORTED) &&
-	    (bsp_mtrr_def_type & MTRR_ENABLE) &&
-	    (bsp_mtrr_def_type & MTRR_FIX_ENABLE)) {
+		(bsp_mtrr_def_type & MTRR_ENABLE) &&
+		(bsp_mtrr_def_type & MTRR_FIX_ENABLE)) {
 		VMM_ASSERT(bsp_mtrr_fixed_range[0] == asm_rdmsr(MSR_MTRR_FIX64K_00000));
 		VMM_ASSERT(bsp_mtrr_fixed_range[1] == asm_rdmsr(MSR_MTRR_FIX16K_80000));
 		VMM_ASSERT(bsp_mtrr_fixed_range[2] == asm_rdmsr(MSR_MTRR_FIX16K_A0000));

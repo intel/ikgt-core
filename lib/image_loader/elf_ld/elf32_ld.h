@@ -116,7 +116,7 @@ typedef struct {
 } elf32_sym_t;
 
 boolean_t elf32_get_segment_info(const elf32_ehdr_t *ehdr,
-		       uint16_t segment_no, elf_segment_info_t *p_info);
+				uint16_t segment_no, elf_segment_info_t *p_info);
 boolean_t elf32_load_executable(module_file_info_t *p_info, uint64_t *p_entry);
 
 #endif                          /* _ELF32_LD_H_ */

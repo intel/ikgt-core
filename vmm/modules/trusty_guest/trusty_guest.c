@@ -302,7 +302,7 @@ static void ipc_sg_handler(guest_cpu_handle_t gcpu, void *arg)
 	guest_cpu_handle_t next_gcpu = gcpu;
 
 	if (gcpu->guest->id == 0)
-	    next_gcpu = gcpu->next_same_host_cpu;
+		next_gcpu = gcpu->next_same_host_cpu;
 
 	gcpu_set_pending_intr(next_gcpu, LK_RESCH);
 }

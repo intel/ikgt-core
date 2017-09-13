@@ -62,13 +62,13 @@ void vmexit_xsetbv(guest_cpu_handle_t gcpu)
 	 * 4. No attempt to write 0 to bit 1 and 1 to bit 2, i.e. XCR0[2:1]=10.
 	 */
 	if (((gcpu_get_gp_reg(gcpu, REG_RCX) << 32) > 0) ||
-	    (((~((uint32_t)cpuid_params.eax)) & xcr0_mask_low) !=
-	     (uint32_t)(~cpuid_params.eax &
+		(((~((uint32_t)cpuid_params.eax)) & xcr0_mask_low) !=
+		 (uint32_t)(~cpuid_params.eax &
 			gcpu_get_gp_reg(gcpu, REG_RAX)))
-	    || (((~((uint32_t)cpuid_params.edx)) & xcr0_mask_high) !=
+		|| (((~((uint32_t)cpuid_params.edx)) & xcr0_mask_high) !=
 		(uint32_t)(~cpuid_params.edx & gcpu_get_gp_reg(gcpu, REG_RDX)))
-	    || ((gcpu_get_gp_reg(gcpu, REG_RAX) & 1) == 0)
-	    || ((gcpu_get_gp_reg(gcpu, REG_RAX) & 0x6) == 0x4)) {
+		|| ((gcpu_get_gp_reg(gcpu, REG_RAX) & 1) == 0)
+		|| ((gcpu_get_gp_reg(gcpu, REG_RAX) & 0x6) == 0x4)) {
 		gcpu_inject_gp0(gcpu);
 		return;
 	}

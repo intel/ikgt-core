@@ -71,7 +71,7 @@ void stack_get_details(uint64_t *total_stack_base, uint32_t *total_stack_size)
 	D(VMM_ASSERT_EX((total_stack_base && total_stack_size),
 		"total_stack_base or total_stack_size is NULL\n"));
 
-        *total_stack_base = stack_base;
+	*total_stack_base = stack_base;
 	/* add zero page as last page in stack */
 	*total_stack_size = host_cpu_num *
 			VMM_STACK_SIZE_PER_CPU + PAGE_4K_SIZE;

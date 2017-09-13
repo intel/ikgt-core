@@ -128,8 +128,8 @@ static acpi_table_rsdp_t *scan_for_rsdp(void *addr, uint32_t length)
 
 		/* signature matches, check the appropriate checksum */
 		if (!checksum((unsigned char *)rsdp, (rsdp->revision < 2) ?
-			    ACPI_RSDP_CHECKSUM_LENGTH :
-			    ACPI_RSDP_XCHECKSUM_LENGTH)) {
+				ACPI_RSDP_CHECKSUM_LENGTH :
+				ACPI_RSDP_XCHECKSUM_LENGTH)) {
 			/* check_sum valid, we have found a valid RSDP */
 			print_trace(
 				"Found acpi rsdp table\n");
@@ -186,7 +186,7 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 
 	/* Calculate the number of table pointers in the xsdt or rsdt table */
 	num = (sdt->length - sizeof(acpi_table_header_t)) /
-	      ((xsdt) ? sizeof(uint64_t) : sizeof(uint32_t));
+			((xsdt) ? sizeof(uint64_t) : sizeof(uint32_t));
 
 	print_trace(
 		"The number of table pointers in xsdt/rsdt = %d\n", num);
@@ -196,7 +196,7 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 
 	/* Traverse the pointer list to get the desired acpi table */
 	for (i = 0; i < num; ++i,
-	     offset += ((xsdt) ? sizeof(uint64_t) : sizeof(uint32_t))) {
+		offset += ((xsdt) ? sizeof(uint64_t) : sizeof(uint32_t))) {
 		/* Get the address from the pointer entry */
 		hmm_hpa_to_hva((uint64_t)
 			((xsdt) ? (*(uint64_t *)offset)
@@ -212,7 +212,7 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 
 		/* Verify table signature & table checksum */
 		if ((tbl->signature == sig) &&
-		    !checksum((unsigned char *)tbl, tbl->length)) {
+			!checksum((unsigned char *)tbl, tbl->length)) {
 			/* Found the table with matched signature */
 			print_trace(
 				"Found the table %s address = 0x%llx length = %x\n",
