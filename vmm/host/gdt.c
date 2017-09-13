@@ -81,6 +81,14 @@ uint64_t get_tss_base(uint16_t cpu_id)
 	return (uint64_t)&p_tss[cpu_id];
 }
 
+static void setup_null_seg(void)
+{
+	uint64_t *p_entry =
+		(uint64_t *)&gdt[GDT_NULL_ENTRY_OFFSET];
+
+	*p_entry = 0ULL;
+}
+
 static void setup_data_seg(void)
 {
 	uint64_t *p_data =
@@ -184,6 +192,7 @@ void gdt_setup(void)
 
 	p_tss = mem_alloc(sizeof(tss64_t) * host_cpu_num);
 
+	setup_null_seg();
 	setup_data_seg();
 	setup_code64_seg();
 
