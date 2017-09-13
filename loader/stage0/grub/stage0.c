@@ -22,6 +22,7 @@
 #include "grub_boot_param.h"
 #include "linux_loader.h"
 #include "guest_setup.h"
+#include "trusty_setup.h"
 #include "trusty_info.h"
 
 #include "lib/image_loader.h"
@@ -142,7 +143,7 @@ void stage0_main(const init_register_t *init_reg,
 		goto fail;
 	}
 
-	if (!trusty_setup(evmm_desc)) {
+	if (!trusty_gcpu_setup(evmm_desc)) {
 		print_panic("trusty setup failed\n");
 		goto fail;
 	}

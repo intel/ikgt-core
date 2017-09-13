@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017 Intel Corporation
+* Copyright (c) 2015 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -13,12 +13,16 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
-#ifndef _GCPU_SETUP_H_
-#define _GCPU_SETUP_H_
 
+#ifndef _TRUSTY_SETUP_H_
+#define _TRUSTY_SETUP_H_
 #include "evmm_desc.h"
+#include "vmm_arch.h"
 
-boolean_t g0_gcpu_setup(evmm_desc_t *evmm_desc,
-		uint64_t boot_param_addr, uint64_t kernel_entry_point);
+void fill_code32_seg(segment_t *ss, uint16_t sel);
+void fill_code64_seg(segment_t *ss, uint16_t sel);
+void fill_data_seg(segment_t *ss, uint16_t sel);
+void fill_tss_seg(segment_t *ss, uint16_t sel);
+boolean_t trusty_gcpu_setup(evmm_desc_t *xd);
 
 #endif

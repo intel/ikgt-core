@@ -20,7 +20,6 @@
 #include "abl_boot_param.h"
 #include "vmm_base.h"
 
-boolean_t trusty_setup(evmm_desc_t *xd);
 void g0_gcpu_setup(evmm_desc_t *evmm_desc, android_image_boot_params_t *android_boot_params);
 
 #endif

@@ -19,4 +19,9 @@ $(shell mkdir -p $(OUTDIR))
 
 SUBDIRS = $(LOADER_STAGE0_SUB)
 
+CFLAGS += -I..
+
+CSOURCES = $(wildcard *.c)
+ASOURCES = $(wildcard *.S)
+
 include $(PROJS)/rule.linux
