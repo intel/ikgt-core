@@ -128,9 +128,6 @@ static void cr0_pg_handler(uint64_t write_value, uint64_t* cr_value)
 
 static void cr0_pg_post_handler(guest_cpu_handle_t gcpu)
 {
-	vmcs_obj_t vmcs;
-	msr_efer_t efer;
-	uint32_t entry_ctrl;
 	uint64_t cr0;
 
 	cr0 = gcpu_get_visible_cr0(gcpu);
@@ -143,21 +140,8 @@ static void cr0_pg_post_handler(guest_cpu_handle_t gcpu)
 	{
 		ept_enable(gcpu, TRUE);
 	}
-	// update vmentry_control
-	vmcs = gcpu->vmcs;
-	efer.uint64 = vmcs_read(vmcs, VMCS_GUEST_EFER);
-	efer.bits.lma = (((cr0 & CR0_PG) == CR0_PG) & efer.bits.lme);
-	entry_ctrl = (uint32_t)vmcs_read(vmcs, VMCS_ENTRY_CTRL);
-
-	vmcs_write(vmcs, VMCS_GUEST_EFER, efer.uint64);
-
-	if(efer.bits.lma){
-		entry_ctrl |= ENTRY_GUEST_IA32E_MODE;
-	}else{
-		entry_ctrl &= ~(ENTRY_GUEST_IA32E_MODE);
-	}
-
-	vmcs_write(vmcs, VMCS_ENTRY_CTRL, entry_ctrl);
+	// update guest mode
+	gcpu_update_guest_mode(gcpu);
 }
 
 void vmexit_ept_violation(UNUSED guest_cpu_handle_t gcpu)

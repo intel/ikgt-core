@@ -164,6 +164,9 @@ void gcpu_set_init_state(guest_cpu_handle_t gcpu, const gcpu_state_t *initial_st
 {
 	uint32_t idx;
 	vmcs_obj_t vmcs;
+#ifdef DEBUG
+	uint64_t efer;
+#endif
 
 	D(VMM_ASSERT(gcpu));
 	D(VMM_ASSERT(initial_state));
@@ -196,10 +199,8 @@ void gcpu_set_init_state(guest_cpu_handle_t gcpu, const gcpu_state_t *initial_st
 	vmcs_write(vmcs, VMCS_GUEST_RFLAGS, initial_state->rflags);
 
 	vmcs_write(vmcs, VMCS_GUEST_CR0, initial_state->cr0);
-	cr0_guest_write(gcpu, initial_state->cr0);
 	vmcs_write(vmcs, VMCS_GUEST_CR3, initial_state->cr3);
 	vmcs_write(vmcs, VMCS_GUEST_CR4, initial_state->cr4);
-	cr4_guest_write(gcpu, initial_state->cr4);
 
 	vmcs_write(vmcs, VMCS_GUEST_GDTR_BASE, initial_state->gdtr.base);
 	vmcs_write(vmcs, VMCS_GUEST_GDTR_LIMIT, initial_state->gdtr.limit);
@@ -217,8 +218,19 @@ void gcpu_set_init_state(guest_cpu_handle_t gcpu, const gcpu_state_t *initial_st
 	/* set cached value to the same in order not to trigger events */
 	vmcs_write(vmcs, VMCS_GUEST_ACTIVITY_STATE,
 			ACTIVITY_STATE_ACTIVE);
+
 	/* set state in vmenter control fields */
-	gcpu_set_vmenter_control(gcpu);
+	cr0_guest_write(gcpu, initial_state->cr0);
+	cr4_guest_write(gcpu, initial_state->cr4);
+	gcpu_update_guest_mode(gcpu);
+
+#ifdef DEBUG
+	efer = vmcs_read(vmcs, VMCS_GUEST_EFER);
+	if (efer != initial_state->msr_efer)
+	{
+		print_warn("%s:guest efer value(0x%x) is different with init efer value(0x%x).\n", __FUNCTION__, efer, initial_state->msr_efer);
+	}
+#endif
 }
 
 /*
@@ -268,10 +280,8 @@ void gcpu_set_reset_state(guest_cpu_handle_t gcpu)
 
 	/*------------------ Set Control Registers ------------------*/
 	vmcs_write(vmcs, VMCS_GUEST_CR0, 0x60000010);
-	cr0_guest_write(gcpu, 0x60000010);
 	vmcs_write(vmcs, VMCS_GUEST_CR3, 0);
 	vmcs_write(vmcs, VMCS_GUEST_CR4, 0);
-	cr4_guest_write(gcpu, 0);
 
 	/*------------------ Set Memory Mgmt Registers ------------------*/
 	vmcs_write(vmcs, VMCS_GUEST_GDTR_BASE, 0xFFFF);
@@ -293,7 +303,10 @@ void gcpu_set_reset_state(guest_cpu_handle_t gcpu)
 	/*  wait-for-SIPI support is checked in vmx_cap_init() */
 	vmcs_write(vmcs, VMCS_GUEST_ACTIVITY_STATE,
 			ACTIVITY_STATE_WAIT_FOR_SIPI);
-	gcpu_set_vmenter_control(gcpu);
+
+	cr0_guest_write(gcpu, 0x60000010);
+	cr4_guest_write(gcpu, 0);
+	gcpu_update_guest_mode(gcpu);
 }
 
 /* The g0gcpu0_state is only used before guest0(Android) boot up */

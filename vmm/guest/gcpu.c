@@ -257,26 +257,28 @@ uint8_t gcpu_get_pending_intr(const guest_cpu_handle_t gcpu)
 	return (group<<5|index);
 }
 
-void gcpu_set_vmenter_control(const guest_cpu_handle_t gcpu)
+void gcpu_update_guest_mode(const guest_cpu_handle_t gcpu)
 {
-	uint64_t value;
-	uint64_t entry_ctrl;
+	vmcs_obj_t vmcs = gcpu->vmcs;
+	uint64_t efer;
+	uint32_t entry_ctrl;
+	uint64_t cr0;
 
-	D(VMM_ASSERT(gcpu));
+	// update guest mode
+	cr0 = vmcs_read(vmcs, VMCS_GUEST_CR0);
+	efer = vmcs_read(vmcs, VMCS_GUEST_EFER);
+	entry_ctrl = (uint32_t)vmcs_read(vmcs, VMCS_ENTRY_CTRL);
 
-	/* IA Manual 3B Appendix G.6 - On processors that support UG VM exits store
-	 * the value of IA32_EFER.LMA into the IA-32e mode guest VM-entry control
-	 */
-	value = vmcs_read(gcpu->vmcs, VMCS_GUEST_EFER);
-	entry_ctrl = vmcs_read(gcpu->vmcs, VMCS_ENTRY_CTRL);
-	if(value & EFER_LMA)
-	{
+	if ((cr0 & CR0_PG) && (efer & EFER_LME)) {
+		efer |= EFER_LMA;
 		entry_ctrl |= ENTRY_GUEST_IA32E_MODE;
 	}else{
-		entry_ctrl &= ~(ENTRY_GUEST_IA32E_MODE);
+		efer &= ~EFER_LMA;
+		entry_ctrl &= ~ENTRY_GUEST_IA32E_MODE;
 	}
 
-	vmcs_write(gcpu->vmcs,VMCS_ENTRY_CTRL,entry_ctrl);
+	vmcs_write(vmcs, VMCS_GUEST_EFER, efer);
+	vmcs_write(vmcs, VMCS_ENTRY_CTRL, entry_ctrl);
 }
 
 void gcpu_skip_instruction(guest_cpu_handle_t gcpu)

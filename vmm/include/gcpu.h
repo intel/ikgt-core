@@ -80,8 +80,7 @@ void gcpu_set_seg(guest_cpu_handle_t gcpu,
 
 uint64_t gcpu_get_visible_cr0(const guest_cpu_handle_t gcpu);
 uint64_t gcpu_get_visible_cr4(const guest_cpu_handle_t gcpu);
-
-void gcpu_set_vmenter_control(const guest_cpu_handle_t gcpu);
+void gcpu_update_guest_mode(const guest_cpu_handle_t gcpu);
 
 /*-------------------------------------------------------------------------
  * Function: gcpu_gva_to_hva

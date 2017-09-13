@@ -458,21 +458,6 @@ typedef uint8_t cache_type_t;
 #define EFER_LMA        (1ull << 10)
 #define EFER_NXE        (1ull << 11)
 
-typedef union {
-	struct {
-		uint64_t sce:1;               /* (00) SysCall Enable/Disable (R/W) */
-		uint64_t resv_1_7:7;
-		uint64_t lme:1;               /* (08) Long Mode Enable (IA-32e) (R/W) */
-		uint64_t resv_9:1;
-		uint64_t lma:1;               /* (10) Long Mode Active (IA-32e) (R) */
-		uint64_t nxe:1;               /* (11) Execute Disabled Enable (R/W) */
-		uint64_t resv_12_31:20;
-		uint64_t resv_32_63:32;
-	}  bits;
-	uint64_t uint64;
-}  msr_efer_t;
-
-
 #define MSR_STAR                   ((uint32_t)0xc0000081)	/* legacy mode
 																 * SYSCALL
 																 * target */
