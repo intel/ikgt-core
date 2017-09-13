@@ -22,7 +22,7 @@
 #include "abl_boot_param.h"
 #include "trusty_info.h"
 #include "guest_setup.h"
-
+#include "trusty_setup.h"
 #include "lib/image_loader.h"
 #include "lib/util.h"
 #include "lib/serial.h"
@@ -115,7 +115,7 @@ void stage0_main(
 		goto fail;
 	}
 
-	if (!trusty_setup(evmm_desc)) {
+	if (!trusty_gcpu_setup(evmm_desc)) {
 		print_panic("trusty setup failed\n");
 		goto fail;
 	}

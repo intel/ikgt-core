@@ -20,6 +20,7 @@
 #include "file_pack.h"
 #include "ldr_dbg.h"
 #include "guest_setup.h"
+#include "trusty_setup.h"
 #include "efi_boot_param.h"
 
 #include "lib/util.h"
@@ -132,7 +133,7 @@ uint32_t stage0_main(
 		goto exit;
 	}
 
-	if (!trusty_setup(evmm_desc)) {
+	if (!trusty_gcpu_setup(evmm_desc)) {
 		print_panic("trusty setup failed\n");
 		goto exit;
 	}

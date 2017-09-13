@@ -15,7 +15,7 @@
 ################################################################################
 TARGET = stage0.elf
 
-CSOURCES = stage0.c guest_setup.c trusty_setup.c abl_boot_param.c
+CSOURCES = stage0.c guest_setup.c abl_boot_param.c
 ASOURCES = stage0_entry.S
 
 include $(PROJS)/rule.linux

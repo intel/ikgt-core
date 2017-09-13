@@ -19,8 +19,6 @@
 #include "evmm_desc.h"
 #include "vmm_base.h"
 
-boolean_t trusty_setup(evmm_desc_t *xd);
-
 boolean_t g0_gcpu_setup(evmm_desc_t *evmm_desc, uint64_t rsp, uint64_t rip);
 
 #endif
