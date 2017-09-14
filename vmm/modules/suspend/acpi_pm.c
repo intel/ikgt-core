@@ -57,7 +57,6 @@
 #define SLP_TYP(PM1x_CNT_BLK) (((PM1x_CNT_BLK) >> 10) & 0x7)
 
 /* Power state values */
-#define ACPI_STATE_UNKNOWN              ((uint8_t)0xFF)
 #define ACPI_STATE_S0                   ((uint8_t)0)
 #define ACPI_STATE_S1                   ((uint8_t)1)
 #define ACPI_STATE_S2                   ((uint8_t)2)
@@ -151,7 +150,7 @@ boolean_t acpi_pm_is_s3(uint16_t port_id ,uint32_t port_size,  uint32_t value)
  *                           'Package length Encoding' High 2 bits of first
  *                           byte indicates how many bytes are used by
  *                           'Package length'
- * If 0, then only the first byte is used
+ *                           If 0, then only the first byte is used
  *                           If > 0 then following bytes (max 3) will be also
  *                           used
  *
@@ -174,8 +173,8 @@ static void acpi_parse_fadt_states(uint8_t *fadt)
 	acpi_table_header_t *dsdt;
 	uint8_t *facs;
 	uint8_t *aml_ptr;
+	uint8_t *end;
 	uint8_t sstate;
-	uint32_t i;
 
 	/*get pm1x port & port szie*/
 	acpi_fadt_data.port_size = *(fadt + FADT_PM1_CNT_LEN_OFFSET);
@@ -208,52 +207,53 @@ static void acpi_parse_fadt_states(uint8_t *fadt)
 	//for (sstate = ACPI_STATE_S0; sstate < ACPI_STATE_COUNT; ++sstate) {
 	for (sstate = ACPI_STATE_S3; sstate <= ACPI_STATE_S3; ++sstate) {
 		aml_ptr = (uint8_t *)dsdt + sizeof(acpi_table_header_t);
-
-		acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_A][sstate] = ACPI_STATE_UNKNOWN;
-		acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_B][sstate] = ACPI_STATE_UNKNOWN;
+		end = (uint8_t *)dsdt + dsdt->length;
 
 		/* Search for '_SX_' string where 'X' is the sleep state e.g. '_S3_' */
-		for (i = 0; i < dsdt->length - 8; i++) {
+		while (aml_ptr < (end - 8)) { // aml_ptr will move forward at least 8 bytes from here
 			if (aml_ptr[0] == '_' && aml_ptr[1] == 'S' &&
 				aml_ptr[2] == ('0' + sstate) && aml_ptr[3] == '_') {
 				break;
 			}
 			aml_ptr++;
 		}
-		if (i < dsdt->length - 8) {
-			/* Skip '_SX_' and Package Op */
-			aml_ptr += 5;
 
-			/* Skip 'Package length' bytes indicated by the 2 high bits of
-			 * 'Package Lead' byte */
-			aml_ptr += (*aml_ptr >> 6);
+		VMM_ASSERT_EX(aml_ptr < (end - 8), "Could not find the SLP_TYP value in DSDT table\n");
 
-			/* Skip 'Package Lead' byte */
+		/* Skip '_SX_' and Package Op */
+		aml_ptr += 5;
+
+		/* Skip 'Package length' bytes indicated by the 2 high bits of
+		 * 'Package Lead' byte */
+		aml_ptr += (*aml_ptr >> 6);
+		/* aml_ptr will move forward at least 3 bytes from here */
+		VMM_ASSERT_EX(aml_ptr < (end - 3),
+			"search for SLP_TYP values is out of DSDT table\n");
+
+		/* Skip 'Package Lead' byte */
+		aml_ptr++;
+
+		/* Skip 'Number of Elements' byte */
+		aml_ptr++;
+
+		/* Skip 'Byte Prefix' if found */
+		if (*aml_ptr == 0x0a) {
 			aml_ptr++;
-
-			/* Skip 'Number of Elements' byte */
-			aml_ptr++;
-
-			/* Skip 'Byte Prefix' if found */
-			if (*aml_ptr == 0x0a) {
-				aml_ptr++;
-			}
-
-			/* This should be SLP_TYP value for PM1A_CNT_BLK */
-			acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_A][sstate] = *aml_ptr;
-			aml_ptr++;
-
-			/* Skip 'Byte Prefix' if found */
-			if (*aml_ptr == 0x0a) {
-				aml_ptr++;
-			}
-
-			/* This should be SLP_TYP value for PM1B_CNT_BLK */
-			acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_B][sstate] = *aml_ptr;
 		}
 
-		print_trace(
-			"    %3d    |    %3d     |    %3d\n", sstate,
+		/* This should be SLP_TYP value for PM1A_CNT_BLK */
+		acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_A][sstate] = *aml_ptr;
+		aml_ptr++;
+
+		/* Skip 'Byte Prefix' if found */
+		if (*aml_ptr == 0x0a) {
+			aml_ptr++;
+		}
+
+		/* This should be SLP_TYP value for PM1B_CNT_BLK */
+		acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_B][sstate] = *aml_ptr;
+
+		print_trace("   %3d   |    %3d    |    %3d\n", sstate,
 			acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_A][sstate],
 			acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_B][sstate]);
 	}
