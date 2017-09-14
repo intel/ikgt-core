@@ -26,6 +26,7 @@
 #include "vmm_asm.h"
 #include "ept.h"
 #include "vmm_arch.h"
+#include "vmx_cap.h"
 
 #define VMCALL_EPT_UPDATE  0x65707501 //0x657075='ept'
 
