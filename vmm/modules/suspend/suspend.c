@@ -90,13 +90,14 @@ static void main_from_s3(uint32_t apic_id);
 static void setup_percpu_data(void)
 {
 	uint16_t cpu_id;
-	uint32_t esp;
+	uint64_t esp;
 
 	cpu_id = host_cpu_id();
 	suspend_percpu_data[cpu_id].tr = asm_str();
 
-	esp = (uint32_t)stack_get_cpu_sp(cpu_id) - (REG_GP_COUNT * sizeof(uint64_t));
-	setup_cpu_startup_stack(cpu_id, esp);
+	esp = stack_get_cpu_sp(cpu_id) - (REG_GP_COUNT * sizeof(uint64_t));
+	D(VMM_ASSERT(esp < (1ULL << 32)));
+	setup_cpu_startup_stack(cpu_id, (uint32_t)esp);
 }
 
 static void prepare_s3_percpu(guest_cpu_handle_t gcpu, void *unused UNUSED)
@@ -124,8 +125,18 @@ static void prepare_s3_percpu(guest_cpu_handle_t gcpu, void *unused UNUSED)
 static void prepare_s3(guest_cpu_handle_t gcpu)
 {
 	uint8_t cpu_id;
+#ifdef DEBUG
+	gdtr64_t gdtr;
+#endif
 
 	setup_sipi_page(suspend_data.sipi_page, TRUE, (uint64_t)main_from_s3);
+
+#ifdef DEBUG
+	asm_sgdt(&gdtr);
+	VMM_ASSERT((gdtr.base + gdtr.limit) < (1ULL << 32));
+	VMM_ASSERT(asm_get_cr3() < (1ULL << 32));
+	VMM_ASSERT(asm_rdmsr(MSR_FS_BASE) < (1ULL << 32));
+#endif
 
 	suspend_data.orig_waking_vector = *(suspend_data.p_waking_vector);
 	*(suspend_data.p_waking_vector) = suspend_data.sipi_page;
