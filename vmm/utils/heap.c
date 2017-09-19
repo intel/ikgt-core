@@ -342,7 +342,7 @@ static void vmm_pool_show(void)
 
 	node = pool_head;
 	while (node != NULL) {
-		print_info("Node %d unused %d at 0x%llX\n", ++i, node->avail_blocks, node);
+		print_info("Node %d unused %d at %p\n", ++i, node->avail_blocks, node);
 		for (n = 0; n < POOL_STATUS_NUM_IN_NODE; n++) {
 			print_info("status[%d]=0x%llx\n", n, node->status_array[n]);
 		}

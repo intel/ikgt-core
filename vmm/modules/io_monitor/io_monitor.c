@@ -344,12 +344,12 @@ static boolean_t check_seg_limit(guest_cpu_handle_t gcpu)
 
 	if ((start > seg_limit) || (len > seg_limit) || (end > seg_limit)){
 		if (seg_id == SEG_SS) {
-			print_warn("%s - address 0x%llX - 0x%llX is outside the limit 0x%llX"
+			print_warn("%s - address 0x%llX - 0x%llX is outside the limit 0x%X"
 				" of the %s segment, inject #SS\n",
 				direction, start, end, seg_limit, seg_name);
 			gcpu_inject_ss(gcpu, (uint32_t)vmcs_read(gcpu->vmcs, VMCS_GUEST_SS_SEL));
 		} else {
-			print_warn("%s - address 0x%llX - 0x%llX is outside the limit 0x%llX"
+			print_warn("%s - address 0x%llX - 0x%llX is outside the limit 0x%X"
 				" of the %s segment, inject #GP\n",
 				direction, start, end, seg_limit, seg_name);
 			gcpu_inject_gp0(gcpu);

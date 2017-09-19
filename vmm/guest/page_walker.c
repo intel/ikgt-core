@@ -317,26 +317,26 @@ static boolean_t x86_gva_to_gpa(IN guest_cpu_handle_t gcpu,
 		entry = *(table_hva + ((gva >> (12 + (10*level))) & 0x3FF));
 		if (!(entry & PAGE_FLAG_P)) {
 			print_warn("%s: #PF was caused by a no-present page\n", __FUNCTION__);
-			print_warn("gva=0x%llX, entry=0x%llx, level=%d\n", gva, entry, level);
+			print_warn("gva=0x%X, entry=0x%x, level=%d\n", gva, entry, level);
 			//set error code to 0 means the #PF is caused by any P bit cleared in page structures.
 			set_pfec(p_pfec, access, cpl, PAGE_FLAG_P);
 			return FALSE;
 		}
 		if (!x86_check_reserved_bits(entry, level, cr4)) {
 			print_warn("%s: #PF was caused by a reserved bit set to 1\n", __FUNCTION__);
-			print_warn("gva=0x%llX, entry=0x%llx, level=%d, cr4=0x%llx\n", gva, entry, level, cr4);
+			print_warn("gva=0x%X, entry=0x%x, level=%d, cr4=0x%llx\n", gva, entry, level, cr4);
 			set_pfec(p_pfec, access, cpl, PF_FLAG_RSVD);
 			return FALSE;
 		}
 		if (!check_us(entry, cpl)) {
 			print_warn("%s: #PF was caused by us check\n", __FUNCTION__);
-			print_warn("gva=0x%llX, entry=0x%llx, level=%d, cpl=%d\n", gva, entry, level, cpl);
+			print_warn("gva=0x%X, entry=0x%x, level=%d, cpl=%d\n", gva, entry, level, cpl);
 			set_pfec(p_pfec, access, cpl, 0);
 			return FALSE;
 		}
 		if (!check_rw(entry, access, cpl, cr0)) {
 			print_warn("%s: #PF was caused by a write\n", __FUNCTION__);
-			print_warn("gva=0x%llX, entry=0x%llx, level=%d, cpl=%d, cr0=0x%llx\n", gva, entry, level, cpl, cr0);
+			print_warn("gva=0x%X, entry=0x%x, level=%d, cpl=%d, cr0=0x%llx\n", gva, entry, level, cpl, cr0);
 			set_pfec(p_pfec, access, cpl, 0);
 			return FALSE;
 		}
@@ -345,7 +345,7 @@ static boolean_t x86_gva_to_gpa(IN guest_cpu_handle_t gcpu,
 		if ((level == MAM_LEVEL_PT) || ((cr4 & CR4_PSE) && (entry & PAGE_FLAG_PS))) { //4KB page or 4MB page
 			if (!check_smap(is_user_addr, cpl, cr4, rflags)) {
 				print_warn("%s: #PF was caused by smap check\n", __FUNCTION__);
-				print_warn("gva=0x%llX, entry=0x%llx, level=%d, is_user_addr=%d, cpl=%d, cr4=0x%llx, rflags=0x%llx\n",
+				print_warn("gva=0x%X, entry=0x%x, level=%d, is_user_addr=%d, cpl=%d, cr4=0x%llx, rflags=0x%llx\n",
 					gva, entry, level, is_user_addr, cpl, cr4, rflags);
 				set_pfec(p_pfec, access, cpl, 0);
 				return FALSE;
@@ -403,14 +403,14 @@ static boolean_t pae_gva_to_gpa(IN guest_cpu_handle_t gcpu,
 		entry = *(table_hva + ((gva >> (12 + (9*level))) & 0x1FF));
 		if (!(entry & PAGE_FLAG_P)) {
 			print_warn("%s: #PF was caused by a no-present page\n", __FUNCTION__);
-			print_warn("gva=0x%llX, entry=0x%llx, level=%d\n", gva, entry, level);
+			print_warn("gva=0x%X, entry=0x%llx, level=%d\n", gva, entry, level);
 			//P bit in error code is 0 means the #PF is caused by any P bit cleared in page structures.
 			set_pfec(p_pfec, access, cpl, PAGE_FLAG_P);
 			return FALSE;
 		}
 		if (!pae_check_reserved_bits(entry, level, efer)) {
 			print_warn("%s: #PF was caused by a reserved bit set to 1\n", __FUNCTION__);
-			print_warn("gva=0x%llX, entry=0x%llx, level=%d, efer=0x%llx\n",
+			print_warn("gva=0x%X, entry=0x%llx, level=%d, efer=0x%llx\n",
 				gva, entry, level, efer);
 			set_pfec(p_pfec, access, cpl, PF_FLAG_RSVD);
 			return FALSE;
@@ -418,13 +418,13 @@ static boolean_t pae_gva_to_gpa(IN guest_cpu_handle_t gcpu,
 		if (level != MAM_LEVEL_PDPT) { //there's no rw, us bits in PAE's PDPT entry
 			if (!check_us(entry, cpl)) {
 				print_warn("%s: #PF was caused by us check\n", __FUNCTION__);
-				print_warn("gva=0x%llX, entry=0x%llx, level=%d, cpl=%d\n", gva, entry, level, cpl);
+				print_warn("gva=0x%X, entry=0x%llx, level=%d, cpl=%d\n", gva, entry, level, cpl);
 				set_pfec(p_pfec, access, cpl, 0);
 				return FALSE;
 			}
 			if (!check_rw(entry, access, cpl, cr0)) {
 				print_warn("%s: #PF was caused by a write\n", __FUNCTION__);
-				print_warn("gva=0x%llX, entry=0x%llx, level=%d, cpl=%d, cr0=0x%llx\n", gva, entry, level, cpl, cr0);
+				print_warn("gva=0x%X, entry=0x%llx, level=%d, cpl=%d, cr0=0x%llx\n", gva, entry, level, cpl, cr0);
 				set_pfec(p_pfec, access, cpl, 0);
 				return FALSE;
 			}
