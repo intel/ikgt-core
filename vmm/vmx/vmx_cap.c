@@ -262,14 +262,14 @@ void vmx_cap_init()
 		| CR0_NE
 		| CR0_PG;
 	VMM_ASSERT_EX((must_have & cr_may1) == must_have,
-		"cr0: may1 = 0x%llX, must_have = 0x%llX\n", cr_may1, must_have);
+		"cr0: may1 = 0x%llX, must_have = 0x%X\n", cr_may1, must_have);
 	g_vmx_cap.init_cr0 = cr_may0 | must_have;
 
 	cr_may1 = get_cr4_cap(&cr_may0);
 	must_have = CR4_PAE
 		| CR4_VMXE;
 	VMM_ASSERT_EX((must_have & cr_may1) == must_have,
-		"cr4: may1 = 0x%llX, must_have = 0x%llX\n", cr_may1, must_have);
+		"cr4: may1 = 0x%llX, must_have = 0x%X\n", cr_may1, must_have);
 	nice_have = CR4_OSXSAVE;// used in vmexit_xsetbv()
 	g_vmx_cap.init_cr4 = cr_may0 | must_have;
 	g_vmx_cap.init_cr4 |= nice_have & cr_may1;
@@ -335,7 +335,7 @@ uint64_t vmcs_alloc()
 	hva = (uint32_t *)page_alloc(1);
 	memset((void *)hva, 0, PAGE_4K_SIZE);
 	VMM_ASSERT_EX(hmm_hva_to_hpa((uint64_t)hva, &hpa, NULL),
-		"hva(0x%llX) to hpa conversion failed in %s\n", hva, __FUNCTION__);
+		"hva(%p) to hpa conversion failed in %s\n", hva, __FUNCTION__);
 
 	*hva =  basic_info.bits.rev_id;
 	/* unmap VMCS region from the host memory */

@@ -431,7 +431,7 @@ static void vtd_init_mapping()
 	}
 
 	VMM_ASSERT_EX(hmm_hva_to_hpa((uint64_t)context_table, &ctp_hpa, NULL),
-			"fail to convert hva 0x%llX to hpa\n", context_table);
+			"fail to convert hva %p to hpa\n", context_table);
 
 	g_remapping.root_table = (dma_root_entry_t *)page_alloc(1);
 	/* Cover all buses */

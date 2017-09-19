@@ -53,7 +53,7 @@ static inline void clear_block_by_nmi(vmcs_obj_t vmcs)
 
 	// only bit3 (block_by_nmi) might be 1, others must be 0
 	VMM_ASSERT_EX(((interruptibility & 0xFFFFFFF7) == 0),
-		"unexpected bit in guest interruptibility(=%llx)\n", interruptibility);
+		"unexpected bit in guest interruptibility(=%x)\n", interruptibility);
 	vmcs_write(vmcs, VMCS_GUEST_INTERRUPTIBILITY, 0);
 }
 
