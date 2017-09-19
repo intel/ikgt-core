@@ -20,13 +20,12 @@
 #include "vmm_base.h"
 
 typedef struct {
-	volatile uint32_t	uint32_lock;
+	volatile uint32_t lock;
 	uint32_t pad;
-	//volatile uint16_t	owner_cpu_id;
-	//char			padding[2];
+	const char * name;
 } vmm_lock_t;
 
-void lock_init(vmm_lock_t *lock);
+void lock_init(vmm_lock_t *lock, const char *name);
 void lock_acquire_read(vmm_lock_t *lock);
 void lock_acquire_write(vmm_lock_t *lock);
 void lock_release(vmm_lock_t *lock);

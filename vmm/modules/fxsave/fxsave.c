@@ -116,7 +116,7 @@ void fxsave_isolation_init(void)
 	VMM_ASSERT_EX((get_cr4_cap(NULL) & CR4_OSFXSR),
 		"OSFXSR in cr4 is not supported by vmx cr4_may1\n");
 
-	lock_init(&fxsave_lock);
+	lock_init(&fxsave_lock, "fxsave_lock");
 	event_register(EVENT_GCPU_SWAPIN, fxsave_swap_in);
 	event_register(EVENT_GCPU_SWAPOUT, fxsave_swap_out);
 }

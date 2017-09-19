@@ -117,7 +117,7 @@ static void cr_set_cr2(guest_cpu_handle_t gcpu, UNUSED void *pv)
  */
 void cr_isolation_init()
 {
-	lock_init(&cr_lock);
+	lock_init(&cr_lock, "cr_lock");
 	event_register(EVENT_GCPU_SWAPIN, cr_swap_in);
 	event_register(EVENT_GCPU_SWAPOUT, cr_swap_out);
 	event_register(EVENT_SET_CR2, cr_set_cr2);

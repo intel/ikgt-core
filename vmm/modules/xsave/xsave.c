@@ -151,7 +151,7 @@ void xsave_isolation_init(uint64_t components)
 		print_trace("xsave state max =0x%llX\n", host_xcr0);
 	}
 
-	lock_init(&xsave_lock);
+	lock_init(&xsave_lock, "xsave_lock");
 	event_register(EVENT_GCPU_SWAPIN, xsave_swap_in);
 	event_register(EVENT_GCPU_SWAPOUT, xsave_swap_out);
 }

@@ -143,7 +143,7 @@ void vmm_heap_initialize(IN uint64_t heap_buffer_address,
 	/* there's no need to add continuous block count in the last available block */
 	/* *(uint32_t *)(page_descriptor.heap_base + ((page_descriptor.page_num - 1) * PAGE_4K_SIZE)) = page_descriptor.page_num; */
 
-	lock_init(&heap_lock);
+	lock_init(&heap_lock, "heap_lock");
 
 	print_trace("HEAP: heap_base = 0x%llX, page_num = %d, cont_num_array = 0x%llX, status_array = 0x%llX, status_array_copy = 0x%llX, status_array_len = %d\n",
 		page_descriptor.heap_base, page_descriptor.page_num, page_descriptor.cont_num_array,
@@ -353,7 +353,7 @@ static void vmm_pool_show(void)
 
 void vmm_pool_initialize(void)
 {
-	lock_init(&pool_lock);
+	lock_init(&pool_lock, "pool_lock");
 }
 
 static pool_node_t *pool_get_new_node(void)
