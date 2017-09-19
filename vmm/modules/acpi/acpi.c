@@ -25,8 +25,7 @@
 #define ACPI_RSDP_SCAN_STEP 16
 
 /* RSDP checksums */
-#define ACPI_RSDP_CHECKSUM_LENGTH       20
-#define ACPI_RSDP_XCHECKSUM_LENGTH      36
+#define ACPI_V1_RSDP_LENGTH       20
 
 #define ACPI_SIG_RSD_PTR 0x2052545020445352ull /* "RSD PTR " */
 
@@ -38,7 +37,7 @@
  ******************************************************************************/
 
 typedef struct {
-	char            signature[8];                           /* ACPI signature, contains "RSD PTR " */
+	uint64_t        signature;                              /* ACPI signature, contains "RSD PTR " */
 	uint8_t         check_sum;                              /* ACPI 1.0 checksum */
 	char            oem_id[ACPI_OEM_ID_SIZE];               /* OEM identification */
 	uint8_t         revision;                               /* Must be (0) for ACPI 1.0 or (2) for ACPI 2.0+ */
@@ -108,7 +107,7 @@ static uint8_t checksum(uint8_t *buffer, uint32_t length)
 /* Scan for RSDP table and return mapped address of rsdp, if found */
 static acpi_table_rsdp_t *scan_for_rsdp(void *addr, uint32_t length)
 {
-	acpi_table_rsdp_t *rsdp, *result = NULL;
+	acpi_table_rsdp_t *rsdp;
 	unsigned char *begin;
 	unsigned char *i, *end;
 
@@ -122,23 +121,20 @@ static acpi_table_rsdp_t *scan_for_rsdp(void *addr, uint32_t length)
 			continue;
 		}
 
-		print_trace(
-			"Got the rsdp header, now check the checksum\n");
+		print_trace("Got the rsdp header, now check the checksum\n");
 		rsdp = (acpi_table_rsdp_t *)i;
 
 		/* signature matches, check the appropriate checksum */
-		if (!checksum((unsigned char *)rsdp, (rsdp->revision < 2) ?
-				ACPI_RSDP_CHECKSUM_LENGTH :
-				ACPI_RSDP_XCHECKSUM_LENGTH)) {
+		if (!checksum((unsigned char *)rsdp,
+			/* rsdp->length is only valid when the revision is 2 or above */
+			(rsdp->revision < 2) ? ACPI_V1_RSDP_LENGTH : rsdp->length)) {
 			/* check_sum valid, we have found a valid RSDP */
-			print_trace(
-				"Found acpi rsdp table\n");
-			result = rsdp;
-			break;
+			print_trace("Found acpi rsdp table\n");
+			return rsdp;
 		}
 	}
 
-	return result;
+	return NULL;
 }
 
 /* Find an acpi table with specified signature and return mapped address */
@@ -154,19 +150,19 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 
 	/* Get xsdt pointer */
 	if (rsdp->revision > 1 && rsdp->xsdt_physical_address) {
-		print_trace(
-			"rsdp->xsdt_physical_address %lx\n",
+		print_trace("rsdp->xsdt_physical_address 0x%llX\n",
 			rsdp->xsdt_physical_address);
-		hmm_hpa_to_hva(rsdp->xsdt_physical_address, (uint64_t *)&sdt);
+		VMM_ASSERT_EX(hmm_hpa_to_hva(rsdp->xsdt_physical_address, (uint64_t *)&sdt),
+			"fail to convert hpa 0x%llX to hva", rsdp->xsdt_physical_address);
 	}
 
 	/* Or get rsdt */
 	if (!sdt && rsdp->rsdt_physical_address) {
 		xsdt = 0;
-		print_trace(
-			"rsdp->rsdt_physical_address  = %x\n",
+		print_trace("rsdp->rsdt_physical_address = 0x%X\n",
 			rsdp->rsdt_physical_address);
-		hmm_hpa_to_hva(rsdp->rsdt_physical_address, (uint64_t *)&sdt);
+		VMM_ASSERT_EX(hmm_hpa_to_hva(rsdp->rsdt_physical_address, (uint64_t *)&sdt),
+			"fail to convert hpa 0x%X to hva", rsdp->rsdt_physical_address);
 	}
 
 	/* Check if the rsdt/xsdt table pointer is NULL */
@@ -177,8 +173,7 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 
 	/* Make sure the table checksum is correct */
 	if (checksum((unsigned char *)sdt, sdt->length)) {
-		print_panic("Wrong checksum in %s!\n",
-			(xsdt) ? "XSDT" : "RSDT");
+		print_panic("Wrong checksum in %s!\n", (xsdt) ? "XSDT" : "RSDT");
 		return NULL;
 	}
 
@@ -188,78 +183,90 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 	num = (sdt->length - sizeof(acpi_table_header_t)) /
 			((xsdt) ? sizeof(uint64_t) : sizeof(uint32_t));
 
-	print_trace(
-		"The number of table pointers in xsdt/rsdt = %d\n", num);
+	print_trace("The number of table pointers in xsdt/rsdt = %d\n", num);
 
 	/* Get to the table pointer area */
 	offset = (char *)sdt + sizeof(acpi_table_header_t);
 
 	/* Traverse the pointer list to get the desired acpi table */
-	for (i = 0; i < num; ++i,
-		offset += ((xsdt) ? sizeof(uint64_t) : sizeof(uint32_t))) {
+	for (i = 0; i < num; ++i, offset += ((xsdt) ? sizeof(uint64_t) : sizeof(uint32_t))) {
 		/* Get the address from the pointer entry */
-		hmm_hpa_to_hva((uint64_t)
-			((xsdt) ? (*(uint64_t *)offset)
-			 : (*(uint32_t *)offset)), (uint64_t *)&tbl);
+		VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)((xsdt) ?
+			(*(uint64_t *)offset) : (*(uint32_t *)offset)), (uint64_t *)&tbl),
+				"fail to convert hpa 0x%llX to hva",
+				(uint64_t)((xsdt) ? (*(uint64_t *)offset): (*(uint32_t *)offset)));
 
 		/* Make sure address is valid */
 		if (!tbl) {
 			continue;
 		}
 
-		print_trace("Mapped ACPI table addr = 0x%llx, ", tbl);
-		print_trace("signature = 0x%x\n", tbl->signature);
+		print_trace("Mapped ACPI table addr = 0x%llX, ", tbl);
+		print_trace("signature = 0x%X\n", tbl->signature);
 
 		/* Verify table signature & table checksum */
 		if ((tbl->signature == sig) &&
 			!checksum((unsigned char *)tbl, tbl->length)) {
 			/* Found the table with matched signature */
-			print_trace(
-				"Found the table %s address = 0x%llx length = %x\n",
-				sig,
-				tbl,
-				tbl->length);
-
+			print_trace("Found the table %s address = 0x%llX length = 0x%X\n",
+				sig, tbl, tbl->length);
 			return tbl;
 		}
 	}
 
-	print_panic(
-		"Could not find %s table in XSDT/RSDT\n", sig);
+	print_panic("Could not find %s table in XSDT/RSDT\n", sig);
 
 	return NULL;
 }
 
+static acpi_table_rsdp_t *acpi_locate_rsdp(void)
+{
+	acpi_table_rsdp_t *rsdp;
+	uint64_t hva;
+
+	/* Try 0x0 first for getting rsdp table */
+	VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)0, &hva),
+			"fail to convert hap 0 to hva\n");
+	rsdp = scan_for_rsdp((void *)hva, 0x400);
+	if (NULL == rsdp) {
+		/* Try 0xE0000 */
+		print_trace("Try 0xE0000 for ACPI RSDP table\n");
+		 VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)0xE0000, &hva),
+				"fail to convert hap 0xE0000 to hva\n");
+		rsdp = scan_for_rsdp((void *)hva, 0x1FFFF);
+	}
+
+	VMM_ASSERT_EX(rsdp, "Could not find the rsdp table\n");
+
+	print_trace("rsdp address 0x%llx\n", rsdp);
+
+	return rsdp;
+}
+
 acpi_table_header_t *acpi_locate_table(uint32_t sig)
 {
-
 	static acpi_table_rsdp_t *rsdp = NULL;
-	void *table = NULL;
-	uint64_t hva = 0;
+	void *table;
 
-	if (NULL == rsdp) {
-		/* Try 0x0 first for getting rsdp table */
-		hmm_hpa_to_hva((uint64_t)0, &hva);
-		rsdp = scan_for_rsdp((void *)hva, 0x400);
-		if (NULL == rsdp) {
-			/* Try 0xE0000 */
-			print_trace(
-				"Try 0xE0000 for ACPI RSDP table\n");
-			hmm_hpa_to_hva((uint64_t)0xE0000, &hva);
-			rsdp = scan_for_rsdp((void *)hva, 0x1FFFF);
+	if (rsdp == NULL) {
+#ifdef ACPI_RSDP
+#ifdef DEBUG
+		rsdp = acpi_locate_rsdp();
+		VMM_ASSERT_EX(rsdp == (acpi_table_rsdp_t *)ACPI_RSDP,
+			"rsdp is not equal to ACPI_RSDP\n");
+#else
+		rsdp = (acpi_table_rsdp_t *)ACPI_RSDP;
+		if (rsdp->signature != ACPI_SIG_RSD_PTR) {
+			print_warn("the signature in ACPI_RSDP is not correct\n");
+			rsdp = acpi_locate_rsdp();
 		}
-
-		if (NULL == rsdp) {
-			print_panic(
-				"Could not find the rsdp table\n");
-			return NULL;
-		}
-
-		print_trace("rsdp address 0x%llx\n", rsdp);
+#endif
+#else
+		rsdp = acpi_locate_rsdp();
+#endif
 	}
 	/* Get the specified table from rsdp */
 	table = get_acpi_table_from_rsdp(rsdp, sig);
 
 	return table;
-
 }
