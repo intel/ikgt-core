@@ -112,7 +112,7 @@ static void dr_swap_out(guest_cpu_handle_t gcpu, UNUSED void *pv)
  */
 void dr_isolation_init()
 {
-	lock_init(&dr_lock);
+	lock_init(&dr_lock, "dr_lock");
 	event_register(EVENT_GCPU_SWAPIN, dr_swap_in);
 	event_register(EVENT_GCPU_SWAPOUT, dr_swap_out);
 }

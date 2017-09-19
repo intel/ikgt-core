@@ -30,7 +30,8 @@ static inline uint16_t host_cpu_id(void)
 
 	cpu_id = calculate_cpu_id(asm_str());
 
-	D(VMM_ASSERT(cpu_id < host_cpu_num));
+	VMM_ASSERT_EX(cpu_id < host_cpu_num, "cpuid(%d) is larger"
+		" than host_cpu_num(%d)\n", cpu_id, host_cpu_num);
 
 	return cpu_id;
 }

@@ -79,7 +79,7 @@ mam_handle_t mam_create_mapping(mam_entry_ops_t *entry_ops, uint32_t attr)
 	mam_handle = (mam_handle_t)mem_alloc(sizeof(struct mam_t));
 	mam_handle->pml4_table = (uint64_t*)page_alloc(1);
 	mam_handle->entry_ops = entry_ops;
-	lock_init(&(mam_handle->lock));
+	lock_init(&(mam_handle->lock), "mam_lock");
 
 	for (i=0; i<ENTRY_NUM_IN_TABLE; i++)
 	{

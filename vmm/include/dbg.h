@@ -32,7 +32,7 @@ extern vmm_lock_t vmm_print_lock;
 }
 #define vmm_print_init(setup) \
 {\
-	lock_init(&vmm_print_lock); \
+	lock_init(&vmm_print_lock, "vmm_print_lock"); \
 	print_init(setup);\
 }
 #else
