@@ -20,7 +20,7 @@
 #include "file_pack.h"
 #include "ldr_dbg.h"
 #include "guest_setup.h"
-#include "trusty_setup.h"
+#include "stage0_lib.h"
 #include "efi_boot_param.h"
 
 #include "lib/util.h"

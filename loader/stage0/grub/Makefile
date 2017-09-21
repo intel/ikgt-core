@@ -22,9 +22,9 @@ include $(PROJS)/rule.linux
 
 OBJS = $(OUTDIR)stage0_entry.o \
 	$(OUTDIR)stage0.o \
+	$(OUTDIR)stage0_lib.o \
 	$(OUTDIR)grub_boot_param.o \
 	$(OUTDIR)guest_setup.o \
-	$(OUTDIR)trusty_setup.o \
 	$(OUTDIR)linux_loader.o \
 	$(LIB_DIR)/elf_ld.o \
 	$(LIB_DIR)/elf32_ld.o \

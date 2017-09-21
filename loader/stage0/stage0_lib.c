@@ -24,7 +24,7 @@
 #define TRUSTY_BOOT_CS       (0x08)
 #define TRUSTY_BOOT_DS       (0x10)
 
-void fill_code32_seg(segment_t *ss, uint16_t sel)
+static void fill_code32_seg(segment_t *ss, uint16_t sel)
 {
 	ss->base = 0;
 	ss->limit = 0xffffffff;
@@ -32,7 +32,7 @@ void fill_code32_seg(segment_t *ss, uint16_t sel)
 	ss->selector = sel;
 }
 
-void fill_code64_seg(segment_t *ss, uint16_t sel)
+static void fill_code64_seg(segment_t *ss, uint16_t sel)
 {
 	ss->base = 0;
 	ss->limit = 0xffffffff;
@@ -40,7 +40,7 @@ void fill_code64_seg(segment_t *ss, uint16_t sel)
 	ss->selector = sel;
 }
 
-void fill_data_seg(segment_t *ss, uint16_t sel)
+static void fill_data_seg(segment_t *ss, uint16_t sel)
 {
 	ss->base = 0;
 	ss->limit = 0xffffffff;
@@ -48,7 +48,7 @@ void fill_data_seg(segment_t *ss, uint16_t sel)
 	ss->selector = sel;
 }
 
-void fill_tss_seg(segment_t *ss, uint16_t sel)
+static void fill_tss_seg(segment_t *ss, uint16_t sel)
 {
 	ss->base = 0;
 	ss->limit = 0xffffffff;
@@ -56,6 +56,44 @@ void fill_tss_seg(segment_t *ss, uint16_t sel)
 	/* it is ok for TR to be NULL while the attribute is not 0.
 	 * vmentry will not check it and guest OS will set the correct TR later */
 	ss->selector = sel;
+}
+
+static void fill_unused_seg(segment_t *ss)
+{
+	ss->base = 0;
+	ss->limit = 0;
+	ss->attributes = 0x10000;
+	ss->selector = 0;
+}
+
+void save_current_cpu_state(gcpu_state_t *s)
+{
+	asm_sgdt(&(s->gdtr));
+	asm_sidt(&(s->idtr));
+	s->cr0 = asm_get_cr0();
+	s->cr3 = asm_get_cr3();
+	s->cr4 = asm_get_cr4();
+
+	s->msr_efer = asm_rdmsr(MSR_EFER);
+
+	/* The selector of LDTR in current environment is invalid which indicates
+	 * the bootloader is not using LDTR. So set LDTR unusable here. In
+	 * future, exception might occur if LDTR is used in bootloader. Then bootloader
+	 * will find us since we changed LDTR to 0, and we can fix it for that bootloader. */
+	fill_unused_seg(&s->segment[SEG_LDTR]);
+	/* TSS is used for RING switch, which is usually not used in bootloader since
+	 * bootloader always runs in RING0. So we hardcode TR here. In future, #TS
+	 * might occur if TSS is used bootloader. Then bootlaoder will find us since we
+	 * changed TR to 0, and we can fix it for that bootlaoder. */
+	fill_tss_seg(&s->segment[SEG_TR], 0);
+	/* For segments: get selector from current environment, selector of ES/FS/GS are from DS,
+	 * hardcode other fields to make guest launch successful. */
+	fill_code64_seg(&s->segment[SEG_CS], asm_get_cs());
+	fill_data_seg(&s->segment[SEG_DS], asm_get_ds());
+	fill_data_seg(&s->segment[SEG_ES], asm_get_ds());
+	fill_data_seg(&s->segment[SEG_FS], asm_get_ds());
+	fill_data_seg(&s->segment[SEG_GS], asm_get_ds());
+	fill_data_seg(&s->segment[SEG_SS], asm_get_ss());
 }
 
 boolean_t trusty_gcpu_setup(evmm_desc_t *xd)

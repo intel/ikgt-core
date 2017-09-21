@@ -19,10 +19,7 @@
 #include "evmm_desc.h"
 #include "vmm_arch.h"
 
-void fill_code32_seg(segment_t *ss, uint16_t sel);
-void fill_code64_seg(segment_t *ss, uint16_t sel);
-void fill_data_seg(segment_t *ss, uint16_t sel);
-void fill_tss_seg(segment_t *ss, uint16_t sel);
+void save_current_cpu_state(gcpu_state_t *s);
 boolean_t trusty_gcpu_setup(evmm_desc_t *xd);
 
 #endif
