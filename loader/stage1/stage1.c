@@ -60,7 +60,7 @@ static uint8_t ap_stack[STARTAP_STACK_SIZE * (MAX_CPU_NUM+1)];
  * sipi_page        - address to be used for bootstap.
  * expected_cpu_num - expected cpu num to launch
  * Return:
- * ap number that were init (not including BSP).
+ * number of cpus that were init (including BSP).
  *---------------------------------------------------------------------------*/
 static uint32_t launch_aps(uint32_t sipi_page, uint8_t expected_cpu_num)
 {
@@ -69,7 +69,7 @@ static uint32_t launch_aps(uint32_t sipi_page, uint8_t expected_cpu_num)
 	uint64_t tsc_start;
 
 	if (expected_cpu_num == 1)
-		return 0;
+		return 1;
 
 	/* prepare for sipi */
 	for (i=0; i<=(MAX_CPU_NUM); i++) {
@@ -150,8 +150,10 @@ void stage1_main(evmm_desc_t *xd)
  * means CPU_NUM is not defined or defined but not equal to 1.*/
 #if (CPU_NUM != 1)
 	num_of_cpu = launch_aps(xd->sipi_ap_wkup_addr, xd->num_of_cpu);
-	if (num_of_cpu == (uint32_t)-1)
+	if (num_of_cpu > MAX_CPU_NUM) {
+		print_panic("num of cpus is larger than MAX_CPU_NUM\n");
 		return;
+	}
 	if (xd->num_of_cpu == 0)
 		xd->num_of_cpu = num_of_cpu;
 #endif
