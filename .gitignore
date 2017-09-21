@@ -5,7 +5,6 @@ loader/startap/build/
 lk/
 plugins/
 build/
-loader/
 api/
 *.bin
 *.elf
