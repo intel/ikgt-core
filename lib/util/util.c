@@ -71,8 +71,8 @@ uint32_t lock_inc32(volatile uint32_t *addr)
 	return retval + 1;
 }
 
-#define FEATURE_CONTROL_LOCK            (1 << 0)
-#define FEATURE_CONTROL_VMX_OUT_SMX     (1 << 2)
+#define FEATURE_CONTROL_LOCK            (1ULL << 0)
+#define FEATURE_CONTROL_VMX_OUT_SMX     (1ULL << 2)
 
 boolean_t check_vmx(void)
 {

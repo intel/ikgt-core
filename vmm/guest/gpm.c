@@ -81,7 +81,7 @@ static void ept_to_leaf(uint64_t *p_entry, uint32_t level, uint32_t attr)
 	if (attr & EPT_P_MASK)
 	{
 		*p_entry &= MASK64_MID(51,12); // clear attr
-		*p_entry |= attr & EPT_ATTR_MASK; // set r,w,x,emt
+		*p_entry |= (uint64_t)(attr & EPT_ATTR_MASK); // set r,w,x,emt
 		if (level != MAM_LEVEL_PT)
 			*p_entry |= EPT_PS;
 	}

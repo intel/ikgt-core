@@ -434,7 +434,7 @@ static boolean_t pae_gva_to_gpa(IN guest_cpu_handle_t gcpu,
 		if ((level == MAM_LEVEL_PT) || (entry & PAGE_FLAG_PS)) {
 			if (!check_smap(is_user_addr, cpl, cr4, rflags)) {
 				print_warn("%s: #PF was caused by smap check\n", __FUNCTION__);
-				print_warn("gva=0x%llX, entry=0x%llx, level=%d, is_user_addr=%d, cpl=%d, cr4=0x%llx, rflags=0x%llx\n",
+				print_warn("gva=0x%X, entry=0x%llx, level=%d, is_user_addr=%d, cpl=%d, cr4=0x%llx, rflags=0x%llx\n",
 					gva, entry, level, is_user_addr, cpl, cr4, rflags);
 				set_pfec(p_pfec, access, cpl, 0);
 				return FALSE;
