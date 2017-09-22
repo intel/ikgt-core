@@ -90,12 +90,12 @@ static void tsc_setup(UNUSED guest_cpu_handle_t gcpu, void *pv)
 
 static void tsc_gcpu_init(guest_cpu_handle_t gcpu, UNUSED void *pv)
 {
-	uint64_t ctrl;
+	uint32_t ctrl;
 	vmcs_obj_t vmcs = gcpu->vmcs;
 
 	if(gcpu->guest->id != 0)
 	{
-		ctrl = vmcs_read(vmcs, VMCS_PROC_CTRL1);
+		ctrl = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL1);
 		ctrl |= PROC_TSC_OFFSET;
 		vmcs_write(vmcs, VMCS_TSC_OFFSET, 0);
 		vmcs_write(vmcs, VMCS_PROC_CTRL1, ctrl);

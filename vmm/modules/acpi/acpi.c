@@ -214,8 +214,7 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 		}
 	}
 
-	print_panic("Could not find %s table in XSDT/RSDT\n", sig);
-
+	print_panic("Could not find table with sig(%x) in XSDT/RSDT\n", sig);
 	return NULL;
 }
 

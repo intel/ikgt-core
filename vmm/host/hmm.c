@@ -184,7 +184,7 @@ static void hmm_remap_exception_stack(uint32_t default_attr)
 #define CR3_PI (3ULL << 3) // bit [4:3]
 #define CR3_PS (1ULL << 7)
 #define CR3_XD (1ULL << 63)
-#define CR3_ATTR_MASK 0x1B; //for p,w,pi
+#define CR3_ATTR_MASK 0x1B //for p,w,pi
 
 static uint32_t cr3_max_leaf_level(void)
 {
@@ -228,7 +228,7 @@ static void cr3_to_leaf(uint64_t *p_entry, uint32_t level, uint32_t attr)
 	if (cr3_attr.bits.p)
 	{
 		*p_entry &= MASK64_MID(51,12); // clear attr
-		*p_entry |= attr & CR3_ATTR_MASK; // set p,w,pi
+		*p_entry |= (uint64_t)(attr & CR3_ATTR_MASK); // set p,w,pi
 		if (cr3_attr.bits.x == 0) // set xd
 			*p_entry |= CR3_XD;
 		if (level != MAM_LEVEL_PT)
