@@ -35,6 +35,10 @@ AINCLUDES += -I$(PROJS)/vmm/include
 
 CFLAGS += $(INCLUDES)
 
+ifneq (, $(findstring -DSTACK_PROFILE, $(EVMM_CMPL_FLAGS)))
+CFLAGS += -finstrument-functions
+endif
+
 AFLAGS += $(AINCLUDES)
 
 include $(PROJS)/rule.linux

@@ -199,6 +199,10 @@ Config files
 		Description: Support task switch in vmexit.
 
 	- MODULE_PROFILE
+		SubFlags:
+		- STACK_PROFILE
+		Description: For debug. Profile EVMM stack usage
+		- TIME_PROFILE
 		Description: For debug. Profile guest OS and EVMM performance
 
 	- AP_START_IN_HLT

@@ -822,7 +822,7 @@ static inline void asm_invept(uint64_t eptp)
 		);
 }
 
-inline uint32_t asm_get_pkru(void)
+static inline uint32_t asm_get_pkru(void)
 {
 	uint32_t value;
 	__asm__ __volatile__ (
