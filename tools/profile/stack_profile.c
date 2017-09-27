@@ -13,32 +13,15 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
-#include "vmm_base.h"
-#include "vmm_objects.h"
-#include "vmexit.h"
-#include "scheduler.h"
-#include "guest.h"
-#include "heap.h"
-#include "gcpu.h"
-#include "vmcs.h"
-#include "vmx_cap.h"
-#include "event.h"
-#include "host_cpu.h"
-#include "modules/vmcall.h"
-#include "lib/util.h"
-#include "dbg.h"
-#include "stack_profile.h"
-#include "time_profile.h"
 
-void profile_init(void)
+#define TRUSTY_VMCALL_STACK_PROFILE 0x6C696E02
+
+int main(int argc, char **argv)
 {
-#ifdef TIME_PROFILE
-	time_profile_init();
-#endif
+	__asm__ __volatile__(
+		"vmcall"
+		:: "a"(TRUSTY_VMCALL_STACK_PROFILE)
+	);
 
-#ifdef STACK_PROFILE
-	stack_profile_init();
-#endif
-
-	return;
+	return 0;
 }

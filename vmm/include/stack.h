@@ -16,6 +16,8 @@
 
 #ifndef VMM_STACK_H
 #define VMM_STACK_H
+#include "vmm_base.h"
+#include "evmm_desc.h"
 
 /*-------------------------------------------------------------------------
  * Function: stack_initialize
