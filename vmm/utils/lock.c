@@ -21,6 +21,7 @@
 #include "lib/print.h"
 
 #define WRITELOCK_MASK  0x80000000
+#define DEADLOCK_CYCLE 1200000
 
 #if LOG_LEVEL >= LEVEL_PANIC
 static boolean_t printed = FALSE;
@@ -55,7 +56,7 @@ void lock_acquire_read(vmm_lock_t *lock)
 		if (WRITELOCK_MASK == orig_value) {
 			asm_pause();
 			count++;
-			if (count >= 10)
+			if (count >= DEADLOCK_CYCLE)
 				print_once("cpu maybe dead lock(%s)\n", lock->name);
 		}else if (orig_value == asm_lock_cmpxchg32(&(lock->lock),
 				new_value,
@@ -81,7 +82,7 @@ void lock_acquire_write(vmm_lock_t *lock)
 		}
 		asm_pause();
 		count++;
-		if (count >= 10)
+		if (count >= DEADLOCK_CYCLE)
 			print_once("cpu maybe dead lock(%s)\n", lock->name);
 	}
 }
