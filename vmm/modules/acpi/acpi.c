@@ -143,30 +143,26 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 {
 	acpi_table_header_t *sdt = NULL;
 	acpi_table_header_t *tbl = NULL;
-	uint32_t xsdt = 1;
+	boolean_t xsdt;
 	uint32_t i;
 	uint32_t num;
+	uint32_t step;
 	char *offset;
 
-	/* Get xsdt pointer */
-	if (rsdp->revision > 1 && rsdp->xsdt_physical_address) {
+	/* Get rsdt/xsdt pointer */
+	if (rsdp->revision >= 2 && rsdp->xsdt_physical_address) {
+		xsdt = TRUE;
 		print_trace("rsdp->xsdt_physical_address 0x%llX\n",
 			rsdp->xsdt_physical_address);
 		VMM_ASSERT_EX(hmm_hpa_to_hva(rsdp->xsdt_physical_address, (uint64_t *)&sdt),
 			"fail to convert hpa 0x%llX to hva", rsdp->xsdt_physical_address);
-	}
-
-	/* Or get rsdt */
-	if (!sdt && rsdp->rsdt_physical_address) {
-		xsdt = 0;
+	} else if (rsdp->rsdt_physical_address) {
+		xsdt = FALSE;
 		print_trace("rsdp->rsdt_physical_address = 0x%X\n",
 			rsdp->rsdt_physical_address);
 		VMM_ASSERT_EX(hmm_hpa_to_hva(rsdp->rsdt_physical_address, (uint64_t *)&sdt),
 			"fail to convert hpa 0x%X to hva", rsdp->rsdt_physical_address);
-	}
-
-	/* Check if the rsdt/xsdt table pointer is NULL */
-	if (NULL == sdt) {
+	} else {
 		print_panic("map rsdt/xsdt error\n");
 		return NULL;
 	}
@@ -179,9 +175,9 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 
 	print_trace("xsdt/rsdt checksum verified!\n");
 
+	step = (xsdt) ? sizeof(uint64_t) : sizeof(uint32_t);
 	/* Calculate the number of table pointers in the xsdt or rsdt table */
-	num = (sdt->length - sizeof(acpi_table_header_t)) /
-			((xsdt) ? sizeof(uint64_t) : sizeof(uint32_t));
+	num = (sdt->length - sizeof(acpi_table_header_t)) / step;
 
 	print_trace("The number of table pointers in xsdt/rsdt = %d\n", num);
 
@@ -189,7 +185,7 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 	offset = (char *)sdt + sizeof(acpi_table_header_t);
 
 	/* Traverse the pointer list to get the desired acpi table */
-	for (i = 0; i < num; ++i, offset += ((xsdt) ? sizeof(uint64_t) : sizeof(uint32_t))) {
+	for (i = 0; i < num; ++i, offset += step) {
 		/* Get the address from the pointer entry */
 		VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)((xsdt) ?
 			(*(uint64_t *)offset) : (*(uint32_t *)offset)), (uint64_t *)&tbl),
@@ -201,8 +197,8 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 			continue;
 		}
 
-		print_trace("Mapped ACPI table addr = 0x%llX, ", tbl);
-		print_trace("signature = 0x%X\n", tbl->signature);
+		print_trace("Mapped ACPI table address = 0x%llX, signature = 0x%X\n",
+				tbl, tbl->signature);
 
 		/* Verify table signature & table checksum */
 		if ((tbl->signature == sig) &&

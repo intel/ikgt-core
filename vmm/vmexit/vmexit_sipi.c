@@ -49,30 +49,23 @@ void vmexit_sipi_event(guest_cpu_handle_t gcpu)
 	sipi_vmexit_param.vector = vector;
 	sipi_vmexit_param.handled = FALSE;
 
-	/* single-execution loop */
-	do {
-		/* Check if this is IPC SIPI signal. */
-		event_raise(gcpu, EVENT_SIPI_VMEXIT, (void*)(&sipi_vmexit_param));
-		if (sipi_vmexit_param.handled == TRUE) {
-			break;
-		}
+	print_trace("sipi vector=0x%x\n", (uint16_t)qualification.sipi.vector);
 
-		print_trace("CPU-%d Leave SIPI State\n", host_cpu_id());
-		real_mode_segment = (uint16_t)qualification.sipi.vector << 8;
-		gcpu_set_seg(gcpu,
-			SEG_CS,
-			real_mode_segment,
-			real_mode_segment << 4, 0xFFFF, 0x9B);
+	/* Check if this is IPC SIPI signal. */
+	event_raise(gcpu, EVENT_SIPI_VMEXIT, (void*)(&sipi_vmexit_param));
+	if (sipi_vmexit_param.handled) {
+		return;
+        }
 
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_RIP, 0);
+	print_trace("CPU-%d Leave SIPI State\n", host_cpu_id());
+	real_mode_segment = (uint16_t)qualification.sipi.vector << 8;
+	gcpu_set_seg(gcpu,
+		SEG_CS,
+		real_mode_segment,
+		real_mode_segment << 4, 0xFFFF, 0x9B);
 
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_ACTIVITY_STATE,
-				ACTIVITY_STATE_ACTIVE);
-	} while (0);
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_RIP, 0);
 
-	print_trace("sipi vector=0x%x, selector=0x%x, base=0x%x\n",
-			(uint16_t)qualification.sipi.vector,
-			real_mode_segment,
-			real_mode_segment << 4);
-
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_ACTIVITY_STATE,
+			ACTIVITY_STATE_ACTIVE);
 }
