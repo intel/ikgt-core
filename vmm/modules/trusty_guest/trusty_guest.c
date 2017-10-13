@@ -172,6 +172,10 @@ static void relocate_trusty_image(void)
 	/* restore lk runtime address and total size */
 	trusty_desc->lk_file.runtime_addr -= SG_INFO_PAGE*PAGE_4K_SIZE;
 	trusty_desc->lk_file.runtime_total_size += SG_RSVD_PAGE*PAGE_4K_SIZE;
+
+#ifdef DEBUG //remove VMM's access to LK's memory to make sure VMM will not read/write to LK in runtime
+	hmm_unmap_hpa(trusty_desc->lk_file.runtime_addr, trusty_desc->lk_file.runtime_total_size);
+#endif
 }
 
 #ifdef ENABLE_SGUEST_SMP
@@ -411,10 +415,12 @@ static void trusty_set_gcpu_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
 }
 
 static uint8_t *seed;
+#ifndef DEBUG //in DEBUG build, access from VMM to LK will be removed. so, only erase seed in RELEASE build
 static void trusty_erase_seed(void)
 {
 	memset(seed, 0, sizeof(seed_info_t) * BOOTLOADER_SEED_MAX_ENTRIES);
 }
+#endif
 
 void trusty_register_deadloop_handler(evmm_desc_t *evmm_desc)
 {
@@ -423,7 +429,9 @@ void trusty_register_deadloop_handler(evmm_desc_t *evmm_desc)
 	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
 	dev_info = (trusty_device_info_t *)evmm_desc->trusty_desc.lk_file.runtime_addr;
 	seed = (uint8_t *)&(dev_info->seed_list);
+#ifndef DEBUG
 	register_final_deadloop_handler(trusty_erase_seed);
+#endif
 }
 
 void init_trusty_guest(evmm_desc_t *evmm_desc)
