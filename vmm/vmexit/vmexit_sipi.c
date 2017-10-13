@@ -55,7 +55,7 @@ void vmexit_sipi_event(guest_cpu_handle_t gcpu)
 	event_raise(gcpu, EVENT_SIPI_VMEXIT, (void*)(&sipi_vmexit_param));
 	if (sipi_vmexit_param.handled) {
 		return;
-        }
+	}
 
 	print_trace("CPU-%d Leave SIPI State\n", host_cpu_id());
 	real_mode_segment = (uint16_t)qualification.sipi.vector << 8;

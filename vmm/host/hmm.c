@@ -28,6 +28,8 @@
 #include <lib/image_loader.h>
 #include "lib/util.h"
 
+#define CR3_ATTR_RW 0x3 //p,w,!x
+
 typedef struct {
 	mam_handle_t hva_to_hpa;
 	mam_handle_t hpa_to_hva;
@@ -46,7 +48,7 @@ static uint64_t hmm_page_vmalloc(uint32_t page_num)
 	return ptr;
 }
 
-static void hmm_update_image_attr(uint64_t base, uint32_t default_attr)
+static void hmm_update_image_attr(uint64_t base)
 {
 	image_section_info_t image_section_info;
 	cr3_attr_t attr;
@@ -56,7 +58,7 @@ static void hmm_update_image_attr(uint64_t base, uint32_t default_attr)
 
 	print_trace("HMM: Updating permissions to VMM image:\n");
 
-	attr.uint32 = default_attr;
+	attr.uint32 = CR3_ATTR_RW;
 
 	while (get_image_section((void *)base, index, &image_section_info)) {
 		index++;
@@ -73,7 +75,7 @@ static void hmm_update_image_attr(uint64_t base, uint32_t default_attr)
 		attr.bits.w = image_section_info.writable;
 		attr.bits.x = image_section_info.executable;
 
-		if (attr.uint32 != default_attr) {
+		if (attr.uint32 != CR3_ATTR_RW) {
 			mam_update_attr(g_hmm.hva_to_hpa, section_start, section_size,
 					0x6, attr.uint32);
 			print_trace("\tHMM: updated w%d x%d to section [0x%llX - 0x%llX]\n",
@@ -86,13 +88,13 @@ static void hmm_update_image_attr(uint64_t base, uint32_t default_attr)
 
 }
 
-static void hmm_remap_first_virtual_page(uint32_t default_attr)
+static void hmm_remap_first_virtual_page(void)
 {
 	uint64_t virt_page = hmm_page_vmalloc(1);
 
 	mam_insert_range(g_hmm.hva_to_hpa, 0, 0, PAGE_4K_SIZE, 0);
 
-	mam_insert_range(g_hmm.hva_to_hpa, virt_page, 0, PAGE_4K_SIZE, default_attr);
+	mam_insert_range(g_hmm.hva_to_hpa, virt_page, 0, PAGE_4K_SIZE, CR3_ATTR_RW);
 	mam_insert_range(g_hmm.hpa_to_hva, 0, virt_page, PAGE_4K_SIZE, 0x1);
 
 	print_trace("HMM: Successfully remapped hpa (0) to hva (0x%llX)\n", virt_page);
@@ -134,7 +136,7 @@ static void hmm_remap_first_virtual_page(uint32_t default_attr)
 *
 *******************************************/
 
-static void hmm_remap_exception_stack(uint32_t default_attr)
+static void hmm_remap_exception_stack(void)
 {
 	uint16_t cpu_id;
 	uint64_t page;
@@ -158,7 +160,7 @@ static void hmm_remap_exception_stack(uint32_t default_attr)
 		/* unmap the page of exception stack from paging table */
 		mam_insert_range(g_hmm.hva_to_hpa, page, 0, PAGE_4K_SIZE, 0);
 		/* map the page of exception stack to new virtual page address */
-		mam_insert_range(g_hmm.hva_to_hpa, new_hva, page, PAGE_4K_SIZE, default_attr);
+		mam_insert_range(g_hmm.hva_to_hpa, new_hva, page, PAGE_4K_SIZE, CR3_ATTR_RW);
 		mam_insert_range(g_hmm.hpa_to_hva, page, new_hva, PAGE_4K_SIZE, 0x1);
 
 		/* The lower and higher pages should remain unmapped in order to
@@ -331,8 +333,6 @@ static mam_entry_ops_t* rvs_make_entry_ops(void)
 
 void hmm_setup(evmm_desc_t *evmm_desc)
 {
-	cr3_attr_t default_attr;
-
 	D(VMM_ASSERT_EX(evmm_desc, "HMM: evmm_desc is NULL\n"));
 
 	print_trace("\nHMM: Initializing...\n");
@@ -342,35 +342,24 @@ void hmm_setup(evmm_desc_t *evmm_desc)
 	g_hmm.hpa_to_hva = mam_create_mapping(rvs_make_entry_ops(), 0);
 	valloc_ptr = top_of_memory;
 
-	/* Fill HPA <-> HVA mappings with initial data */
-	default_attr.uint32 = 0x3; // p,w,!x, pat_index=0(msr_pat[0:7]=0x6=WB)
-	/* the mapping is not executable */
-
 	/* Creating initial mapping for range 0 - 4G (+ existing memory above 4G)
-	 * with WRITE permissions*/
-	mam_insert_range(g_hmm.hva_to_hpa, 0, 0, top_of_memory, default_attr.uint32);
+	 * with write permissions*/
+	mam_insert_range(g_hmm.hva_to_hpa, 0, 0, top_of_memory, CR3_ATTR_RW);
 	mam_insert_range(g_hmm.hpa_to_hva, 0, 0, top_of_memory, 0x1);
 
-	print_trace("HMM: Created mapping for range 0 - 0x%llX with attribute 0x%llx\n",
-		top_of_memory, default_attr.uint32);
+	print_trace("HMM: Created mapping for range 0 - 0x%llX with "
+			"write permissions\n", top_of_memory);
 
 	/* Update permissions for VMM image */
-	hmm_update_image_attr(evmm_desc->evmm_file.runtime_addr,
-			default_attr.uint32);
+	hmm_update_image_attr(evmm_desc->evmm_file.runtime_addr);
 
 	/* Remap the first virtual page to use hpa(0) page memory */
-	hmm_remap_first_virtual_page(default_attr.uint32);
+	hmm_remap_first_virtual_page();
 
 	/* Remap the exception stack to trace each stack overflow and underflow */
-	hmm_remap_exception_stack(default_attr.uint32);
+	hmm_remap_exception_stack();
 
 	print_trace("\nHMM: Host Memory Manager was successfully initialized\n");
-}
-
-static void hmm_set_control_reg(void)
-{
-	asm_set_cr0(asm_get_cr0() | CR0_WP);
-	asm_wrmsr(MSR_EFER, (asm_rdmsr(MSR_EFER) | EFER_NXE));
 }
 
 #define DEFAULT_PAT_VALUE 0x0007040600070406ULL
@@ -387,7 +376,7 @@ void hmm_enable(void)
 		asm_wrmsr(MSR_PAT, DEFAULT_PAT_VALUE);
 	}
 
-	hmm_set_control_reg();
+	asm_wrmsr(MSR_EFER, (asm_rdmsr(MSR_EFER) | EFER_NXE));
 
 	D(VMM_ASSERT(g_hmm.hva_to_hpa));
 
@@ -456,6 +445,7 @@ void hmm_unmap_hpa(IN uint64_t hpa, uint64_t size)
 	mam_handle_t hpa_to_hva;
 	mam_handle_t hva_to_hpa;
 	uint64_t hva;
+	uint64_t size_tmp;
 	D(uint64_t hpa_tmp);
 
 	D(VMM_ASSERT(g_hmm.hpa_to_hva));
@@ -465,21 +455,21 @@ void hmm_unmap_hpa(IN uint64_t hpa, uint64_t size)
 
 	hpa_to_hva = g_hmm.hpa_to_hva;
 	hva_to_hpa = g_hmm.hva_to_hpa;
+	size_tmp = size;
 
-	while (size != 0) {
+	while (size_tmp != 0) {
 		if (hmm_hpa_to_hva(hpa, &hva)) {
 			D(VMM_ASSERT(hmm_hva_to_hpa(hva,
 				&hpa_tmp, NULL) && (hpa_tmp == hpa)));
 			D(VMM_ASSERT((hva & 0xFFF) == 0));
 
-			mam_insert_range(hpa_to_hva, hpa, 0, PAGE_4K_SIZE, 0);
 			mam_insert_range(hva_to_hpa, hva, 0, PAGE_4K_SIZE, 0);
 		}
 
-		size -= PAGE_4K_SIZE;
+		size_tmp -= PAGE_4K_SIZE;
 		hpa += PAGE_4K_SIZE;
 	}
+	mam_insert_range(hpa_to_hva, hpa, 0, size, 0);
 
 	hw_flash_tlb();
-	/* TODO: in future, if this function is called in runtime (not boottime) or in AP (not BSP), please add below code*/
 }
