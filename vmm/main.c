@@ -480,7 +480,7 @@ void vmm_main(uint32_t cpuid,
 		top_of_memory = evmm_desc->top_of_mem;
 		tsc_per_ms = evmm_desc->tsc_per_ms;
 		vmm_print_init(FALSE);
-		D(VMM_ASSERT((host_cpu_num >= 1) && (host_cpu_num <= MAX_CPU_NUM)));
+		VMM_ASSERT_EX((host_cpu_num >= 1) && (host_cpu_num <= MAX_CPU_NUM), "invalid host_cpu_num(%d)\n", host_cpu_num);
 		D(VMM_ASSERT(top_of_memory != 0 && ((top_of_memory & PAGE_4K_MASK) == 0)));
 		D(VMM_ASSERT(tsc_per_ms != 0));
 
