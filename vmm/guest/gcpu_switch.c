@@ -29,6 +29,9 @@
 
 #include "lib/util.h"
 
+#define local_print(fmt, ...)
+//#define local_print(fmt, ...) vmm_printf(fmt, ##__VA_ARGS__)
+
 /*---------------------------------------------------------------------------
  *
  * Context switching
@@ -106,7 +109,7 @@ static void gcpu_inject_pending_nmi(guest_cpu_handle_t gcpu)
 	allowed = TRUE;
 
 end_of_check:
-	print_trace("%s(): pending_nmi=%d, allowed=%d\n", __FUNCTION__,
+	local_print("%s(): pending_nmi=%d, allowed=%d\n", __FUNCTION__,
 		pending_nmi, allowed);
 	if (allowed)
 	{
@@ -114,7 +117,7 @@ end_of_check:
 		vmcs_write(vmcs, VMCS_ENTRY_INTR_INFO, 0x80000202);
 		// error code and instruction length are not required
 		host_cpu_clear_pending_nmi(); // don't let nmi accumulate
-		print_trace("hcpu%d, %s(): nmi=%d\n", host_cpu_id(),
+		local_print("hcpu%d, %s(): nmi=%d\n", host_cpu_id(),
 				__FUNCTION__, host_cpu_get_pending_nmi());
 	}
 	else // cannot inject now, open WINDOW
@@ -153,7 +156,7 @@ static void gcpu_handle_nmi(guest_cpu_handle_t gcpu)
 	}
 	if (pending_nmi && handled_nmi) // both not 0, need to decrease pending nmi number
 	{
-		print_trace("hcpu%d, pending_nmi=%d, handled_nmi=%d\n",
+		local_print("hcpu%d, pending_nmi=%d, handled_nmi=%d\n",
 			host_cpu_id(), pending_nmi, handled_nmi);
 		host_cpu_dec_pending_nmi(MIN(pending_nmi, handled_nmi));
 	}
@@ -201,7 +204,7 @@ static void gcpu_inject_pending_intr(guest_cpu_handle_t gcpu)
 	allowed = TRUE;
 
 end_of_check:
-	print_trace("%s(): vector=%d, allowed=%d\n", __FUNCTION__,
+	local_print("%s(): vector=%d, allowed=%d\n", __FUNCTION__,
 		vector, allowed);
 	if (allowed)
 	{
@@ -246,14 +249,14 @@ void gcpu_resume(guest_cpu_handle_t gcpu)
 		clear_deadloop_flag();
 		/* call assembler launch */
 		vmentry_func(TRUE);
-		print_trace(
+		print_panic(
 			"VmLaunch failed for GCPU %d GUEST %d\n",
 			gcpu->id, gcpu->guest->id);
 	} else {
 		clear_deadloop_flag();
 		/* call assembler resume */
 		vmentry_func(FALSE);
-		print_trace(
+		print_panic(
 			"VmResume failed for GCPU %d GUEST %d\n",
 			gcpu->id, gcpu->guest->id);
 	}
