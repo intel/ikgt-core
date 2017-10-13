@@ -442,34 +442,31 @@ boolean_t hmm_hpa_to_hva(IN uint64_t hpa, OUT uint64_t *p_hva)
 
 void hmm_unmap_hpa(IN uint64_t hpa, uint64_t size)
 {
-	mam_handle_t hpa_to_hva;
-	mam_handle_t hva_to_hpa;
+#ifdef DEBUG
 	uint64_t hva;
 	uint64_t size_tmp;
-	D(uint64_t hpa_tmp);
+	uint64_t hpa_tmp;
 
-	D(VMM_ASSERT(g_hmm.hpa_to_hva));
-	D(VMM_ASSERT(g_hmm.hva_to_hpa));
-	D(VMM_ASSERT((hpa & 0xFFF) == 0));
-	D(VMM_ASSERT((size & 0xFFF) == 0));
+	VMM_ASSERT(g_hmm.hpa_to_hva);
+	VMM_ASSERT(g_hmm.hva_to_hpa);
+	VMM_ASSERT((hpa & 0xFFF) == 0);
+	VMM_ASSERT((size & 0xFFF) == 0);
 
-	hpa_to_hva = g_hmm.hpa_to_hva;
-	hva_to_hpa = g_hmm.hva_to_hpa;
 	size_tmp = size;
-
+	hpa_tmp = hpa;
 	while (size_tmp != 0) {
-		if (hmm_hpa_to_hva(hpa, &hva)) {
-			D(VMM_ASSERT(hmm_hva_to_hpa(hva,
-				&hpa_tmp, NULL) && (hpa_tmp == hpa)));
-			D(VMM_ASSERT((hva & 0xFFF) == 0));
-
-			mam_insert_range(hva_to_hpa, hva, 0, PAGE_4K_SIZE, 0);
+		if (hmm_hpa_to_hva(hpa_tmp, &hva)) {
+			VMM_ASSERT(hpa_tmp == hva);
+		} else {
+			print_warn("hpa(0x%llX) is already unmapped\n", hpa_tmp);
 		}
-
 		size_tmp -= PAGE_4K_SIZE;
-		hpa += PAGE_4K_SIZE;
+		hpa_tmp += PAGE_4K_SIZE;
 	}
-	mam_insert_range(hpa_to_hva, hpa, 0, size, 0);
+#endif
+
+	mam_insert_range(g_hmm.hva_to_hpa, hpa, 0, size, 0);
+	mam_insert_range(g_hmm.hpa_to_hva, hpa, 0, size, 0);
 
 	hw_flash_tlb();
 }
