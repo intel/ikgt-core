@@ -163,13 +163,13 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 		VMM_ASSERT_EX(hmm_hpa_to_hva(rsdp->rsdt_physical_address, (uint64_t *)&sdt),
 			"fail to convert hpa 0x%X to hva", rsdp->rsdt_physical_address);
 	} else {
-		print_panic("map rsdt/xsdt error\n");
+		print_warn("map rsdt/xsdt error\n");
 		return NULL;
 	}
 
 	/* Make sure the table checksum is correct */
 	if (checksum((unsigned char *)sdt, sdt->length)) {
-		print_panic("Wrong checksum in %s!\n", (xsdt) ? "XSDT" : "RSDT");
+		print_warn("Wrong checksum in %s!\n", (xsdt) ? "XSDT" : "RSDT");
 		return NULL;
 	}
 
@@ -210,7 +210,7 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 		}
 	}
 
-	print_panic("Could not find table with sig(%x) in XSDT/RSDT\n", sig);
+	print_warn("Could not find table with sig(%x) in XSDT/RSDT\n", sig);
 	return NULL;
 }
 
