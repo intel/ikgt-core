@@ -142,16 +142,24 @@ typedef struct {
 	uint64_t	high;
 } dma_context_entry_t;
 
+typedef struct addr_trans_table {
+	mam_handle_t                  address_space;
+	uint16_t                      guest_id;
+	uint16_t                      padding[3];
+	struct addr_trans_table       *next;
+} addr_trans_table_t;
+
 typedef struct {
-	uint64_t         reg_base_hva[DMAR_MAX_ENGINE];
-	uint64_t         reg_base_hpa[DMAR_MAX_ENGINE];
-	uint8_t          max_leaf;
-	uint8_t          tm;
-	uint8_t          snoop;
-	uint8_t          device_gpu_engine;
-	uint8_t          pad[4];
-	dma_root_entry_t *root_table;
-	mam_handle_t     address_space;
+	uint64_t                 reg_base_hva[DMAR_MAX_ENGINE];
+	uint64_t                 reg_base_hpa[DMAR_MAX_ENGINE];
+	uint8_t                  max_leaf;
+	uint8_t                  tm;
+	uint8_t                  snoop;
+	uint8_t                  device_gpu_engine;
+	uint8_t                  pad[4];
+	dma_root_entry_t         *root_table;
+	addr_trans_table_t       trans_table;
+	uint64_t                 default_ctx_hpa;
 } vtd_dma_remapping_t;
 
 typedef union {
@@ -411,27 +419,31 @@ static void dmar_parse(acpi_dmar_table_t *dmar)
 static void vtd_init_mapping()
 {
 	dma_root_entry_t *root_entry;
-	dma_context_entry_t *context_entry;
-	dma_context_entry_t *context_table;
+	dma_context_entry_t *ctx_entry;
+	dma_context_entry_t *ctx_table;
 	uint32_t i;
 	uint64_t slptptr_hpa;
-	uint64_t ctp_hpa;
+	uint64_t ctx_table_hpa;
 
-	g_remapping.address_space = mam_create_mapping(vtd_make_entry_ops(), 0);
+	/* The default translation table is only for Guest[0] */
+	g_remapping.trans_table.address_space = mam_create_mapping(vtd_make_entry_ops(), 0);
+	g_remapping.trans_table.guest_id = 0;
+	g_remapping.trans_table.next = NULL;
 
-	slptptr_hpa = mam_get_table_hpa(g_remapping.address_space);
+	slptptr_hpa = mam_get_table_hpa(g_remapping.trans_table.address_space);
 
-	context_table = (dma_context_entry_t *)page_alloc(1);
+	ctx_table = (dma_context_entry_t *)page_alloc(1);
 	for (i=0; i<256; i++) {
-		context_entry = &context_table[i];
+		ctx_entry = &ctx_table[i];
 		/* Present(1) = 1*/
-		context_entry->low  = slptptr_hpa | 0x1;
+		ctx_entry->low  = slptptr_hpa | 0x1;
 		/* AW(66:64) = 2; DID(87:72) = 0 */
-		context_entry->high = 2;
+		ctx_entry->high = 2;
 	}
 
-	VMM_ASSERT_EX(hmm_hva_to_hpa((uint64_t)context_table, &ctp_hpa, NULL),
-			"fail to convert hva %p to hpa\n", context_table);
+	VMM_ASSERT_EX(hmm_hva_to_hpa((uint64_t)ctx_table, &ctx_table_hpa, NULL),
+			"fail to convert hva %p to hpa\n", ctx_table);
+	g_remapping.default_ctx_hpa = ctx_table_hpa;
 
 	g_remapping.root_table = (dma_root_entry_t *)page_alloc(1);
 	/* Cover all buses */
@@ -439,7 +451,7 @@ static void vtd_init_mapping()
 		root_entry = &g_remapping.root_table[i];
 		/* Same context entry for all PCI bus */
 		/* Present(1) = 1 */
-		root_entry->low = ctp_hpa | 0x1;
+		root_entry->low = ctx_table_hpa | 0x1;
 		root_entry->high = 0;
 	}
 }
@@ -498,24 +510,100 @@ static void vtd_reinit_from_s3(UNUSED guest_cpu_handle_t gcpu, UNUSED void *pv)
 		vtd_done();
 }
 
+static mam_handle_t vtd_get_mam_handle(uint16_t guest_id)
+{
+#ifdef MULTI_GUEST_DMA
+	addr_trans_table_t *trans_table = &g_remapping.trans_table;
+	while (trans_table) {
+		if (trans_table->guest_id == guest_id) {
+			VMM_ASSERT_EX(trans_table->address_space,
+				"VT-D: Address mapping NOT created for Guest[%d]!\n", guest_id);
+			return trans_table->address_space;
+		}
+		trans_table = trans_table->next;
+	}
+
+	/* Create new table if address translation table NOT found in the list */
+	trans_table = (addr_trans_table_t *)mem_alloc(sizeof(addr_trans_table_t));
+	trans_table->guest_id = guest_id;
+	trans_table->address_space = mam_create_mapping(vtd_make_entry_ops(), 0);
+
+	trans_table->next = g_remapping.trans_table.next;
+	g_remapping.trans_table.next = trans_table;
+
+	return trans_table->address_space;
+#else
+	if (guest_id == 0)
+		return g_remapping.trans_table.address_space;
+	else
+		return NULL;
+#endif
+}
+
 static void vtd_update_range(UNUSED guest_cpu_handle_t gcpu, void *pv)
 {
 	event_gpm_set_t *event_gpm_set = (event_gpm_set_t *)pv;
 	vtdpt_attr_t attr = {.uint32 = 0};
+	mam_handle_t mam_handle;
 
 	attr.bits.read = event_gpm_set->attr.bits.r;
 	attr.bits.write = event_gpm_set->attr.bits.w;
 	attr.bits.tm = g_remapping.tm;
 	attr.bits.snoop = g_remapping.snoop;
 
-	if (event_gpm_set->guest->id == 0) {
-		mam_insert_range(g_remapping.address_space,
+	mam_handle = vtd_get_mam_handle(event_gpm_set->guest->id);
+	if (mam_handle) {
+		mam_insert_range(mam_handle,
 				event_gpm_set->gpa,
 				event_gpm_set->hpa,
 				event_gpm_set->size,
 				attr.uint32);
 	}
 }
+
+#ifdef MULTI_GUEST_DMA
+void vtd_assign_dev(uint16_t guest_id, uint16_t dev_id)
+{
+	dma_root_entry_t *root_entry = NULL;
+	dma_context_entry_t *ctx_table = NULL;
+	dma_context_entry_t *ctx_entry = NULL;
+	uint64_t ctx_table_hpa;
+	uint64_t ctx_table_hva;
+	uint64_t hpa;
+
+	if (guest_id == 0) {
+		print_warn("VT-D: No need to assign device(id=%d) for Guest[0]\n", dev_id);
+		return;
+	}
+
+	/* Locate Context-table from Root-table according to device_id(Bus) */
+	root_entry = &g_remapping.root_table[dev_id>>8];
+	ctx_table_hpa = root_entry->low & (~0x1ULL);
+	VMM_ASSERT_EX(hmm_hpa_to_hva(ctx_table_hpa, &ctx_table_hva),
+		"Failed to convert hpa(0x%llx) to hva!\n", ctx_table_hpa);
+
+	/* If Context-table equals to default Context-table, create a new
+	 * Context-table from default table and reset the root-entry to new
+	 * Context-table. */
+	if (ctx_table_hpa == g_remapping.default_ctx_hpa) {
+		/* Alloc new context-table and copy from default context-table */
+		ctx_table = (dma_context_entry_t *)page_alloc(1);
+		memcpy((void *)ctx_table, (void *)ctx_table_hva, PAGE_4K_SIZE);
+
+		/* Redirect the root-entry to new context-table */
+		VMM_ASSERT_EX(hmm_hva_to_hpa((uint64_t)ctx_table, &hpa, NULL),
+			"Failed to convert hva(0x%llx) to hpa!\n", (uint64_t)ctx_table);
+		root_entry->low = hpa | 1;
+	} else {
+		/* The Context-table already created, use it directly */
+		ctx_table = (dma_context_entry_t *)ctx_table_hva;
+	}
+
+	/* Locate Context-entry from Context-table according to device_id(Dev:Func) */
+	ctx_entry = &ctx_table[dev_id & 0xFF];
+	ctx_entry->low = mam_get_table_hpa(vtd_get_mam_handle(guest_id)) | 0x1;
+}
+#endif
 
 void vtd_init(void)
 {

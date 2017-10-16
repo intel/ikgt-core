@@ -61,6 +61,8 @@ Config files
 		Description: make use of gcc to emit extra code and check buffer overflows.
 	- SYNC_CPU_IN_BOOT
 		Description: bsp wait for ap before the first guest launched.
+	- MULTI_GUEST_DMA
+		Description: Optional, allow a device access multi guest's memory by DMA.
 
 	- LIB_LAPIC_IPI
 		Description: Provide api to send IPI.
