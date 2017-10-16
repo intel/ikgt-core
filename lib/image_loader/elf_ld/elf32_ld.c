@@ -75,8 +75,8 @@ elf32_update_rela_section(uint32_t relocation_offset, elf32_dyn_t *dyn_section, 
 	for (i = 0; i < dyn_section_sz / sizeof(elf32_dyn_t); ++i) {
 		if (DT_RELA == dyn_section[i].d_tag) {
 			rela =
-				(elf32_rela_t *)(uint64_t)(dyn_section[i].d_un.d_ptr +
-							 relocation_offset);
+				(elf32_rela_t *)((uint64_t)dyn_section[i].d_un.d_ptr +
+							 (uint64_t)relocation_offset);
 		}
 
 		if (DT_RELASZ == dyn_section[i].d_tag) {
@@ -89,8 +89,8 @@ elf32_update_rela_section(uint32_t relocation_offset, elf32_dyn_t *dyn_section, 
 
 		if (DT_SYMTAB == dyn_section[i].d_tag) {
 			symtab =
-				(elf32_sym_t *)(uint64_t)(dyn_section[i].d_un.d_ptr +
-							relocation_offset);
+				(elf32_sym_t *)((uint64_t)dyn_section[i].d_un.d_ptr +
+							(uint64_t)relocation_offset);
 		}
 
 		if (DT_SYMENT == dyn_section[i].d_tag) {
@@ -99,8 +99,8 @@ elf32_update_rela_section(uint32_t relocation_offset, elf32_dyn_t *dyn_section, 
 
 		if (DT_REL == dyn_section[i].d_tag) {
 			rel =
-				(elf32_rel_t *)(uint64_t)(dyn_section[i].d_un.d_ptr +
-							relocation_offset);
+				(elf32_rel_t *)((uint64_t)dyn_section[i].d_un.d_ptr +
+							(uint64_t)relocation_offset);
 		}
 
 		if (DT_RELSZ == dyn_section[i].d_tag) {
@@ -119,8 +119,8 @@ elf32_update_rela_section(uint32_t relocation_offset, elf32_dyn_t *dyn_section, 
 		&& (sizeof(elf32_sym_t) == symtab_entsz)) {
 		for (i = 0; i < rela_sz / rela_entsz; ++i) {
 			uint32_t *target_addr =
-				(uint32_t *)(uint64_t)(rela[i].r_offset +
-						 relocation_offset);
+				(uint32_t *)((uint64_t)rela[i].r_offset +
+						 (uint64_t)relocation_offset);
 			uint32_t symtab_idx;
 
 			switch (rela[i].r_info & 0xFF) {
@@ -155,8 +155,8 @@ elf32_update_rela_section(uint32_t relocation_offset, elf32_dyn_t *dyn_section, 
 		 * may use one form exclusively or either form depending on context. */
 		for (i = 0; i < rel_sz / rel_entsz; ++i) {
 			uint32_t *target_addr =
-				(uint32_t *)(uint64_t)(rel[i].r_offset +
-						 relocation_offset);
+				(uint32_t *)((uint64_t)rel[i].r_offset +
+						 (uint64_t)relocation_offset);
 			uint32_t symtab_idx;
 
 			switch (rel[i].r_info & 0xFF) {
@@ -309,15 +309,15 @@ elf32_load_executable(module_file_info_t *file_info, uint64_t *p_entry)
 			filesz = memsz;
 		}
 
-		if (!image_copy((void *)(uint64_t)(addr + relocation_offset),
+		if (!image_copy((void *)((uint64_t)addr + (uint64_t)relocation_offset),
 				file_info, (uint64_t)phdr->p_offset, (uint64_t)filesz)) {
 			local_print("failed to read segment from file\n");
 			return FALSE;
 		}
 
 		if (filesz < memsz) { /* zero BSS if exists */
-			memset((void *)(uint64_t)(addr + filesz +
-						    relocation_offset), 0,
+			memset((void *)((uint64_t)addr + (uint64_t)filesz +
+						    (uint64_t)relocation_offset), 0,
 				memsz - filesz);
 		}
 	}
