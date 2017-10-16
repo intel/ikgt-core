@@ -26,4 +26,8 @@
 void vtd_init(void);
 void vtd_done(void);
 
+#ifdef MULTI_GUEST_DMA
+void vtd_assign_dev(uint16_t guest_id, uint16_t dev_id);
+#endif
+
 #endif /* _VTD_H_ */
