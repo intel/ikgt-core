@@ -42,7 +42,7 @@ typedef struct {
 #define ALIGN_B(value, align) \
 	((uint64_t)(value) & (~((uint64_t)(align) - 1ULL)))
 #define ALIGN_F(value, align) \
-	ALIGN_B(value + align - 1, align)
+	ALIGN_B((uint64_t)value + (uint64_t)align - 1, align)
 
 #define KILOBYTE            *1024ULL
 #define MEGABYTE            *1024ULL KILOBYTE
