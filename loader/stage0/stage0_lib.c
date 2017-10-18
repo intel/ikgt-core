@@ -96,7 +96,7 @@ void save_current_cpu_state(gcpu_state_t *s)
 	fill_data_seg(&s->segment[SEG_SS], asm_get_ss());
 }
 
-boolean_t trusty_gcpu_setup(evmm_desc_t *xd)
+void trusty_gcpu_setup(evmm_desc_t *xd)
 {
 	trusty_desc_t *trusty_desc = &xd->trusty_desc;
 
@@ -143,6 +143,4 @@ boolean_t trusty_gcpu_setup(evmm_desc_t *xd)
 	trusty_desc->gcpu0_state.gp_reg[REG_RSI] = 0;
 
 	trusty_desc->gcpu0_state.rflags = 0x3002;
-
-	return TRUE;
 }

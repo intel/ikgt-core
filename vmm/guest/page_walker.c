@@ -585,8 +585,8 @@ boolean_t gcpu_gva_to_gpa(IN guest_cpu_handle_t gcpu,
 			return pae_gva_to_gpa(gcpu, gva, access, p_gpa, p_pfec);
 	}
 
-	print_panic("%s: never reach here\n", __FUNCTION__);
-	p_pfec->is_pf = FALSE;
+	//print_panic("%s: never reach here\n", __FUNCTION__);
+	//p_pfec->is_pf = FALSE;
 
-	return FALSE;
+	//return FALSE;
 }

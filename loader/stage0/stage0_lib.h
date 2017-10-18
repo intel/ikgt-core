@@ -20,6 +20,6 @@
 #include "vmm_arch.h"
 
 void save_current_cpu_state(gcpu_state_t *s);
-boolean_t trusty_gcpu_setup(evmm_desc_t *xd);
+void trusty_gcpu_setup(evmm_desc_t *xd);
 
 #endif
