@@ -411,6 +411,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		AP_WAIT_FOR_STAGE(STAGE_INIT_GUEST);
 	} else {
 		print_trace("Create guests\n");
+
+		/* Initialize GPM */
+		gpm_init();
+
 		create_guest(host_cpu_num, &(evmm_desc->evmm_file));
 #ifdef MODULE_TRUSTY_GUEST
 		/* Dependency:
