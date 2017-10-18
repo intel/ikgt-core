@@ -24,12 +24,11 @@
 
 #include "modules/lapic_id.h"
 
-static uint32_t *g_lapic_id = NULL;
+static uint32_t g_lapic_id[MAX_CPU_NUM];
 
 static void lapic_id_reinit_from_s3(UNUSED guest_cpu_handle_t gcpu, UNUSED void *pv)
 {
 	uint16_t hcpu_id = host_cpu_id();
-	VMM_ASSERT_EX(g_lapic_id, "g_lapic_id is NULL!\n");
 	VMM_ASSERT_EX(lapic_get_id(&g_lapic_id[hcpu_id]), "%s(): get lapic id failed\n", __FUNCTION__);
 	print_trace("cpu%d, %s(): apic_id=0x%x\n",
 		hcpu_id, __FUNCTION__, g_lapic_id[hcpu_id]);
@@ -48,7 +47,6 @@ void lapic_id_init(void)
 
 	// BSP is called before AP
 	if (hcpu_id == 0) {
-		g_lapic_id = mem_alloc(host_cpu_num * sizeof(uint32_t));
 		event_register(EVENT_RESUME_FROM_S3, lapic_id_reinit_from_s3);
 	}
 
@@ -61,7 +59,6 @@ void lapic_id_init(void)
  *Local APIC ID usually not be changed*/
 uint32_t get_lapic_id(uint16_t hcpu_id)
 {
-	VMM_ASSERT_EX((g_lapic_id && (hcpu_id < host_cpu_num)),
-		"lapic_id or hcpu_id is invalid\n");
+	VMM_ASSERT_EX(hcpu_id < host_cpu_num, "hcpu_id is invalid\n");
 	return g_lapic_id[hcpu_id];
 }

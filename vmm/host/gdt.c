@@ -64,8 +64,8 @@ static struct stack_cookie g_cookie;
 #define TSS_ENTRY_OFFSET(__cpuid)   \
 	(GDT_TSS64_OFFSET + (__cpuid) * TSS_ENTRY_SIZE)
 
-static uint8_t *gdt;
-static tss64_t *p_tss;
+static uint8_t gdt[TSS_ENTRY_OFFSET(MAX_CPU_NUM)];
+static tss64_t p_tss[MAX_CPU_NUM];
 static gdtr64_t gdtr;
 
 uint16_t calculate_cpu_id(uint16_t tr)
@@ -77,7 +77,6 @@ uint64_t get_tss_base(uint16_t cpu_id)
 {
 	VMM_ASSERT_EX((cpu_id < host_cpu_num),
 		"cpu_id(%u) is invalid\n", cpu_id);
-	VMM_ASSERT_EX((p_tss), "p_tss is NULL\n");
 	return (uint64_t)&p_tss[cpu_id];
 }
 
@@ -181,16 +180,9 @@ static void setup_tss64_seg(uint16_t cpu_id)
 void gdt_setup(void)
 {
 	uint16_t cpu_id;
-	uint16_t gdt_size;
 
-	/* Offset of next after last entry will give us the size */
-	gdt_size = TSS_ENTRY_OFFSET(host_cpu_num);
-	gdt = mem_alloc(gdt_size);
-
-	gdtr.limit = gdt_size - 1;
+	gdtr.limit = TSS_ENTRY_OFFSET(MAX_CPU_NUM) - 1;
 	gdtr.base = (uint64_t)gdt;
-
-	p_tss = mem_alloc(sizeof(tss64_t) * host_cpu_num);
 
 	setup_null_seg();
 	setup_data_seg();
@@ -214,8 +206,6 @@ void gdt_setup(void)
 void gdt_load(IN uint16_t cpu_id)
 {
 
-	VMM_ASSERT_EX((gdt != NULL),
-		"gdt is NULL\n");
 	VMM_ASSERT_EX((cpu_id < host_cpu_num),
 		"cpu_id(%u) is invalid\n", cpu_id);
 

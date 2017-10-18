@@ -49,12 +49,12 @@ typedef struct {
 typedef struct {
 	ipc_message_t message[IPC_MESSAGE_NUM];
 	volatile uint32_t last_valid;
-	uint32_t pad;
-	volatile uint32_t request[0]; // for each host cpu. 1 bit means 1 message
-		// set/checked by sender, cleared by receiver
+	volatile uint32_t request[MAX_CPU_NUM]; // for each host cpu. 1 bit means 1 message
+						// set/checked by sender, cleared by receiver
+	uint32_t pad[(MAX_CPU_NUM+1)%2];
 } ipc_data_t;
 
-static ipc_data_t *g_ipc_data;
+static ipc_data_t g_ipc_data;
 
 static void vmexit_nmi(guest_cpu_handle_t gcpu)
 {
@@ -107,7 +107,7 @@ static void ipc_check_messages(UNUSED guest_cpu_handle_t gcpu, void *pv)
 
 	if (sipi_vmexit_param->vector == 0xff)
 	{
-		if (g_ipc_data->request[hcpu_id] == 0)
+		if (g_ipc_data.request[hcpu_id] == 0)
 		{
 			print_warn("%s(): no request in SIPI with vector 0xff\n", __FUNCTION__);
 		}
@@ -125,8 +125,8 @@ static void ipc_check_messages(UNUSED guest_cpu_handle_t gcpu, void *pv)
 // it should work for most cases that only 1 message (pointed by last_valid) is pending
 static uint32_t ipc_process_messages_quick(guest_cpu_handle_t gcpu, uint16_t hcpu_id)
 {
-	uint32_t request = g_ipc_data->request[hcpu_id]; // get a copy
-	uint32_t index = g_ipc_data->last_valid; // get a copy
+	uint32_t request = g_ipc_data.request[hcpu_id]; // get a copy
+	uint32_t index = g_ipc_data.last_valid; // get a copy
 	uint32_t mask;
 	ipc_func_t func;
 	void* arg;
@@ -138,9 +138,9 @@ static uint32_t ipc_process_messages_quick(guest_cpu_handle_t gcpu, uint16_t hcp
 	{
 		/* no need to assert func, it is not set to NULL after use. it will never be NULL
 		** after first use. */
-		func = g_ipc_data->message[index].func; // get a copy
-		arg = g_ipc_data->message[index].arg; // get a copy
-		asm_lock_and32(&(g_ipc_data->request[hcpu_id]), ~mask);
+		func = g_ipc_data.message[index].func; // get a copy
+		arg = g_ipc_data.message[index].arg; // get a copy
+		asm_lock_and32(&(g_ipc_data.request[hcpu_id]), ~mask);
 		func(gcpu, arg);
 		return 1;
 	}
@@ -149,8 +149,8 @@ static uint32_t ipc_process_messages_quick(guest_cpu_handle_t gcpu, uint16_t hcp
 
 static uint32_t ipc_process_messages_all(guest_cpu_handle_t gcpu, uint16_t hcpu_id)
 {
-	uint32_t request = g_ipc_data->request[hcpu_id]; // get a copy
-	uint32_t index = g_ipc_data->last_valid; // get a copy
+	uint32_t request = g_ipc_data.request[hcpu_id]; // get a copy
+	uint32_t index = g_ipc_data.last_valid; // get a copy
 	uint32_t i, count;
 	ipc_func_t func;
 	void* arg;
@@ -169,9 +169,9 @@ static uint32_t ipc_process_messages_all(guest_cpu_handle_t gcpu, uint16_t hcpu_
 		{
 			/* no need to assert func, it is not set to NULL after use. it will never be NULL
 			** after first use. */
-			func = g_ipc_data->message[index].func; // get a copy
-			arg = g_ipc_data->message[index].arg; // get a copy
-			asm_lock_and32(&(g_ipc_data->request[hcpu_id]), ~((uint32_t)1<<index));
+			func = g_ipc_data.message[index].func; // get a copy
+			arg = g_ipc_data.message[index].arg; // get a copy
+			asm_lock_and32(&(g_ipc_data.request[hcpu_id]), ~((uint32_t)1<<index));
 			func(gcpu, arg);
 			count++;
 		}
@@ -190,7 +190,7 @@ static void ipc_process_messages(guest_cpu_handle_t gcpu, void *pv)
 
 	while (1)
 	{
-		if (g_ipc_data->request[hcpu_id] == 0)
+		if (g_ipc_data.request[hcpu_id] == 0)
 			return;
 		count = ipc_process_messages_quick(gcpu, hcpu_id);
 		if (!count)
@@ -220,17 +220,10 @@ static void ipc_gcpu_init(guest_cpu_handle_t gcpu, UNUSED void *pv)
 
 void ipc_init(void)
 {
-	uint32_t size;
 	uint32_t pin_may1;
 	pin_may1 = get_pinctl_cap(NULL);
 	VMM_ASSERT_EX((pin_may1 & PIN_NMI_EXIT),
 		"nmi exit is not supported\n");
-
-	size = sizeof(ipc_data_t) + sizeof(uint32_t) * host_cpu_num;
-	size = ALIGN_F(size, 8);
-	g_ipc_data = mem_alloc(size);
-
-	memset(g_ipc_data, 0, size);
 
 	vmexit_install_handler(vmexit_nmi, REASON_00_NMI_EXCEPTION);
 	event_register(EVENT_GCPU_MODULE_INIT, ipc_gcpu_init);
@@ -243,20 +236,19 @@ static uint32_t ipc_setup_func(ipc_func_t func, void* arg)
 	uint32_t index, i;
 	uint32_t mask;
 
-	VMM_ASSERT_EX((g_ipc_data), "IPC: g_ipc_data is NULL\n");
-	index = lock_inc32(&(g_ipc_data->last_valid));
+	index = lock_inc32(&(g_ipc_data.last_valid));
 	index &= (IPC_MESSAGE_NUM - 1); // just need the index within IPC_MESSAGE_NUM
 	mask = 1U << index;
 
 	for (i=0; i<host_cpu_num; i++)
 	{
 		// the slot is available
-		VMM_ASSERT_EX(((g_ipc_data->request[i] & mask) == 0),
+		VMM_ASSERT_EX(((g_ipc_data.request[i] & mask) == 0),
 			"too many ipc calls\n");
 	}
 
-	g_ipc_data->message[index].func = func;
-	g_ipc_data->message[index].arg = arg;
+	g_ipc_data.message[index].func = func;
+	g_ipc_data.message[index].arg = arg;
 
 	return mask;
 }
@@ -267,7 +259,6 @@ void ipc_exec_on_all_other_cpus(ipc_func_t func, void* arg)
 	uint16_t this_hcpu_id = host_cpu_id();
 
 	D(VMM_ASSERT_EX(func, "%s: func is NULL\n", __FUNCTION__));
-	VMM_ASSERT_EX(g_ipc_data, "%s: g_ipc_data is NULL\n", __FUNCTION__);
 
 	mask = ipc_setup_func(func, arg);
 
@@ -279,7 +270,7 @@ void ipc_exec_on_all_other_cpus(ipc_func_t func, void* arg)
 		** so, there's no need to assert 0 (by checking return value of asm_lock_or32) again
 		*/
 		if (i != this_hcpu_id)
-			asm_lock_or32(&(g_ipc_data->request[i]), mask);
+			asm_lock_or32(&(g_ipc_data.request[i]), mask);
 	}
 	/* when target cpu is in guest mode and guest mode is wait-for-sipi, NMI will be dropped and
 	** no VMExit will occur. it only accepts SIPI. when target cpu is in other status, SIPI will be dropped
@@ -298,12 +289,11 @@ void ipc_exec_on_host_cpu(uint16_t hcpu_id, ipc_func_t func, void* arg)
 	uint16_t this_hcpu_id = host_cpu_id();
 
 	D(VMM_ASSERT_EX(func, "%s: func is NULL\n", __FUNCTION__));
-	VMM_ASSERT_EX(g_ipc_data, "%s: g_ipc_data is NULL\n", __FUNCTION__);
 	VMM_ASSERT_EX((this_hcpu_id != hcpu_id),
 		"ipc is called on the same hcpu id\n");
 
 	mask = ipc_setup_func(func, arg);
-	asm_lock_or32(&(g_ipc_data->request[hcpu_id]), mask);
+	asm_lock_or32(&(g_ipc_data.request[hcpu_id]), mask);
 	/*IA32 spec, volume3, chapter 10 APIC->Local APIC->Local APIC ID
 	 *Local APIC ID usually not be changed */
 	VMM_ASSERT_EX(send_nmi(get_lapic_id(hcpu_id)), "%s(): send_nmi to hcpu%d failed\n", __FUNCTION__, hcpu_id);

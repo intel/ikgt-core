@@ -22,7 +22,7 @@
 
 #include "lib/util.h"
 
-static guest_cpu_handle_t *g_current_gcpu = NULL;
+static guest_cpu_handle_t g_current_gcpu[MAX_CPU_NUM];
 
 /*
  * Register guest cpu for given host_cpu_id.
@@ -34,11 +34,6 @@ void register_gcpu(guest_cpu_handle_t gcpu_handle, uint16_t host_cpu_id)
 	D(VMM_ASSERT(gcpu_handle));
 	D(VMM_ASSERT_EX((host_cpu_id < host_cpu_num),
 		"host_cpu_id=%d is invalid \n", host_cpu_id));
-
-	if (g_current_gcpu == NULL) {
-		g_current_gcpu = mem_alloc(host_cpu_num * sizeof(guest_cpu_handle_t));
-		memset(g_current_gcpu, 0, host_cpu_num * sizeof(guest_cpu_handle_t));
-	}
 
 	if (g_current_gcpu[host_cpu_id] == NULL) {
 		g_current_gcpu[host_cpu_id] = gcpu_handle;
@@ -56,8 +51,6 @@ void register_gcpu(guest_cpu_handle_t gcpu_handle, uint16_t host_cpu_id)
 guest_cpu_handle_t get_current_gcpu()
 {
 	uint16_t host_cpu;
-	if (!g_current_gcpu)
-		return NULL;
 
 	host_cpu = host_cpu_id();
 
@@ -72,7 +65,6 @@ guest_cpu_handle_t schedule_next_gcpu()
 	uint16_t host_cpu = host_cpu_id();
 	guest_cpu_handle_t next_gcpu;
 
-	VMM_ASSERT_EX(g_current_gcpu, "%s is called before gcpu registered!\n", __func__);
 	VMM_ASSERT_EX(g_current_gcpu[host_cpu], "%s: no gcpu registered on host[%d]!\n", __func__, host_cpu);
 
 	next_gcpu = g_current_gcpu[host_cpu]->next_same_host_cpu;
@@ -96,7 +88,6 @@ guest_cpu_handle_t schedule_initial_gcpu()
 {
 	uint16_t host_cpu = host_cpu_id();
 
-	VMM_ASSERT_EX(g_current_gcpu, "%s is called before gcpu registered!\n", __func__);
 	VMM_ASSERT_EX(g_current_gcpu[host_cpu], "%s: no gcpu registered on host[%d]!\n", __func__, host_cpu);
 
 	gcpu_swap_in(g_current_gcpu[host_cpu]);
@@ -109,7 +100,6 @@ guest_cpu_handle_t schedule_initial_gcpu()
  */
 void schedule_next_gcpu_as_init(uint16_t host_cpu_id)
 {
-	VMM_ASSERT_EX(g_current_gcpu, "%s is called before gcpu registered!\n", __func__);
 	VMM_ASSERT_EX(host_cpu_id < host_cpu_num, "%s: Wrong host_cpu_id(%d), host_cpu_num=%d\n",
 					__func__, host_cpu_id, host_cpu_num);
 
