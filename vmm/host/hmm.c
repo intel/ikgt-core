@@ -33,17 +33,19 @@
 typedef struct {
 	mam_handle_t hva_to_hpa;
 	mam_handle_t hpa_to_hva;
+	mam_entry_ops_t cr3_entry_ops;
+	mam_entry_ops_t rvs_entry_ops;
+	uint64_t valloc_ptr;
 } hmm_t;   /* Host Memory Manager */
 
 static hmm_t g_hmm;
 uint64_t top_of_memory;
-static uint64_t valloc_ptr;
 /*-----------------------------------------------------------*/
 static uint64_t hmm_page_vmalloc(uint32_t page_num)
 {
-	uint64_t ptr = valloc_ptr;
+	uint64_t ptr = g_hmm.valloc_ptr;
 
-	valloc_ptr += page_num * PAGE_4K_SIZE;
+	g_hmm.valloc_ptr += page_num * PAGE_4K_SIZE;
 
 	return ptr;
 }
@@ -257,18 +259,14 @@ static uint32_t cr3_leaf_get_attr(uint64_t leaf_entry, UNUSED uint32_t level)
 	return cr3_attr.uint32;
 }
 
-static mam_entry_ops_t* cr3_make_entry_ops(void)
+static void init_cr3_entry_ops(mam_entry_ops_t *entry_ops)
 {
-	mam_entry_ops_t *entry_ops;
-
-	entry_ops = mem_alloc(sizeof(mam_entry_ops_t));
 	entry_ops->max_leaf_level = cr3_max_leaf_level();
 	entry_ops->is_leaf = cr3_is_leaf;
 	entry_ops->is_present = cr3_is_present;
 	entry_ops->to_table = cr3_to_table;
 	entry_ops->to_leaf = cr3_to_leaf;
 	entry_ops->leaf_get_attr = cr3_leaf_get_attr;
-	return entry_ops;
 }
 
 /*******************************
@@ -317,18 +315,14 @@ static uint32_t rvs_leaf_get_attr(uint64_t leaf_entry, UNUSED uint32_t level)
 		return 0;
 }
 
-static mam_entry_ops_t* rvs_make_entry_ops(void)
+static void init_rvs_entry_ops(mam_entry_ops_t *entry_ops)
 {
-	mam_entry_ops_t *entry_ops;
-	entry_ops = mem_alloc(sizeof(mam_entry_ops_t));
-
 	entry_ops->max_leaf_level = MAM_LEVEL_PML4;
 	entry_ops->is_leaf = rvs_is_leaf;
 	entry_ops->is_present = rvs_is_present;
 	entry_ops->to_table = rvs_to_table;
 	entry_ops->to_leaf = rvs_to_leaf;
 	entry_ops->leaf_get_attr = rvs_leaf_get_attr;
-	return entry_ops;
 }
 
 void hmm_setup(evmm_desc_t *evmm_desc)
@@ -337,10 +331,12 @@ void hmm_setup(evmm_desc_t *evmm_desc)
 
 	print_trace("\nHMM: Initializing...\n");
 
+	init_cr3_entry_ops(&g_hmm.cr3_entry_ops);
+	init_rvs_entry_ops(&g_hmm.rvs_entry_ops);
 	/* Create HVA -> HPA mapping */
-	g_hmm.hva_to_hpa = mam_create_mapping(cr3_make_entry_ops(), 0);
-	g_hmm.hpa_to_hva = mam_create_mapping(rvs_make_entry_ops(), 0);
-	valloc_ptr = top_of_memory;
+	g_hmm.hva_to_hpa = mam_create_mapping(&g_hmm.cr3_entry_ops, 0);
+	g_hmm.hpa_to_hva = mam_create_mapping(&g_hmm.rvs_entry_ops, 0);
+	g_hmm.valloc_ptr = top_of_memory;
 
 	/* Creating initial mapping for range 0 - 4G (+ existing memory above 4G)
 	 * with write permissions*/

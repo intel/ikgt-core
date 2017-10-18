@@ -26,6 +26,7 @@
 #define GUEST_CAN_WRITE 0x2
 
 void gpm_create_mapping(guest_handle_t guest);
+void gpm_init(void);
 
 //the cache in attr[5:3] is valid
 void gpm_set_mapping_with_cache(IN guest_handle_t guest,

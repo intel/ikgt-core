@@ -160,6 +160,7 @@ typedef struct {
 	dma_root_entry_t         *root_table;
 	addr_trans_table_t       trans_table;
 	uint64_t                 default_ctx_hpa;
+	mam_entry_ops_t          vtd_entry_ops;
 } vtd_dma_remapping_t;
 
 typedef union {
@@ -267,12 +268,8 @@ static uint32_t vtd_leaf_get_attr(uint64_t leaf_entry, UNUSED uint32_t level)
 	return vtd_attr.uint32;
 }
 
-static mam_entry_ops_t* vtd_make_entry_ops(void)
+static void init_vtd_entry_ops(mam_entry_ops_t *entry_ops)
 {
-	mam_entry_ops_t *entry_ops = NULL;
-
-	entry_ops =  mem_alloc(sizeof(mam_entry_ops_t));
-
 	// Hard code 4-level page-table, leaf should be 3
 	entry_ops->max_leaf_level = g_remapping.max_leaf;
 	entry_ops->is_leaf        = vtd_addr_trans_is_leaf;
@@ -280,8 +277,6 @@ static mam_entry_ops_t* vtd_make_entry_ops(void)
 	entry_ops->to_table       = vtd_addr_trans_to_table;
 	entry_ops->to_leaf        = vtd_addr_trans_to_leaf;
 	entry_ops->leaf_get_attr  = vtd_leaf_get_attr;
-
-	return entry_ops;
 }
 
 #ifdef SKIP_DMAR_GPU
@@ -425,8 +420,10 @@ static void vtd_init_mapping()
 	uint64_t slptptr_hpa;
 	uint64_t ctx_table_hpa;
 
+	init_vtd_entry_ops(&g_remapping.vtd_entry_ops);
+
 	/* The default translation table is only for Guest[0] */
-	g_remapping.trans_table.address_space = mam_create_mapping(vtd_make_entry_ops(), 0);
+	g_remapping.trans_table.address_space = mam_create_mapping(&g_remapping.vtd_entry_ops, 0);
 	g_remapping.trans_table.guest_id = 0;
 	g_remapping.trans_table.next = NULL;
 
@@ -526,7 +523,7 @@ static mam_handle_t vtd_get_mam_handle(uint16_t guest_id)
 	/* Create new table if address translation table NOT found in the list */
 	trans_table = (addr_trans_table_t *)mem_alloc(sizeof(addr_trans_table_t));
 	trans_table->guest_id = guest_id;
-	trans_table->address_space = mam_create_mapping(vtd_make_entry_ops(), 0);
+	trans_table->address_space = mam_create_mapping(&g_remapping.vtd_entry_ops, 0);
 
 	trans_table->next = g_remapping.trans_table.next;
 	g_remapping.trans_table.next = trans_table;

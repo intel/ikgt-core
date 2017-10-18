@@ -37,6 +37,8 @@
 #define EPT_ATTR_MASK 0x3F //for r,w,x,emt
 #define EPT_P_MASK 0x7 // use to check if presnet
 
+static mam_entry_ops_t g_ept_entry_ops;
+
 static uint32_t ept_max_leaf_level(void)
 {
 	vmx_ept_vpid_cap_t ept_vpid;
@@ -114,25 +116,11 @@ static uint32_t ept_leaf_get_attr(uint64_t leaf_entry, UNUSED uint32_t level)
 	return ept_attr.uint32;
 }
 
-static mam_entry_ops_t* ept_make_entry_ops(void)
-{
-	mam_entry_ops_t *entry_ops;
-	entry_ops = mem_alloc(sizeof(mam_entry_ops_t));
-
-	entry_ops->max_leaf_level = ept_max_leaf_level();
-	entry_ops->is_leaf = ept_is_leaf;
-	entry_ops->is_present = ept_is_present;
-	entry_ops->to_table = ept_to_table;
-	entry_ops->to_leaf = ept_to_leaf;
-	entry_ops->leaf_get_attr = ept_leaf_get_attr;
-	return entry_ops;
-}
-
 void gpm_create_mapping(guest_handle_t guest)
 {
 	D(VMM_ASSERT(guest));
 	// if want to enable #VE, use (1ULL<<63) as attr
-	guest->gpa_to_hpa = mam_create_mapping(ept_make_entry_ops(), 0);
+	guest->gpa_to_hpa = mam_create_mapping(&g_ept_entry_ops, 0);
 }
 
 //the cache in attr[5:3] is valid
@@ -283,4 +271,14 @@ boolean_t gpm_gpa_to_hva(IN guest_handle_t guest,
 	}
 
 	return TRUE;
+}
+
+void gpm_init(void)
+{
+	g_ept_entry_ops.max_leaf_level = ept_max_leaf_level();
+	g_ept_entry_ops.is_leaf = ept_is_leaf;
+	g_ept_entry_ops.is_present = ept_is_present;
+	g_ept_entry_ops.to_table = ept_to_table;
+	g_ept_entry_ops.to_leaf = ept_to_leaf;
+	g_ept_entry_ops.leaf_get_attr = ept_leaf_get_attr;
 }

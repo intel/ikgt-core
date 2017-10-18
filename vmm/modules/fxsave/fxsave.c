@@ -22,20 +22,26 @@
 #include "vmm_asm.h"
 #include "vmm_arch.h"
 #include "vmx_cap.h"
+#include "heap.h"
 
 #include "modules/fxsave.h"
 
+#define FXSAVE_AREA_SIZE   512
+
 typedef struct fxsave_info {
+	/* fxsave area needs to be 16 byte aligned, so
+	 * put it at the beginning of the structure. */
+	uint8_t fxsave_area[FXSAVE_AREA_SIZE];
+
 	guest_cpu_handle_t gcpu;
-	void *fxsave_area;
 	struct fxsave_info *next;
 } fxsave_info_t;
 
-#define FXSAVE_AREA_SIZE   512
 
 static fxsave_info_t *g_fxsave;
 static vmm_lock_t fxsave_lock;
 
+#ifdef DEBUG
 static boolean_t fxsave_is_supported()
 {
 	cpuid_params_t cpuid_params;
@@ -47,6 +53,7 @@ static boolean_t fxsave_is_supported()
 	}
 	return TRUE;
 }
+#endif
 
 static fxsave_info_t *fxsave_lookup(guest_cpu_handle_t gcpu)
 {
@@ -76,9 +83,6 @@ static void fxsave_swap_in(guest_cpu_handle_t gcpu, UNUSED void *pv)
 
 		fxsave = (fxsave_info_t *)mem_alloc(sizeof(fxsave_info_t));
 
-		/*fxsave area needs to be 16 byte aligned while the return from
-		 mem_alloc() is always 16 byte aligned*/
-		fxsave->fxsave_area = mem_alloc(FXSAVE_AREA_SIZE);
 		fxsave->gcpu = gcpu;
 		lock_acquire_write(&fxsave_lock);
 		fxsave->next = g_fxsave;
