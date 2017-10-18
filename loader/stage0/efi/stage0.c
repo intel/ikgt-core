@@ -133,10 +133,7 @@ uint32_t stage0_main(
 		goto exit;
 	}
 
-	if (!trusty_gcpu_setup(evmm_desc)) {
-		print_panic("trusty setup failed\n");
-		goto exit;
-	}
+	trusty_gcpu_setup(evmm_desc);
 
 	if (!relocate_elf_image(&(evmm_desc->stage1_file), (uint64_t *)&stage1_main)) {
 		print_panic("relocate stage1 image failed\n");

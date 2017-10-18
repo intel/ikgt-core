@@ -467,10 +467,9 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 	print_info("CPU%d Launch first Guest\n", cpuid);
 	gcpu_resume(initial_gcpu);
 
-	print_panic("CPU%d Resume initial guest cpu failed\n",
-		cpuid);
+	//print_panic("CPU%d Resume initial guest cpu failed\n", cpuid);
 
-	VMM_DEADLOOP();
+	//VMM_DEADLOOP();
 }
 
 void vmm_main(uint32_t cpuid,

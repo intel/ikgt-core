@@ -161,5 +161,5 @@ final:
 	reset_platform();
 #endif
 	__STOP_HERE__;
-	printf("BUG: should never see this log after deadloop\n");
+	//printf("BUG: should never see this log after deadloop\n");
 }
