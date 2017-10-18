@@ -34,7 +34,7 @@ typedef struct _vmx_timer_t{
 } vmx_timer_t;
 
 // each host cpu maintain its own g_vmx_timer, so that we don't need a lock here
-static vmx_timer_t ** g_vmx_timer;
+static vmx_timer_t *g_vmx_timer[MAX_CPU_NUM];
 
 static void vmx_timer_vmexit (guest_cpu_handle_t gcpu);
 
@@ -64,8 +64,6 @@ static vmx_timer_t * find_vmx_timer(guest_cpu_handle_t gcpu, boolean_t create_if
 {
 	vmx_timer_t* vmx_timer;
 	uint16_t guest_id;
-
-	VMM_ASSERT_EX(g_vmx_timer, "g_vmx_timer is NULL\n");
 
 	guest_id = gcpu->guest->id;
 	for (vmx_timer = g_vmx_timer[host_cpu_id()]; vmx_timer!=NULL; vmx_timer=vmx_timer->next)
@@ -168,8 +166,6 @@ void vmx_timer_init(void)
 	D(VMM_ASSERT(get_tsc_per_ms()));
 
 	vmexit_install_handler(vmx_timer_vmexit, REASON_52_PREEMP_TIMER);
-	g_vmx_timer = (vmx_timer_t **)mem_alloc(sizeof(void*) * host_cpu_num);
-	memset(g_vmx_timer, 0, sizeof(void*) * host_cpu_num);
 }
 
 void vmx_timer_set_mode(guest_cpu_handle_t gcpu, uint32_t mode, uint64_t periodic)

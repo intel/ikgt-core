@@ -47,16 +47,7 @@ uint16_t host_cpu_num;
 **************************************************************************/
 
 /*---------------------------------- globals ------------------------------- */
-host_cpu_save_area_t *g_host_cpus;
-
-/*----------------------------------- interface ---------------------------- */
-void host_cpu_init()
-{
-	g_host_cpus = mem_alloc(
-		sizeof(host_cpu_save_area_t) * host_cpu_num);
-
-	memset(g_host_cpus, 0, sizeof(host_cpu_save_area_t) * host_cpu_num);
-}
+host_cpu_save_area_t g_host_cpus[MAX_CPU_NUM];
 
 /*-------------------------------------------------------------------------
  *
@@ -67,8 +58,6 @@ void host_cpu_vmx_on(void)
 {
 	host_cpu_save_area_t *hcpu = NULL;
 	uint16_t my_cpu_id = host_cpu_id();
-
-	VMM_ASSERT_EX((g_host_cpus), "HOST CPU: g_host_cpus is NULL\n");
 
 	hcpu = &(g_host_cpus[my_cpu_id]);
 	if(hcpu->vmxon_region_hpa == 0)
@@ -85,7 +74,6 @@ uint32_t host_cpu_get_pending_nmi(void)
 {
 	uint16_t hcpu_id = host_cpu_id();
 
-	VMM_ASSERT_EX((g_host_cpus), "HOST CPU: g_host_cpus is NULL\n");
 	return g_host_cpus[hcpu_id].pending_nmi;
 }
 
@@ -94,7 +82,6 @@ void host_cpu_inc_pending_nmi(void)
 {
 	uint16_t hcpu_id = host_cpu_id();
 
-	VMM_ASSERT_EX((g_host_cpus), "HOST CPU: g_host_cpus is NULL\n");
 	asm_lock_inc32(&(g_host_cpus[hcpu_id].pending_nmi));
 }
 
@@ -103,7 +90,6 @@ void host_cpu_dec_pending_nmi(uint32_t num)
 {
 	uint16_t hcpu_id = host_cpu_id();
 
-	VMM_ASSERT_EX((g_host_cpus), "HOST CPU: g_host_cpus is NULL\n");
 	asm_lock_sub32(&(g_host_cpus[hcpu_id].pending_nmi), num);
 }
 
@@ -111,7 +97,6 @@ void host_cpu_clear_pending_nmi()
 {
 	uint16_t hcpu_id = host_cpu_id();
 
-	VMM_ASSERT_EX((g_host_cpus), "HOST CPU: g_host_cpus is NULL\n");
 	g_host_cpus[hcpu_id].pending_nmi = 0;
 }
 

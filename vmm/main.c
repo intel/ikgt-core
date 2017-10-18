@@ -269,10 +269,7 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 	asm_set_cr0(get_init_cr0());
 	asm_set_cr4(get_init_cr4());
 
-	/* Take primary guest into account in Post-OS Launch */
 	if (cpuid == 0) {
-		host_cpu_init();
-
 		BSP_SET_STAGE(STAGE_SETUP_VMX);
 	}
 
