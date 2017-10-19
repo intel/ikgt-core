@@ -61,8 +61,6 @@ Config files
 		Description: make use of gcc to emit extra code and check buffer overflows.
 	- SYNC_CPU_IN_BOOT
 		Description: bsp wait for ap before the first guest launched.
-	- MULTI_GUEST_DMA
-		Description: Optional, allow a device access multi guest's memory by DMA.
 
 	- LIB_LAPIC_IPI
 		Description: Provide api to send IPI.
@@ -160,6 +158,8 @@ Config files
 				Dependency: LIB_IPC
 			- LAUNCH_ANDROID_FIRST
 				Description: Launch guest 0 (Android) first. otherwise, LK will be launched firstly.
+			- DMA_FROM_CSE
+				Description: Optional, allow CSE device access multi guests' memory by DMA. This macro should take the value of PCI device id(PCI_DEV(Bus:Device:Func));
 		- PACK_LK
 			Description: pack lk.bin into evmm_pkg.bin
 
@@ -172,6 +172,8 @@ Config files
 				Description: Specify max DMAR engine in system. usually it is 4.
 			- SKIP_DMAR_GPU
 				Description: Workaround for bug OAM-42091, conflict with GFX.
+			- MULTI_GUEST_DMA
+				Description: Optional, allow a device access multi guests' memory by DMA.
 
 	- MODULE_DEV_BLK
 		Description: provide API to block access to devices from guests.
