@@ -28,6 +28,19 @@
 #include "vmm_arch.h"
 #include "vmx_cap.h"
 
+/* Currently:
+ * 1. If MODULE_EPT_UPDATE is enabled, EPT table of Guest1(LK) will only cover its self memory.
+ * 2. If MULTI_GUEST_DMA is enabled and a device(CSE) is assigned to Guest1(LK), then the
+ *    context-entry for the device will redirect to the new address translation table which
+ *    followed the Guest1's EPT table.
+ * So if the flags are enabled at the same time, the device(CSE) which assigned to Guest1 will
+ * be only able to access Guest1(LK)'s memory by DMA, but actually CSE is also used in
+ * Guest0(Android) and needs the access to Guest0(Android)'s memory. So the EPT_UPDATE should
+ * NOT enabled when MODULE_VTD and MULTI_GUEST_DMA is set. */
+#if defined MODULE_VTD && defined MULTI_GUEST_DMA
+#error "EPT_UPDATE module should not enabled when MDULE_VTD && MULTI_GUEST_DMA is set"
+#endif
+
 #define VMCALL_EPT_UPDATE  0x65707501 //0x657075='ept'
 
 static void flush_ept(UNUSED guest_cpu_handle_t gcpu, void *arg)
