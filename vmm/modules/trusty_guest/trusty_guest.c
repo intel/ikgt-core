@@ -48,6 +48,10 @@
 #include "modules/ept_update.h"
 #endif
 
+#ifdef MODULE_VTD
+#include "modules/vtd.h"
+#endif
+
 typedef enum {
 	TRUSTY_VMCALL_SMC             = 0x74727500,
 	TRUSTY_VMCALL_RESCHEDULE      = 0x74727501,
@@ -495,6 +499,10 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 			"Primary guest GPM: remove sguest image base %llx size 0x%x\r\n",
 			trusty_desc->lk_file.runtime_addr,
 			trusty_desc->lk_file.runtime_total_size);
+
+#ifdef DMA_FROM_CSE
+	vtd_assign_dev(1, DMA_FROM_CSE);
+#endif
 
 	guest_register_vmcall_services();
 
