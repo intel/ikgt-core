@@ -101,8 +101,7 @@ static void fxsave_swap_out(guest_cpu_handle_t gcpu, UNUSED void *pv)
 
 	/*it must be swapped in before, so the fxsave
 	 for this gcpu must exist*/
-	D(VMM_ASSERT(fxsave);)
-	D(VMM_ASSERT(fxsave->fxsave_area);)
+	D(VMM_ASSERT(fxsave));
 
 	asm_fxsave(fxsave->fxsave_area);
 }
@@ -116,7 +115,7 @@ void fxsave_enable(void)
 void fxsave_isolation_init(void)
 {
 	D(VMM_ASSERT_EX(fxsave_is_supported(),
-		"fxsave is not supported\n");)
+		"fxsave is not supported\n"));
 	VMM_ASSERT_EX((get_cr4_cap(NULL) & CR4_OSFXSR),
 		"OSFXSR in cr4 is not supported by vmx cr4_may1\n");
 

@@ -291,7 +291,7 @@ void mtrr_init(void)
 	mtrr_section_t mtrr_sec;
 	mtrr_section_t *mtrr_ptr = NULL;
 
-	D(VMM_ASSERT(mtrr_list == NULL);) //Function mtrr_init() can be called only once.
+	D(VMM_ASSERT(mtrr_list == NULL)); //Function mtrr_init() can be called only once.
 
 	for(mtrr_get_section(&mtrr_sec); mtrr_sec.size; mtrr_get_section(&mtrr_sec)) {
 		if (!mtrr_list) {

@@ -209,7 +209,7 @@ void gcpu_set_pending_intr(const guest_cpu_handle_t gcpu, uint8_t vector)
 	uint8_t index;
 
 	D(VMM_ASSERT(gcpu));
-	D(VMM_ASSERT(vector >= 0x20);) // first 32 entry in IDT is reserved
+	D(VMM_ASSERT(vector >= 0x20)); // first 32 entry in IDT is reserved
 
 	group = vector>>5;
 	index = vector & 0x1F;
@@ -224,7 +224,7 @@ void gcpu_clear_pending_intr(const guest_cpu_handle_t gcpu, uint8_t vector)
 	uint8_t index;
 
 	D(VMM_ASSERT(gcpu));
-	D(VMM_ASSERT(vector >= 0x20);) // first 32 entry in IDT is reserved
+	D(VMM_ASSERT(vector >= 0x20)); // first 32 entry in IDT is reserved
 
 	group = vector>>5;
 	index = vector & 0x1F;
@@ -314,7 +314,7 @@ boolean_t gcpu_gva_to_hva(guest_cpu_handle_t gcpu,
 {
 	uint64_t gpa;
 
-	D(VMM_ASSERT(gcpu);)
+	D(VMM_ASSERT(gcpu));
 	VMM_ASSERT_EX(p_hva, "p_hva is NULL\n");
 	VMM_ASSERT_EX(p_pfec, "p_pfec is NULL\n");
 	VMM_ASSERT_EX((access & (GUEST_CAN_READ | GUEST_CAN_WRITE)) != 0,

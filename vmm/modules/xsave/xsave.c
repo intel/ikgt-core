@@ -124,8 +124,8 @@ static void xsave_swap_out(guest_cpu_handle_t gcpu, UNUSED void *pv)
 	xsave_info_t *xsave;
 
 	xsave = xsave_lookup(gcpu);
-	D(VMM_ASSERT(xsave);)
-	D(VMM_ASSERT(xsave->xsave_area);)
+	D(VMM_ASSERT(xsave));
+	D(VMM_ASSERT(xsave->xsave_area));
 
 	xsave->guest_xcr0 = xsave_get_xcr0();
 	xsave_set_xcr0(host_xcr0);
@@ -136,7 +136,7 @@ static void xsave_swap_out(guest_cpu_handle_t gcpu, UNUSED void *pv)
 void xsave_isolation_init(uint64_t components)
 {
 	D(VMM_ASSERT_EX(xsave_is_supported(),
-		"xsave is not supported\n");)
+		"xsave is not supported\n"));
 	VMM_ASSERT_EX((get_cr4_cap(NULL) & CR4_OSXSAVE),
 		"OSXSAVE in cr4 is not supported by vmx cr4_may1\n");
 

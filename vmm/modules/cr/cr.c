@@ -85,7 +85,7 @@ static void cr_swap_out(guest_cpu_handle_t gcpu, UNUSED void *pv)
 
 	/*it must be swapped in before, so the save
 	 for this gcpu must exist*/
-	D(VMM_ASSERT(cr);)
+	D(VMM_ASSERT(cr));
 
 	/*save cr registers*/
 	cr->guest_cr[REG_CR2] = asm_get_cr2();
@@ -97,8 +97,8 @@ static void cr_set_cr2(guest_cpu_handle_t gcpu, UNUSED void *pv)
 	cr_info_t *cr;
 	pf_info_t *pfinfo;
 
-	D(VMM_ASSERT(gcpu);)
-	D(VMM_ASSERT(pv);)
+	D(VMM_ASSERT(gcpu));
+	D(VMM_ASSERT(pv));
 
 	cr = cr_lookup(gcpu);
 	VMM_ASSERT_EX(cr, "cr for guest %d gcpu %d isn't registed\n",
