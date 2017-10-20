@@ -464,7 +464,7 @@ static void *pool_alloc(IN uint32_t size)
 
 	VMM_ASSERT_EX(size, "POOL: try to allocate NULL\n");
 
-	D(if ((size & 0x7) != 0) print_warn("POOL: allocation size is not a multiple of 8 bytes\n"));
+	D(if ((size & 0x7) != 0) { print_warn("POOL: allocation size is not a multiple of 8 bytes\n") });
 
 	lock_acquire_write(&pool_lock);
 

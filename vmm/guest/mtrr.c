@@ -367,8 +367,9 @@ static void print_mtrr()
 	}
 
 	vcnt = MTRRCAP_VCNT(mtrrcap_reg);
-	if (vcnt > MTRR_NUM_OF_VAR)
+	if (vcnt > MTRR_NUM_OF_VAR) {
 		print_warn("MTRR variable range count overflowed!\n");
+	}
 
 	print_info("\nMTRR Variable Range, vcnt=%d:\n", vcnt);
 	for(i=0; i<vcnt; i++) {
