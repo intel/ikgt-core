@@ -26,7 +26,7 @@ extern vmm_lock_t vmm_print_lock;
 #define vmm_printf(fmt, ...) \
 {\
 	lock_acquire_write(&vmm_print_lock); \
-	D(print_init(FALSE);) \
+	D(print_init(FALSE)); \
 	printf(fmt, ##__VA_ARGS__); \
 	lock_release(&vmm_print_lock); \
 }

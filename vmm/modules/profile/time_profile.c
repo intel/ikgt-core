@@ -64,7 +64,7 @@ static void trusty_vmcall_dump_profile_data(guest_cpu_handle_t gcpu)
 	int ret = -1;
 	pf_info_t pf_info;
 
-	D(VMM_ASSERT(gcpu->guest->id == 0);)
+	D(VMM_ASSERT(gcpu->guest->id == 0));
 
 	dump_gva = gcpu_get_gp_reg(gcpu, REG_RDI);
 

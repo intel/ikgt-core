@@ -92,7 +92,7 @@ static void isr_register_handler(IN isr_handler_t handler,
 {
 	D(VMM_ASSERT(vector_id < EXCEPTION_COUNT));
 
-	D(VMM_ASSERT(isr_table[vector_id] == NULL););
+	D(VMM_ASSERT(isr_table[vector_id] == NULL));
 
 	isr_table[vector_id] = handler;
 }

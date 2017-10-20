@@ -94,7 +94,7 @@ static void dr_swap_out(guest_cpu_handle_t gcpu, UNUSED void *pv)
 
 	/*it must be swapped in before, so the save
 	 for this gcpu must exist*/
-	D(VMM_ASSERT(dr);)
+	D(VMM_ASSERT(dr));
 
 	/*save dr registers*/
 	dr->guest_dr[REG_DR0] = asm_get_dr0();

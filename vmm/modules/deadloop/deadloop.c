@@ -108,7 +108,7 @@ boolean_t deadloop_setup(guest_cpu_handle_t gcpu, uint64_t dump_gva)
 	uint64_t dump_hva;
 	pf_ec_t pfec;
 
-	D(VMM_ASSERT(gcpu);)
+	D(VMM_ASSERT(gcpu));
 
 	if(g_dump_buf != NULL)
 		return FALSE;

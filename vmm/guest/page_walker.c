@@ -560,7 +560,7 @@ boolean_t gcpu_gva_to_gpa(IN guest_cpu_handle_t gcpu,
 	uint64_t cr4;
 	uint64_t efer;
 
-	D(VMM_ASSERT(gcpu);)
+	D(VMM_ASSERT(gcpu));
 	VMM_ASSERT_EX(p_gpa, "%s: p_gpa is NULL\n", __FUNCTION__);
 	VMM_ASSERT_EX(p_pfec, "%s: p_pfec is NULL\n", __FUNCTION__);
 	VMM_ASSERT_EX(((access & (GUEST_CAN_READ | GUEST_CAN_WRITE)) != 0),
