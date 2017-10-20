@@ -177,16 +177,14 @@
 #define GET_SHDR(__ehdr, __shdrtab, __i) \
 	((__shdrtab) + (__i) * (__ehdr)->e_shentsize)
 
-typedef enum {
-	ELF_ATTR_EXECUTABLE = 1,
-	ELF_ATTR_WRITABLE = 2,
-	ELF_ATTR_READABLE = 4
-} elf_attr_type_t;
+#define ELF_ATTR_EXECUTABLE 1
+#define ELF_ATTR_WRITABLE   2
+#define ELF_ATTR_READABLE   4
 
 typedef struct {
 	char		*address;
 	uint32_t	size;
-	elf_attr_type_t attribute;
+	uint32_t	attribute;
 } elf_segment_info_t;
 
 #define elf_header_is_valid(ehdr) (\
