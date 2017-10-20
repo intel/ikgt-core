@@ -22,7 +22,9 @@
 #include "gcpu.h"
 #include "vmm_objects.h"
 #include "modules/vmcall.h"
+#if MAX_CPU_NUM > 1
 #include "modules/ipc.h"
+#endif
 #include "vmm_asm.h"
 #include "ept.h"
 #include "vmm_arch.h"
@@ -43,12 +45,14 @@
 
 #define VMCALL_EPT_UPDATE  0x65707501 //0x657075='ept'
 
+#if MAX_CPU_NUM > 1
 static void flush_ept(UNUSED guest_cpu_handle_t gcpu, void *arg)
 {
 	uint64_t eptp = (uint64_t)arg;
 
 	asm_invept(eptp);
 }
+#endif
 
 static void assert_mapping_status(guest_cpu_handle_t gcpu, uint64_t start, uint64_t size, boolean_t mapped)
 {
@@ -77,7 +81,9 @@ static void trusty_vmcall_ept_update(guest_cpu_handle_t gcpu)
 	uint64_t start = gcpu_get_gp_reg(gcpu, REG_RDI);
 	uint64_t size = gcpu_get_gp_reg(gcpu, REG_RSI);
 	uint32_t action = (uint32_t)gcpu_get_gp_reg(gcpu, REG_RDX);
+#if MAX_CPU_NUM > 1
 	uint32_t flush_all_cpus = (uint32_t)gcpu_get_gp_reg(gcpu, REG_RCX);
+#endif
 	ept_attr_t attr;
 
 	switch (action) {
@@ -97,8 +103,10 @@ static void trusty_vmcall_ept_update(guest_cpu_handle_t gcpu)
 		asm_invept(gcpu->guest->eptp);
 
 		/* if with smp, flush ept TLB on remote cpus */
-		if (flush_all_cpus)
+#if MAX_CPU_NUM > 1
+		if ((host_cpu_num > 1) && flush_all_cpus)
 			ipc_exec_on_all_other_cpus(flush_ept, (void*)gcpu->guest->eptp);
+#endif
 		break;
 	default:
 		print_panic("unknown action of EPT update\n");
