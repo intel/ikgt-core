@@ -107,7 +107,6 @@ static boolean_t msr_in_vmcs(uint32_t msr_id)
 	case MSR_SYSENTER_CS:
 	case MSR_SYSENTER_ESP:
 	case MSR_SYSENTER_EIP:
-	case MSR_PERF_GLOBAL_CTRL:
 	case MSR_PAT:
 	case MSR_EFER:
 	case MSR_FS_BASE:
