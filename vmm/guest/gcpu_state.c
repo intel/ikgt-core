@@ -51,11 +51,6 @@ void gcpu_set_host_state(guest_cpu_handle_t gcpu)
 	vmcs_write(vmcs, VMCS_HOST_CR3, asm_get_cr3());
 	vmcs_write(vmcs, VMCS_HOST_CR4, asm_get_cr4());
 
-	if (get_exitctl_cap(NULL) & EXIT_LOAD_IA32_PERF_CTRL)
-	{
-		vmcs_write(vmcs, VMCS_HOST_PERF_G_CTRL, 0);
-	}
-
 	/*
 	 *  EIP, ESP
 	 */
@@ -189,11 +184,6 @@ void gcpu_set_init_state(guest_cpu_handle_t gcpu, const gcpu_state_t *initial_st
 
 	vmcs_write(vmcs, VMCS_GUEST_DR7, 0x00000400);
 
-	if (get_entryctl_cap(NULL) & ENTRY_LOAD_IA32_PERF_CTRL)
-	{
-		vmcs_write(vmcs, VMCS_GUEST_PERF_G_CTRL, 0);
-	}
-
 	/* init RSP and RFLAGS */
 	vmcs_write(vmcs, VMCS_GUEST_RIP, initial_state->rip);
 	vmcs_write(vmcs, VMCS_GUEST_RFLAGS, initial_state->rflags);
@@ -268,11 +258,6 @@ void gcpu_set_reset_state(guest_cpu_handle_t gcpu)
 	gcpu_set_gp_reg(gcpu, REG_RSP, 0);
 
 	vmcs_write(vmcs, VMCS_GUEST_DR7, 0x00000400);
-
-	if (get_entryctl_cap(NULL) & ENTRY_LOAD_IA32_PERF_CTRL)
-	{
-		vmcs_write(vmcs, VMCS_GUEST_PERF_G_CTRL, 0);
-	}
 
 	/* init RSP and RFLAGS */
 	vmcs_write(vmcs, VMCS_GUEST_RIP, 0xFFF0);

@@ -131,6 +131,10 @@
 #include "modules/interrupt_ipi.h"
 #endif
 
+#ifdef MODULE_PERF_CTRL_ISOLATION
+#include "modules/perf_ctrl_isolation.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -317,6 +321,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 
 #ifdef MODULE_MSR_MONITOR
 		msr_monitor_init();
+#endif
+
+#ifdef MODULE_PERF_CTRL_ISOLATION
+		msr_perf_ctrl_isolation_init();
 #endif
 
 #ifdef MODULE_TSC

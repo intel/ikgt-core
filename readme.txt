@@ -215,4 +215,8 @@ Config files
 	- MODULE_INTERRUPT_IPI
 		Description: Deliver interrupt to Guest by Self-IPI.
 
+	- MODULE_PERF_CTRL_ISOLATION
+		Description: Monitor IA32_PERF_GLOBAL_CTRL MSR and do guest-host/guest-guest isolation.
+
+
 End of file

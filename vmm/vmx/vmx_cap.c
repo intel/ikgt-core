@@ -239,9 +239,7 @@ void vmx_cap_init()
 		| EXIT_SAVE_DBUG_CTRL;// used in vmexit_task_switch()
 	VMM_ASSERT_EX((must_have & ctrl_may1) == must_have,
 		"exit_ctrl: may1 = %x, must_have = %x\n", ctrl_may1, must_have);
-	nice_have = EXIT_LOAD_IA32_PERF_CTRL;
 	g_vmx_cap.init_exit = ctrl_may0 | must_have;
-	g_vmx_cap.init_exit |= nice_have & ctrl_may1;
 
 	ctrl_may1 = get_entryctl_cap(&ctrl_may0);
 	must_have = ENTRY_GUEST_IA32E_MODE
@@ -250,11 +248,9 @@ void vmx_cap_init()
 		| ENTRY_LOAD_DBUG_CTRL;// used in vmexit_task_switch()
 	VMM_ASSERT_EX((must_have & ctrl_may1) == must_have,
 		"entry_ctrl: may1 = %x, must_have = %x\n", ctrl_may1, must_have);
-	nice_have = ENTRY_LOAD_IA32_PERF_CTRL;
 	g_vmx_cap.init_entry = ctrl_may0
 		| ENTRY_LOAD_IA32_PAT
 		| ENTRY_LOAD_IA32_EFER;
-	g_vmx_cap.init_entry |= nice_have & ctrl_may1;
 
 	cr_may1 = get_cr0_cap(&cr_may0);
 	must_have = CR0_PE
