@@ -38,10 +38,15 @@ SECTIONS
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
 
-	/* merge .rodata into .text */
+    /* merge .rodata into .text */
     *(.rodata .rodata.* .gnu.linkonce.r.*)
+  } =0x90909090
 
-	/* merge .bss into .text */
-    *(.bss .bss.* .gnu.linkonce.b.*)
+/* add bss and common section into .text to support debug print in stage0.
+ * .text must come before common section to make sure tos header start at 0.*/
+  .text           :
+  {
+    /* merge .bss into .text */
+    *(.bss .bss.* .gnu.linkonce.b.* COMMON)
   } =0x90909090
 }
