@@ -125,11 +125,22 @@ typedef struct {
 	uint32_t VMMMemSize;               /* assumed to be 4MB */
 }PACKED vmm_boot_params_t;
 
+#define ABL_SEED_LEN 32
+#define ABL_SEED_LIST_MAX 4
+typedef struct _abl_seed_info {
+	uint8_t svn;
+	uint8_t reserved[3];
+	uint8_t seed[ABL_SEED_LEN];
+} abl_seed_info_t;
+
 typedef struct {
 	uint16_t Version;                  /* version of this structure */
 	uint32_t TrustyMemBase;            /* Trusty mem base address */
 	uint32_t TrustyMemSize;            /* assumed to be 16MB */
-}PACKED trusty_boot_params_t;
+	uint32_t num_seeds;
+	abl_seed_info_t seed_list[ABL_SEED_LIST_MAX];
+	//rot_data_t rot;                  /* No need for APL+ABL */
+}PACKED abl_trusty_boot_params_t;
 
 typedef struct {
 	uint64_t base;

@@ -22,11 +22,40 @@
 
 #define TOS_STARTUP_VERSION           1
 
-typedef struct {
-	uint8_t image_load[EVMM_PKG_BIN_SIZE];
-	uint8_t stage1[STAGE1_IMG_SIZE];
-	evmm_desc_t xd;
-} memory_layout_t;
+/*
+ * Structure for RoT info (fields defined by Google Keymaster2)
+ */
+typedef struct _rot_data_t {
+	/* version 2 for current TEE keymaster2 */
+	uint32_t version;
+
+	/* 0: unlocked, 1: locked, others not used */
+	uint32_t deviceLocked;
+
+	/* GREEN:0, YELLOW:1, ORANGE:2, others not used (no RED for TEE) */
+	uint32_t verifiedBootState;
+
+	/* The current version of the OS as an integer in the format MMmmss,
+	 * where MM is a two-digit major version number, mm is a two-digit,
+	 * minor version number, and ss is a two-digit sub-minor version number.
+	 * For example, version 6.0.1 would be represented as 060001;
+	 */
+	uint32_t osVersion;
+
+	/* The month and year of the last patch as an integer in the format,
+	 * YYYYMM, where YYYY is a four-digit year and MM is a two-digit month.
+	 * For example, April 2016 would be represented as 201604.
+	 */
+	uint32_t patchMonthYear;
+
+	/* A secure hash (SHA-256 recommended by Google) of the key used to verify
+	 * the system image key size (in bytes) is zero: denotes no key provided
+	 * by Bootloader. When key size is 32, it denotes key hash256 is available.
+	 * Other values not defined now.
+	 */
+	uint32_t keySize;
+	uint8_t keyHash256[32];
+} rot_data_t;
 
 /*
  * This structure is used to pass data to TOS entry when calling to TOS entry to

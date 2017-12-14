@@ -22,6 +22,7 @@
 #include "guest_setup.h"
 #include "stage0_lib.h"
 #include "efi_boot_param.h"
+#include "device_sec_info.h"
 
 #include "lib/util.h"
 #include "lib/serial.h"
@@ -79,7 +80,7 @@ static boolean_t file_parse(evmm_desc_t *evmm_desc, uint64_t stage0_base)
 void cleanup_sensetive_data(uint64_t tos_startup_info)
 {
 	tos_startup_info_t *p_startup_info = (tos_startup_info_t *)tos_startup_info;
-	memset((void *)(p_startup_info->trusty_mem_base+SEED_MSG_DST_OFFSET), 0, sizeof(trusty_device_info_t));
+	memset((void *)(p_startup_info->trusty_mem_base+SEED_MSG_DST_OFFSET), 0, sizeof(device_sec_info_v0_t));
 }
 
 /* Function: stage0_main
@@ -133,7 +134,7 @@ uint32_t stage0_main(
 		goto exit;
 	}
 
-	trusty_gcpu_setup(evmm_desc);
+	trusty_gcpu_setup(&(evmm_desc->trusty_desc));
 
 	if (!relocate_elf_image(&(evmm_desc->stage1_file), (uint64_t *)&stage1_main)) {
 		print_panic("relocate stage1 image failed\n");

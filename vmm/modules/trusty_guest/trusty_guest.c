@@ -26,6 +26,7 @@
 #include "hmm.h"
 #include "host_cpu.h"
 #include "event.h"
+#include "heap.h"
 #include "trusty_info.h"
 #include "gcpu_inject_event.h"
 
@@ -105,6 +106,7 @@ enum {
 
 static uint32_t smc_stage;
 static trusty_desc_t *trusty_desc;
+static void *dev_sec_info;
 
 static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gcpu)
 {
@@ -127,16 +129,11 @@ static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gc
 	}
 }
 
-/* RoT and startup info size align to 4KB */
-#define SG_INFO_PAGE     (PAGE_4K_ROUNDUP(sizeof(trusty_device_info_t) \
-			+ sizeof(trusty_startup_info_t)))
-#define SG_STACK_PAGE    1
-#define SG_RSVD_PAGE     (SG_INFO_PAGE + SG_STACK_PAGE)
-/* Reserved size for RoT/startup and Stack(1 page) */
+/* Reserved size for dev_sec_info/trusty_startup and Stack(1 page) */
 /*
  * Trusty load size formula:
- * IMR assigned to Trusty is 16MB size in total
- * RoT and stack size must be reserved
+ * MEM assigned to Trusty is 16MB size in total
+ * Stack size must be reserved
  * LK run time memory will be calculated by LK itself
  * The rest region can be use to load Trusy image
  * ------------------------
@@ -146,100 +143,62 @@ static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gc
  *     ^     |          |
  *     |     |          |
  *   HEAP    |          |
- *     |     |    I     |
+ *     |     |    M     |
  *  ---------|          |
- *     ^     |    M     |
+ *     ^     |    E     |
  *     |     |          |
- *   Trusty  |    R     |
+ *   Trusty  |    M     |
  *   load    |          |
  *   size    |          |
  *     |     |          |
  *  ---------|          |
  *     ^     |          |
- *    RoT    |          |
+ *  Boot info|          |
  * ------------------------
 
  */
+
 static void relocate_trusty_image(void)
 {
-	/* lk region: first page is sguest info, last page is stack. */
-	trusty_desc->lk_file.runtime_addr += SG_INFO_PAGE*PAGE_4K_SIZE;
-	trusty_desc->lk_file.runtime_total_size -= SG_RSVD_PAGE*PAGE_4K_SIZE;
+	/* lk region: first page is trusty info, last page is stack. */
+	trusty_desc->lk_file.runtime_addr += PAGE_4K_SIZE;
+	trusty_desc->lk_file.runtime_total_size -= PAGE_4K_SIZE;
 
 	VMM_ASSERT_EX(relocate_elf_image(&(trusty_desc->lk_file), &trusty_desc->gcpu0_state.rip),
 			"relocate trusty image failed!\n");
 
 	/* restore lk runtime address and total size */
-	trusty_desc->lk_file.runtime_addr -= SG_INFO_PAGE*PAGE_4K_SIZE;
-	trusty_desc->lk_file.runtime_total_size += SG_RSVD_PAGE*PAGE_4K_SIZE;
+	trusty_desc->lk_file.runtime_addr -= PAGE_4K_SIZE;
+	trusty_desc->lk_file.runtime_total_size += PAGE_4K_SIZE;
 
 #ifdef DEBUG //remove VMM's access to LK's memory to make sure VMM will not read/write to LK in runtime
 	hmm_unmap_hpa(trusty_desc->lk_file.runtime_addr, trusty_desc->lk_file.runtime_total_size);
 #endif
 }
 
-static void setup_trusty_startup_env(guest_cpu_handle_t gcpu)
+static void setup_trusty_sec_info(void *sec_info)
 {
-	uint64_t rdi;
-	trusty_startup_params_v0_t *trusty_startup_params_v0;
-	trusty_startup_params_v1_t *trusty_startup_params_v1;
-	trusty_device_info_t *dev_info;
+	VMM_ASSERT_EX(sec_info, "sec_info is NULL!\n");
+	VMM_ASSERT_EX(*((uint32_t *)sec_info) < 0x1000, "size of sec_info exceed 1 page!\n");
 
-	/*avoid waring -Wbad-function-cast */
-	rdi = gcpu_get_gp_reg(gcpu, REG_RDI);
+	gpm_remove_mapping(guest_handle(0),
+				trusty_desc->lk_file.runtime_addr,
+				trusty_desc->lk_file.runtime_total_size);
 
-	trusty_startup_params_v0 = (trusty_startup_params_v0_t *)rdi;
-	trusty_startup_params_v1 = (trusty_startup_params_v1_t *)rdi;
-	VMM_ASSERT_EX(trusty_startup_params_v0, "Invalid trusty startup params\n");
+	memcpy((void *)trusty_desc->lk_file.runtime_addr, sec_info, *((uint32_t *)sec_info));
+	memset(sec_info, 0, *((uint32_t *)sec_info));
 
-	if (trusty_startup_params_v0->size_of_this_struct == sizeof(trusty_startup_params_v0_t)) {
-		trusty_startup_params_v1 = NULL;
-	} else if(trusty_startup_params_v1->size_of_this_struct == sizeof(trusty_startup_params_v1_t)) {
-		trusty_startup_params_v0 = NULL;
-	} else {
-		print_panic("Size mismatch of trusty_startup_params between EVMM and OSloader\n");
-		VMM_DEADLOOP();
-	}
-
-	dev_info = (trusty_device_info_t *)trusty_desc->lk_file.runtime_addr;
-	memset(dev_info, 0, sizeof(trusty_device_info_t));
-	dev_info->size = sizeof(trusty_device_info_t);
-
-	if (trusty_startup_params_v0) {
-#ifndef PACK_LK
-		/* Setup load_base/load_size */
-		trusty_desc->lk_file.loadtime_addr = trusty_startup_params_v0->load_base;
-		trusty_desc->lk_file.loadtime_size = trusty_startup_params_v0->load_size;
-#endif
-
-		/* Fill seed/rot for trusty */
-		dev_info->num_seeds = 1;
-		memcpy(&dev_info->seed_list[0].seed, &trusty_startup_params_v0->seed, sizeof(trusty_startup_params_v0->seed));
-		memcpy(&dev_info->rot, &trusty_startup_params_v0->rot, sizeof(rot_data_t));
-
-		/* Clear seed in trusty_startup_param memory region */
-		memset(&trusty_startup_params_v0->seed, 0, sizeof(trusty_startup_params_v0->seed));
-	} else {
-#ifndef PACK_LK
-		/* Setup load_base/load_size */
-		trusty_desc->lk_file.loadtime_addr = trusty_startup_params_v1->load_base;
-		trusty_desc->lk_file.loadtime_size = trusty_startup_params_v1->load_size;
-#endif
-
-		/* Fill seed/rot for trusty */
-		dev_info->num_seeds = trusty_startup_params_v1->num_seeds;
-		memcpy(&dev_info->seed_list, &trusty_startup_params_v1->seed_list, sizeof(trusty_startup_params_v1->seed_list));
-		memcpy(&dev_info->rot, &trusty_startup_params_v1->rot, sizeof(rot_data_t));
-		memcpy(&dev_info->serial, &trusty_startup_params_v1->serial, sizeof(trusty_startup_params_v1->serial));
-
-		/* Clear seed in trusty_startup_param memory region */
-		memset(&trusty_startup_params_v1->seed_list, 0, sizeof(trusty_startup_params_v1->seed_list));
-	}
+	print_trace(
+			"Primary guest GPM: remove sguest image base %llx size 0x%x\r\n",
+			trusty_desc->lk_file.runtime_addr,
+			trusty_desc->lk_file.runtime_total_size);
 }
 
 static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 {
 	guest_cpu_handle_t next_gcpu;
+	uint64_t rdi;
+	trusty_boot_params_t *trusty_boot_params;
 
 	if(!guest_in_ring0(gcpu))
 	{
@@ -258,9 +217,28 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 				if(0 == gcpu->guest->id)
 				{
 					/* From Android */
-					setup_trusty_startup_env(gcpu);
+					/* avoid waring -Wbad-function-cast */
+					rdi = gcpu_get_gp_reg(gcpu, REG_RDI);
+					trusty_boot_params = (trusty_boot_params_t *)rdi;
 
+#ifdef DEBUG
+					VMM_ASSERT_EX(trusty_boot_params, "Invalid trusty boot params\n");
+#endif
+
+#if LOADER_STAGE0_SUB == abl
+					trusty_desc->lk_file.loadtime_addr = trusty_boot_params->load_base;
+					trusty_desc->lk_file.loadtime_size = trusty_boot_params->load_size;
 					relocate_trusty_image();
+#elif LOADER_STAGE0_SUB == sbl
+					trusty_desc->gcpu0_state.rip = trusty_boot_params->entry_point;
+					if(trusty->lk_file.runtime_addr != 0)
+						print_warn("LK's runtime address should not be filled before here.\n");
+					trusty_desc->lk_file.runtime_addr = trusty_boot_params->runtime_addr;
+#endif
+
+					setup_trusty_sec_info(dev_sec_info);
+					mem_free(dev_sec_info);
+					dev_sec_info = NULL;
 
 					vmcs_write(next_gcpu->vmcs, VMCS_GUEST_RIP, trusty_desc->gcpu0_state.rip);
 				}else{
@@ -361,23 +339,20 @@ static void trusty_set_gcpu_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
 	}
 }
 
-static uint8_t *seed;
-#ifndef DEBUG //in DEBUG build, access from VMM to LK will be removed. so, only erase seed in RELEASE build
-static void trusty_erase_seed(void)
+static void *sensitive_info;
+#ifndef DEBUG //in DEBUG build, access from VMM to LK will be removed. so, only erase sensetive info in RELEASE build
+static void trusty_erase_sensetive_info(void)
 {
-	memset(seed, 0, sizeof(seed_info_t) * BOOTLOADER_SEED_MAX_ENTRIES);
+	memset(sensitive_info, 0, PAGE_4K_SIZE);
 }
 #endif
 
 void trusty_register_deadloop_handler(evmm_desc_t *evmm_desc)
 {
-	trusty_device_info_t *dev_info;
-
 	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
-	dev_info = (trusty_device_info_t *)evmm_desc->trusty_desc.lk_file.runtime_addr;
-	seed = (uint8_t *)&(dev_info->seed_list);
+	sensitive_info = (void *)evmm_desc->trusty_desc.lk_file.runtime_addr;
 #ifndef DEBUG
-	register_final_deadloop_handler(trusty_erase_seed);
+	register_final_deadloop_handler(trusty_erase_sensetive_info);
 #endif
 }
 
@@ -385,15 +360,23 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 {
 	trusty_startup_info_t *trusty_para;
 	uint32_t cpu_num = 1;
+	uint32_t dev_sec_info_size;
 #ifdef MODULE_EPT_UPDATE
 	uint64_t upper_start;
 #endif
 
 	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
+
 	trusty_desc = (trusty_desc_t *)&evmm_desc->trusty_desc;
 	D(VMM_ASSERT(trusty_desc));
-	trusty_para = (trusty_startup_info_t *)trusty_desc->gcpu0_state.gp_reg[REG_RDI];
-	VMM_ASSERT_EX(trusty_para, "Invalid Trusty startup info address.\n");
+
+	dev_sec_info_size = *((uint32_t *)trusty_desc->dev_sec_info);
+	VMM_ASSERT_EX(!(dev_sec_info_size & 0x3ULL), "size of trusty boot info is not 32bit aligned!\n");
+
+	trusty_para = (trusty_startup_info_t *)ALIGN_F(trusty_desc->lk_file.runtime_addr + dev_sec_info_size, 8);
+	VMM_ASSERT_EX(((uint64_t)trusty_para + sizeof(trusty_startup_info_t)) <
+			(trusty_desc->lk_file.runtime_addr + PAGE_4K_SIZE),
+			"size of (dev_sec_info+trusty_startup_info) exceeds the reserved 4K size!\n");
 
 	/* Used to check structure in both sides are same */
 	trusty_para->size_of_this_struct    = sizeof(trusty_startup_info_t);
@@ -403,6 +386,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	trusty_para->calibrate_tsc_per_ms   = tsc_per_ms;
 	trusty_para->trusty_mem_base        =
 		trusty_desc->lk_file.runtime_addr;
+	trusty_desc->gcpu0_state.gp_reg[REG_RDI] = (uint64_t)trusty_para;
 
 	print_trace("Init trusty guest\n");
 
@@ -430,19 +414,17 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	ept_update_install(1);
 #endif
 
-#ifdef LAUNCH_ANDROID_FIRST
-	schedule_next_gcpu_as_init(0);
-#else
+#ifdef PACK_LK
 	relocate_trusty_image();
-#endif
+	setup_trusty_sec_info(trusty_desc->dev_sec_info);
+#else
+	/* Copy dev_sec_info from loader to VMM's memory */
+	dev_sec_info = mem_alloc(dev_sec_info_size);
+	memcpy(dev_sec_info, trusty_desc->dev_sec_info, dev_sec_info_size);
+	memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
 
-	gpm_remove_mapping(guest_handle(0),
-				trusty_desc->lk_file.runtime_addr,
-				trusty_desc->lk_file.runtime_total_size);
-	print_trace(
-			"Primary guest GPM: remove sguest image base %llx size 0x%x\r\n",
-			trusty_desc->lk_file.runtime_addr,
-			trusty_desc->lk_file.runtime_total_size);
+	schedule_next_gcpu_as_init(0);
+#endif
 
 #ifdef DMA_FROM_CSE
 	vtd_assign_dev(1, DMA_FROM_CSE);

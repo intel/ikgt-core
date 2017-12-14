@@ -16,23 +16,24 @@
 #include "vmm_base.h"
 #include "ldr_dbg.h"
 #include "efi_boot_param.h"
+#include "stage0_lib.h"
+#include "device_sec_info.h"
 
 #include "lib/util.h"
 
-static void fill_trusty_device_info(tos_startup_info_t *p_startup_info)
+typedef struct {
+	uint8_t image_load[EVMM_PKG_BIN_SIZE];
+	uint8_t stage1[STAGE1_IMG_SIZE];
+	evmm_desc_t xd;
+
+	device_sec_info_v0_t dev_sec_info;
+} memory_layout_t;
+
+static void fill_trusty_desc(trusty_desc_t *trusty_desc, device_sec_info_v0_t *dev_sec_info, tos_startup_info_t *p_startup_info)
 {
-	trusty_device_info_t *dev_info = (trusty_device_info_t *)p_startup_info->trusty_mem_base;
-
-	dev_info->size = sizeof(trusty_device_info_t);
-	dev_info->num_seeds = 1;
-
-	/* NOTE: Currently, kernelflinger does not retrive seed from CSE. So here use 0 as
-	 * dummy seed and serial.
-	 */
-	memset(dev_info->seed_list, 0, sizeof(dev_info->seed_list));
-	memset(dev_info->serial, 0, sizeof(dev_info->serial));
-
-	memcpy(&dev_info->rot, &p_startup_info->rot, sizeof(rot_data_t));
+	trusty_desc->lk_file.runtime_addr = (uint64_t)p_startup_info->trusty_mem_base;
+	trusty_desc->lk_file.runtime_total_size = ((uint64_t)(p_startup_info->trusty_mem_size));
+	trusty_desc->dev_sec_info = dev_sec_info;
 }
 
 evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
@@ -56,10 +57,7 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 	evmm_desc = &(loader_mem->xd);
 	memset(evmm_desc, 0, sizeof(evmm_desc_t));
 
-	/* get lk/evmm/stage1 runtime_addr/total_size */
-	evmm_desc->trusty_desc.lk_file.runtime_addr = (uint64_t)p_startup_info->trusty_mem_base;
-	evmm_desc->trusty_desc.lk_file.runtime_total_size = ((uint64_t)(p_startup_info->trusty_mem_size));
-
+	/* get evmm/stage1 runtime_addr/total_size */
 	evmm_desc->evmm_file.runtime_addr = (uint64_t)p_startup_info->vmm_mem_base;
 	evmm_desc->evmm_file.runtime_total_size = ((uint64_t)(p_startup_info->vmm_mem_size));
 
@@ -71,8 +69,11 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 	evmm_desc->tsc_per_ms = TSC_PER_MS;
 	evmm_desc->top_of_mem = TOP_OF_MEM;
 
+	/* Use dummy info(Seed) for kernelflinger */
+	make_dummy_trusty_info(&(loader_mem->dev_sec_info));
+
 	/* Fill trusty_device_info structure at Trusty Memory Base */
-	fill_trusty_device_info(p_startup_info);
+	fill_trusty_desc(&(loader_mem->xd.trusty_desc), &(loader_mem->dev_sec_info), p_startup_info);
 
 	return evmm_desc;
 }

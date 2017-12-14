@@ -156,8 +156,6 @@ Config files
 			- ENABLE_SGUEST_SMP
 				Description: Enable SMP for LK.
 				Dependency: LIB_IPC
-			- LAUNCH_ANDROID_FIRST
-				Description: Launch guest 0 (Android) first. otherwise, LK will be launched firstly.
 			- DMA_FROM_CSE
 				Description: Optional, allow CSE device access multi guests' memory by DMA. This macro should take the value of PCI device id(PCI_DEV(Bus:Device:Func));
 		- PACK_LK
