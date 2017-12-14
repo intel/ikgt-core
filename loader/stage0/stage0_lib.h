@@ -14,12 +14,13 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef _TRUSTY_SETUP_H_
-#define _TRUSTY_SETUP_H_
+#ifndef _STAGE0_LIB_H_
+#define _STAGE0_LIB_H_
 #include "evmm_desc.h"
 #include "vmm_arch.h"
 
 void save_current_cpu_state(gcpu_state_t *s);
-void trusty_gcpu_setup(evmm_desc_t *xd);
+void trusty_gcpu_setup(trusty_desc_t *trusty_desc);
+void make_dummy_trusty_info(void *info);
 
 #endif

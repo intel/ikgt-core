@@ -21,6 +21,7 @@
 #include "trusty_info.h"
 #include "guest_setup.h"
 #include "ldr_dbg.h"
+#include "device_sec_info.h"
 
 #include "lib/util.h"
 #include "lib/string.h"
@@ -45,6 +46,8 @@ typedef struct {
 
 	evmm_desc_t xd;
 
+	device_sec_info_v0_t device_sec_info;
+
 	/* add more if any */
 } memory_layout_t;
 
@@ -62,11 +65,87 @@ static void fill_evmm_boot_params(evmm_desc_t *evmm_desc, vmm_boot_params_t *vmm
 	evmm_desc->sipi_ap_wkup_addr = (uint64_t)vmm_boot_params->VMMSipiApWkupAddr;
 }
 
-static boolean_t fill_trusty_boot_params(trusty_desc_t *trusty_desc, trusty_boot_params_t *trusty_boot_params)
+static boolean_t fill_device_sec_info(device_sec_info_v0_t *device_sec_info, abl_trusty_boot_params_t *trusty_boot_params, const char *serial)
+{
+	uint32_t i;
+
+	device_sec_info->size_of_this_struct = sizeof(device_sec_info_v0_t);
+	device_sec_info->version = 0;
+	device_sec_info->flags = 0x1 | 0x0 | 0x0; // in manufacturing mode | secure boot disabled | production seed
+	device_sec_info->platform = 1; // APL + ABL
+
+	if (trusty_boot_params->num_seeds > BOOTLOADER_SEED_MAX_ENTRIES) {
+		print_panic("Number of seeds exceeds predefined max number!\n");
+		return FALSE;
+	}
+
+	device_sec_info->num_seeds = trusty_boot_params->num_seeds;
+
+	memset(device_sec_info->dseed_list, 0, sizeof(device_sec_info->dseed_list));
+	/* copy seed_list from ABL to device_sec_info->dseed_list */
+	for (i = 0; i < (trusty_boot_params->num_seeds); i++) {
+		device_sec_info->dseed_list[i].cse_svn = trusty_boot_params->seed_list[i].svn;
+		memcpy(device_sec_info->dseed_list[i].seed, trusty_boot_params->seed_list[i].seed, ABL_SEED_LEN);
+	}
+	/* Do NOT erase seed here, OSloader need to derive RPMB key from seed */
+	//memset(abl_trusty_boot_params->seed_list, 0, sizeof(abl_trusty_boot_params->seed_list));
+
+	memcpy(device_sec_info->serial, serial, sizeof(device_sec_info->serial));
+
+	return TRUE;
+}
+
+static void fill_trusty_desc(trusty_desc_t *trusty_desc, device_sec_info_v0_t *device_sec_info, abl_trusty_boot_params_t *trusty_boot_params)
 {
 	/* get lk runtime addr/total_size */
 	trusty_desc->lk_file.runtime_addr = (uint64_t)trusty_boot_params->TrustyMemBase;
 	trusty_desc->lk_file.runtime_total_size = ((uint64_t)(trusty_boot_params->TrustyMemSize)) << 10;
+	trusty_desc->dev_sec_info = device_sec_info;
+}
+
+static boolean_t get_emmc_serial(android_image_boot_params_t *android_boot_params, char *serial)
+{
+	multiboot_info_t *mbi;
+	const char *cmdline;
+	const char *arg;
+#ifdef DEBUG
+	const char *end;
+#endif
+
+	/* get MBI from guest EBX */
+	mbi = (multiboot_info_t *)(uint64_t)android_boot_params->CpuState.cpu_gp_register[1];
+
+	if (!CHECK_FLAG(mbi->flags, 2)) {
+		print_panic("Guest Multiboot info does not contain cmdline field!\n");
+		return FALSE;
+	}
+
+	cmdline = (const char *)(uint64_t)mbi->cmdline;
+	arg = strstr_s(cmdline, MAX_STR_LEN, "androidboot.serialno=", sizeof("androidboot.serialno="));
+	if (arg == NULL) {
+		print_panic("Cannot find EMMC serial number form Guest cmdline!\n");
+		return FALSE;
+	}
+
+	arg += (sizeof("androidboot.serialno=") - 1);
+
+#ifdef DEBUG
+	end = strstr_s(arg, MMC_PROD_NAME_WITH_PSN_LEN, " ", 1);
+	if (end == NULL) {
+		print_panic("Cannot locate end of EMMC serial string!\n");
+		return FALSE;
+	}
+
+	if ((end - arg) != (MMC_PROD_NAME_WITH_PSN_LEN - 1)) {
+		print_panic("Invalid EMMC serial string length!\n");
+		return FALSE;
+	}
+#endif
+
+	memcpy(serial, arg, MMC_PROD_NAME_WITH_PSN_LEN - 1);
+	serial[MMC_PROD_NAME_WITH_PSN_LEN - 1] = '\0';
+
+	print_info("EMMC Serial:%s#\n", serial);
 
 	return TRUE;
 }
@@ -191,7 +270,7 @@ static boolean_t cmdline_parse(multiboot_info_t *mbi, boot_param_t *boot_param)
 static evmm_desc_t *setup_boot_params(uint64_t image_boot_params_addr)
 {
 	vmm_boot_params_t *vmm_boot_params = NULL;
-	trusty_boot_params_t *trusty_boot_params = NULL;
+	abl_trusty_boot_params_t *trusty_boot_params = NULL;
 	android_image_boot_params_t *android_boot_params = NULL;
 	uint32_t i;
 	evmm_desc_t *evmm_desc;
@@ -199,6 +278,8 @@ static evmm_desc_t *setup_boot_params(uint64_t image_boot_params_addr)
 	memory_layout_t *loader_mem;
 	image_element_t *ImageElement;
 	image_boot_params_t *image_boot_params = (image_boot_params_t *)image_boot_params_addr;
+
+	char serial[MMC_PROD_NAME_WITH_PSN_LEN] = {0};
 
 	if (!image_boot_params)
 		return NULL;
@@ -215,7 +296,7 @@ static evmm_desc_t *setup_boot_params(uint64_t image_boot_params_addr)
 			vmm_boot_params = (vmm_boot_params_t *) (uint64_t)ImageElement->ImageDataPtr;
 			break;
 		case TRUSTY_IMAGE_ID:
-			trusty_boot_params = (trusty_boot_params_t *) (uint64_t)ImageElement->ImageDataPtr;
+			trusty_boot_params = (abl_trusty_boot_params_t *) (uint64_t)ImageElement->ImageDataPtr;
 			break;
 		case ANDROID_IMAGE_ID:
 			android_boot_params = (android_image_boot_params_t *) (uint64_t)ImageElement->ImageDataPtr;
@@ -244,11 +325,19 @@ static evmm_desc_t *setup_boot_params(uint64_t image_boot_params_addr)
 	fill_evmm_boot_params(evmm_desc, vmm_boot_params);
 	g0_gcpu_setup(evmm_desc, android_boot_params);
 
-	if (!fill_trusty_boot_params(&evmm_desc->trusty_desc, trusty_boot_params))
+	if (!get_emmc_serial(android_boot_params, serial)) {
+		print_panic("Failed to search EMMC serial number string from Guest cmdline!\n");
 		return NULL;
+	}
+
+	if(!fill_device_sec_info(&(loader_mem->device_sec_info), trusty_boot_params, serial)) {
+		print_panic("Failed to fill trusty boot info!\n");
+		return NULL;
+	}
+
+	fill_trusty_desc(&(loader_mem->xd.trusty_desc), &(loader_mem->device_sec_info), trusty_boot_params);
 
 	return evmm_desc;
-
 }
 
 evmm_desc_t *boot_params_parse(const init_register_t *init_reg)

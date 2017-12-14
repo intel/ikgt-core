@@ -18,7 +18,9 @@
 #include "vmm_arch.h"
 #include "evmm_desc.h"
 #include "ldr_dbg.h"
-#include "trusty_info.h"
+#include "device_sec_info.h"
+#include "stage0_lib.h"
+#include "lib/util.h"
 
 #define TRUSTY_BOOT_NULL     (0x00)
 #define TRUSTY_BOOT_CS       (0x08)
@@ -96,51 +98,37 @@ void save_current_cpu_state(gcpu_state_t *s)
 	fill_data_seg(&s->segment[SEG_SS], asm_get_ss());
 }
 
-void trusty_gcpu_setup(evmm_desc_t *xd)
+/* This funtion will set whole trusty gcpu state, except
+ * 1. RIP and RDI, they will be set in VMM
+ * 2. Fields should be set to 0. trusty_desc already be cleared to 0 earlier.
+ */
+void trusty_gcpu_setup(trusty_desc_t *trusty_desc)
 {
-	trusty_desc_t *trusty_desc = &xd->trusty_desc;
+	/* Stack resides at end of trusty runtime memory */
+	trusty_desc->gcpu0_state.gp_reg[REG_RSP] = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
 
-	/* Guest OS will set the correct GDTR during boot stage */;
-	trusty_desc->gcpu0_state.gdtr.base  = 0;
-	trusty_desc->gcpu0_state.gdtr.limit = 0;
+	trusty_desc->gcpu0_state.rflags = 0x3002;
 
-	trusty_desc->gcpu0_state.cr0 = 0x11;
-	trusty_desc->gcpu0_state.cr3 = 0;
-	trusty_desc->gcpu0_state.cr4 = 0;
-
-	trusty_desc->gcpu0_state.msr_efer = 0x0;
 	fill_code32_seg(&trusty_desc->gcpu0_state.segment[SEG_CS], TRUSTY_BOOT_CS);
-
-	/* it is ok for idtr to be 0. vmentry will not check it
-	 * and guest OS will set the correct idtr later */
-	trusty_desc->gcpu0_state.idtr.base  = (uint64_t)0;
-	trusty_desc->gcpu0_state.idtr.limit = (uint16_t)0;
-
-	trusty_desc->gcpu0_state.segment[SEG_LDTR].attributes = 0x010000;
-
 	fill_data_seg(&trusty_desc->gcpu0_state.segment[SEG_DS], TRUSTY_BOOT_DS);
 	fill_data_seg(&trusty_desc->gcpu0_state.segment[SEG_ES], TRUSTY_BOOT_DS);
 	fill_data_seg(&trusty_desc->gcpu0_state.segment[SEG_FS], TRUSTY_BOOT_DS);
 	fill_data_seg(&trusty_desc->gcpu0_state.segment[SEG_GS], TRUSTY_BOOT_DS);
 	fill_data_seg(&trusty_desc->gcpu0_state.segment[SEG_SS], TRUSTY_BOOT_DS);
 	fill_tss_seg(&trusty_desc->gcpu0_state.segment[SEG_TR], TRUSTY_BOOT_NULL);
+	trusty_desc->gcpu0_state.segment[SEG_LDTR].attributes = 0x010000;
 
-	/* The guest RIP will be set in core since the relocation is done in core */
-	//trusty_desc->gcpu0_state.rip = 0;
+	trusty_desc->gcpu0_state.cr0 = 0x11;
+}
 
-	trusty_desc->gcpu0_state.gp_reg[REG_RAX] = 0;
-	trusty_desc->gcpu0_state.gp_reg[REG_RBX] = 0;
+void make_dummy_trusty_info(void *info)
+{
+	device_sec_info_v0_t *device_sec_info = (device_sec_info_v0_t *)info;
 
-	/* Trusty environment setup */
-	/* Stack resides at top of IMR region */
-	trusty_desc->gcpu0_state.gp_reg[REG_RSP] = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
-	/*
-	 * Trusty startup space just right after
-	 * memory sapce of trusty_device_info_t in IMR
-	 */
-	trusty_desc->gcpu0_state.gp_reg[REG_RDI] = (uint64_t)(trusty_desc->lk_file.runtime_addr + sizeof(trusty_device_info_t));
+	memset(device_sec_info, 0, sizeof(device_sec_info_v0_t));
 
-	trusty_desc->gcpu0_state.gp_reg[REG_RSI] = 0;
-
-	trusty_desc->gcpu0_state.rflags = 0x3002;
+	device_sec_info->size_of_this_struct = sizeof(device_sec_info_v0_t);
+	device_sec_info->version = 0;
+	device_sec_info->platform = 0;
+	device_sec_info->num_seeds = 1;
 }

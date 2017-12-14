@@ -20,6 +20,8 @@
 #include "grub_boot_param.h"
 #include "trusty_info.h"
 #include "ldr_dbg.h"
+#include "device_sec_info.h"
+#include "stage0_lib.h"
 
 #include "lib/util.h"
 #include "lib/string.h"
@@ -42,6 +44,7 @@ typedef struct {
 
 	evmm_desc_t xd;
 
+	device_sec_info_v0_t dev_sec_info;
 	/* add more if any */
 } memory_layout_t;
 
@@ -184,7 +187,6 @@ static evmm_desc_t *init_evmm_desc(void)
 	void *evmm_runtime_mem = NULL;
 	void *lk_runtime_mem = NULL;
 	memory_layout_t *loader_mem = NULL;
-	trusty_device_info_t *dev_info = NULL;
 
 	/*allocate memory for every block*/
 	evmm_runtime_mem = allocate_memory(EVMM_RUNTIME_SIZE);
@@ -216,15 +218,13 @@ static evmm_desc_t *init_evmm_desc(void)
 
 	evmm_desc->sipi_ap_wkup_addr = (uint64_t)SIPI_AP_WKUP_ADDR;
 
+	/* Use dummy info(Seed) for Grub */
+	make_dummy_trusty_info(&(loader_mem->dev_sec_info));
+
 	/*fill trusty boot params*/
 	evmm_desc->trusty_desc.lk_file.runtime_addr = (uint64_t)lk_runtime_mem;
 	evmm_desc->trusty_desc.lk_file.runtime_total_size = LK_RUNTIME_SIZE;
-
-	dev_info = (trusty_device_info_t *)lk_runtime_mem;
-
-	memset(dev_info, 0, sizeof(trusty_device_info_t));
-
-	dev_info->size = sizeof(trusty_device_info_t);
+	evmm_desc->trusty_desc.dev_sec_info = &(loader_mem->dev_sec_info);
 
 	return evmm_desc;
 }

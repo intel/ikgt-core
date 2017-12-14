@@ -80,6 +80,7 @@ typedef struct {
 	/* trusty or others */
 	module_file_info_t lk_file;
 	gcpu_state_t gcpu0_state;
+	void *dev_sec_info;
 } trusty_desc_t;
 
 typedef struct {
