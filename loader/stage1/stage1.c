@@ -129,7 +129,9 @@ void stage1_main(evmm_desc_t *xd)
 	xd->num_of_cpu = CPU_NUM;
 #else
 	if (xd->num_of_cpu == 0)
+	{
 		print_warn("xd->num_of_cpu is 0, will 100ms delay to enumarate APs!\n");
+	}
 #endif
 
 	tsc_per_ms = xd->tsc_per_ms;
