@@ -334,7 +334,7 @@ static vmm_lock_t pool_lock = {0};
 
 static void vmm_pool_show(void)
 {
-	uint32_t i = 0, n;
+	UNUSED uint32_t i = 0, n;
 	pool_node_t *node;
 
 	print_info("Pool Show: \n");

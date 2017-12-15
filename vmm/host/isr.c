@@ -44,7 +44,7 @@ static isr_handler_t isr_table[EXCEPTION_COUNT];
 
 /*---------------------- Code ----------------------- */
 
-static void print_data_in_stack(isr_parameters_on_stack_t *p_stack)
+static void print_data_in_stack(UNUSED isr_parameters_on_stack_t *p_stack)
 {
 	print_info("\nException/Interrupt occured on CPU(%u):\n",
 		host_cpu_id());
@@ -110,7 +110,7 @@ static void exception_handler_undefined_opcode(isr_parameters_on_stack_t *
 					       p_stack)
 {
 	uint64_t ip = p_stack->rip;
-	uint8_t *ip_ptr = (uint8_t *)ip;
+	UNUSED uint8_t *ip_ptr = (uint8_t *)ip;
 
 	print_data_in_stack(p_stack);
 	print_panic("\t#UD: [IP]=%2x %2x %2x %2x\n", *ip_ptr, *(ip_ptr+1),

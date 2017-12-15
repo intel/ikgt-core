@@ -147,7 +147,7 @@ static boolean_t cr0_pg_handler(guest_cpu_handle_t gcpu, uint64_t write_value, u
 	return FALSE;
 }
 
-void vmexit_ept_violation(guest_cpu_handle_t gcpu)
+void vmexit_ept_violation(UNUSED guest_cpu_handle_t gcpu)
 {
 	vmx_exit_qualification_t qualification;
 	event_ept_violation_t event_ept_violation;
@@ -169,13 +169,15 @@ void vmexit_ept_violation(guest_cpu_handle_t gcpu)
 	print_panic("\tgpa=0x%llx\n",
 		vmcs_read(gcpu->vmcs, VMCS_GUEST_PHY_ADDR));
 	if (qualification.ept_violation.gla_validity)
+	{
 		print_panic("\tgva=0x%llx\n",
 			vmcs_read(gcpu->vmcs, VMCS_GUEST_LINEAR_ADDR));
+	}
 
 	VMM_DEADLOOP();
 }
 
-void vmexit_ept_misconfiguration(guest_cpu_handle_t gcpu)
+void vmexit_ept_misconfiguration(UNUSED guest_cpu_handle_t gcpu)
 {
 	D(VMM_ASSERT(gcpu));
 
