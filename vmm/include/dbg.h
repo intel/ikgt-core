@@ -36,8 +36,8 @@ extern vmm_lock_t vmm_print_lock;
 	print_init(setup);\
 }
 #else
-#define vmm_printf(fmt, ...)
-#define vmm_print_init(setup)
+#define vmm_printf(fmt, ...) { }
+#define vmm_print_init(setup) { }
 #endif
 
 #define LEVEL_PANIC 1
@@ -54,25 +54,25 @@ void vmm_deadloop(const char *file_name,  uint32_t line_num);
 	print_init(FALSE); \
 	vmm_printf("PANIC:" fmt, ##__VA_ARGS__); }
 #else
-#define print_panic(fmt, ...)
+#define print_panic(fmt, ...) { }
 #endif
 
 #if LOG_LEVEL >= LEVEL_INFO
 #define print_info(fmt, ...) vmm_printf(fmt, ##__VA_ARGS__);
 #else
-#define print_info(fmt, ...)
+#define print_info(fmt, ...) { }
 #endif
 
 #if LOG_LEVEL >= LEVEL_WARNING
 #define print_warn(fmt, ...) vmm_printf("WARNING:" fmt,  ##__VA_ARGS__);
 #else
-#define print_warn(fmt, ...)
+#define print_warn(fmt, ...) { }
 #endif
 
 #if LOG_LEVEL >= LEVEL_TRACE
 #define print_trace(fmt, ...) vmm_printf(fmt, ##__VA_ARGS__);
 #else
-#define print_trace(fmt, ...)
+#define print_trace(fmt, ...) { }
 #endif
 
 #define VMM_DEADLOOP() vmm_deadloop(__FILE__, __LINE__)
