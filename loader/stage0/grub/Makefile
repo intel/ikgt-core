@@ -31,7 +31,6 @@ OBJS = $(OUTDIR)stage0_entry.o \
 	$(LIB_DIR)/elf64_ld.o \
 	$(LIB_DIR)/util.o \
 	$(LIB_DIR)/string.o \
-	$(LIB_DIR)/print.o \
 	$(LIB_DIR)/sprintf.o
 
 ifneq (, $(findstring -DLIB_PCI, $(EVMM_CMPL_FLAGS)))
@@ -39,6 +38,7 @@ OBJS += $(LIB_DIR)/pci.o
 endif
 
 ifneq (, $(findstring -DLIB_PRINT, $(EVMM_CMPL_FLAGS)))
+OBJS += $(LIB_DIR)/print.o
 OBJS += $(LIB_DIR)/serial.o
 endif
 
