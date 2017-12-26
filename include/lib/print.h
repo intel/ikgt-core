@@ -27,8 +27,8 @@ called simultaneously in different cpus*/
 void printf(const char *format, ...);
 void print_init(boolean_t setup);
 #else
-#define printf(...)
-#define print_init(setup)
+#define printf(...) { }
+#define print_init(setup) { }
 #endif
 
 #endif

@@ -26,22 +26,22 @@
 #if LOG_LEVEL >= LEVEL_PANIC
 #define print_panic(fmt, ...) printf("PANIC: " fmt, ##__VA_ARGS__)
 #else
-#define print_panic(fmt, ...)
+#define print_panic(fmt, ...) { }
 #endif
 #if LOG_LEVEL >= LEVEL_INFO
 #define print_info(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
-#define print_info(fmt, ...)
+#define print_info(fmt, ...) { }
 #endif
 #if LOG_LEVEL >= LEVEL_WARNING
 #define print_warn(fmt, ...) printf("WARNING: " fmt, ##__VA_ARGS__)
 #else
-#define print_warn(fmt, ...)
+#define print_warn(fmt, ...) { }
 #endif
 #if LOG_LEVEL >= LEVEL_TRACE
 #define print_trace(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
-#define print_trace(fmt, ...)
+#define print_trace(fmt, ...) { }
 #endif
 
 #endif
