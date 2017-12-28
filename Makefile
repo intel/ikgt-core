@@ -19,6 +19,10 @@ export PROJS = $(CURDIR)
 include $(PROJS)/product/$(TARGET_PRODUCT).cfg
 export EVMM_CMPL_FLAGS
 
+# this silent flag will supress various compiling logs except warnings and errors.
+# comments/remove this flag if you want full compiling log be printed.
+.SILENT:
+
 ifneq (, $(findstring -DDEBUG, $(EVMM_CMPL_FLAGS)))
 OUTPUTTYPE = debug
 else
