@@ -24,9 +24,11 @@ all: $(COBJS) $(AOBJS) $(SUBDIRS)
 $(TARGET): $(COBJS) $(AOBJS)
 
 $(COBJS): $(CSOURCES)
+	@echo "CC $@"
 	$(CC) $(CFLAGS) -o $@ $(filter $(*F).c, $(CSOURCES))
 
 $(AOBJS): $(ASOURCES)
+	@echo "AS $@"
 	$(AS) $(AFLAGS) -o $@ $(filter $(*F).S, $(ASOURCES))
 
 $(SUBDIRS):
