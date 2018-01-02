@@ -458,22 +458,14 @@ typedef uint8_t cache_type_t;
 #define EFER_LMA        (1ull << 10)
 #define EFER_NXE        (1ull << 11)
 
-#define MSR_STAR                   ((uint32_t)0xc0000081)	/* legacy mode
-																 * SYSCALL
-																 * target */
-#define MSR_LSTAR                  ((uint32_t)0xc0000082)	/* long mode
-																 * SYSCALL
-																 * target */
-#define MSR_CSTAR                  ((uint32_t)0xc0000083)	/* compat mode
-																 * SYSCALL
-																 * target */
-#define MSR_SYSCALL_MASK           ((uint32_t)0xc0000084)	/* EFLAGS mask
-																 * for syscall */
+#define MSR_STAR                   ((uint32_t)0xc0000081)	/* System Call Target Address */
+#define MSR_LSTAR                  ((uint32_t)0xc0000082)	/* IA-32e Mode System Call Target Address */
+#define MSR_FMASK                  ((uint32_t)0xc0000084)	/* System Call Flag Mask */
 
-#define MSR_FS_BASE                ((uint32_t)0xC0000100)
-#define MSR_GS_BASE                ((uint32_t)0xC0000101)
-#define MSR_KERNEL_GS_BASE         ((uint32_t)0xc0000102)	/* SwapGS GS
-																 * shadow */
+#define MSR_FS_BASE                ((uint32_t)0xC0000100)	/* Map of BASE address of FS */
+#define MSR_GS_BASE                ((uint32_t)0xC0000101)	/* Map of BASE address of GS */
+#define MSR_KERNEL_GS_BASE         ((uint32_t)0xc0000102)	/* Swap Target of BASE address of GS */
+
 /*
  * VMCS MSR Entry Structure
  */
