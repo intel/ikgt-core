@@ -454,8 +454,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	/* Isolate below MSRs between guests and set initial value to 0 */
 	add_to_msr_isolation_list(MSR_STAR, 0, GUESTS_ISOLATION);
 	add_to_msr_isolation_list(MSR_LSTAR, 0, GUESTS_ISOLATION);
-	add_to_msr_isolation_list(MSR_CSTAR, 0, GUESTS_ISOLATION);
-	add_to_msr_isolation_list(MSR_SYSCALL_MASK, 0, GUESTS_ISOLATION);
+	add_to_msr_isolation_list(MSR_FMASK, 0, GUESTS_ISOLATION);
 	add_to_msr_isolation_list(MSR_KERNEL_GS_BASE, 0, GUESTS_ISOLATION);
 #endif
 }
