@@ -124,7 +124,7 @@ static void gcpu_update_msr_list(guest_cpu_handle_t gcpu, UNUSED void *pv)
 
 static void print_msr_list(uint64_t msr_list_hpa, uint32_t count)
 {
-	uint16_t hcpu_id = host_cpu_id();
+	UNUSED uint16_t hcpu_id = host_cpu_id();
 	uint32_t i;
 	msr_list_t * msr_list;
 
@@ -150,7 +150,7 @@ static void print_msr_list(uint64_t msr_list_hpa, uint32_t count)
 static void vmenter_failed_msr_loading(guest_cpu_handle_t gcpu)
 {
 	vmcs_obj_t vmcs;
-	uint16_t hcpu_id = host_cpu_id();
+	UNUSED uint16_t hcpu_id = host_cpu_id();
 
 	print_panic("%s: Host[%d], Guest[%d], VMENTER failed load MSR list.\n",
 				__FUNCTION__, hcpu_id, gcpu->guest->id);

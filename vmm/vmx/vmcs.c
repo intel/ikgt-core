@@ -388,9 +388,9 @@ void vmcs_clear_launched(vmcs_obj_t obj)
 
 void vmcs_print_all(vmcs_obj_t vmcs)
 {
-	uint16_t hcpu_id = host_cpu_id();
+	UNUSED uint16_t hcpu_id = host_cpu_id();
 	vmcs_field_t i =0;
-	uint64_t u64;
+	UNUSED uint64_t u64;
 
 	D(VMM_ASSERT(vmcs));
 

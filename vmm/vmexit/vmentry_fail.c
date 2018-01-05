@@ -117,11 +117,11 @@ static vmcs_instruction_error_t vmcs_last_instruction_error_code(
 *  RETURNS  : void
 *  NOTES    : is not VMEXIT
 *--------------------------------------------------------------------------*/
-void vmentry_failure_function(uint64_t flags)
+void vmentry_failure_function(UNUSED uint64_t flags)
 {
 	guest_cpu_handle_t gcpu = get_current_gcpu();
 	const char *err = NULL;
-	vmcs_instruction_error_t code;
+	UNUSED vmcs_instruction_error_t code;
 
 	VMM_ASSERT_EX(gcpu, "gcpu is NULL in vmentry failure function\n");
 
