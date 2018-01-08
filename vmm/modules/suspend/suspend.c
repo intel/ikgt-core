@@ -227,7 +227,7 @@ static void main_from_s3(uint32_t cpu_id)
 		suspend_percpu_data[cpu_id].slept = 0;
 	}
 
-	event_raise(NULL, EVENT_RESUME_FROM_S3, NULL);
+	event_raise(gcpu, EVENT_RESUME_FROM_S3, NULL);
 
 	host_cpu_clear_pending_nmi();
 	gcpu_resume(gcpu);

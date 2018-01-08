@@ -145,7 +145,7 @@ static boolean_t get_emmc_serial(android_image_boot_params_t *android_boot_param
 	memcpy(serial, arg, MMC_PROD_NAME_WITH_PSN_LEN - 1);
 	serial[MMC_PROD_NAME_WITH_PSN_LEN - 1] = '\0';
 
-	print_info("EMMC Serial:%s#\n", serial);
+	print_trace("EMMC Serial:%s#\n", serial);
 
 	return TRUE;
 }
