@@ -74,7 +74,7 @@ static boolean_t fill_device_sec_info(device_sec_info_v0_t *device_sec_info, abl
 	device_sec_info->flags = 0x1 | 0x0 | 0x0; // in manufacturing mode | secure boot disabled | production seed
 	device_sec_info->platform = 1; // APL + ABL
 
-	if (trusty_boot_params->num_seeds > BOOTLOADER_SEED_MAX_ENTRIES) {
+	if (trusty_boot_params->num_seeds > ABL_SEED_LIST_MAX) {
 		print_panic("Number of seeds exceeds predefined max number!\n");
 		return FALSE;
 	}
