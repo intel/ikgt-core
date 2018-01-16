@@ -17,6 +17,7 @@
 #include "vmm_base.h"
 #include "vmm_arch.h"
 #include "evmm_desc.h"
+#include "file_pack.h"
 #include "ldr_dbg.h"
 #include "device_sec_info.h"
 #include "stage0_lib.h"
@@ -131,4 +132,47 @@ void make_dummy_trusty_info(void *info)
 	device_sec_info->version = 0;
 	device_sec_info->platform = 0;
 	device_sec_info->num_seeds = 1;
+}
+
+boolean_t file_parse(evmm_desc_t *evmm_desc, uint64_t base, uint32_t offset, uint32_t size)
+{
+	file_offset_header_t *file_hdr;
+
+	/* Find file offsets header */
+	file_hdr = get_file_offsets_header(base + offset, size);
+	if (file_hdr == NULL) {
+		print_panic("failed to find file header\n");
+		return FALSE;
+	}
+
+	if (file_hdr->file_size[STAGE1_BIN_INDEX]) {
+		evmm_desc->stage1_file.loadtime_addr = base +
+			file_hdr->file_size[STAGE0_BIN_INDEX];
+		evmm_desc->stage1_file.loadtime_size = file_hdr->file_size[STAGE1_BIN_INDEX];
+	} else {
+		print_panic("stage1 file size is zero\n");
+		return FALSE;
+	}
+
+	if (file_hdr->file_size[EVMM_BIN_INDEX]) {
+		evmm_desc->evmm_file.loadtime_addr = evmm_desc->stage1_file.loadtime_addr +
+			evmm_desc->stage1_file.loadtime_size;
+		evmm_desc->evmm_file.loadtime_size = file_hdr->file_size[EVMM_BIN_INDEX];
+	} else {
+		print_panic("evmm file size is zero\n");
+		return FALSE;
+	}
+
+#if defined (MODULE_TRUSTY_GUEST) && defined (PACK_LK)
+	if (file_hdr->file_size[LK_BIN_INDEX]) {
+		evmm_desc->trusty_desc.lk_file.loadtime_addr = evmm_desc->evmm_file.loadtime_addr +
+			evmm_desc->evmm_file.loadtime_size;
+		evmm_desc->trusty_desc.lk_file.loadtime_size = file_hdr->file_size[LK_BIN_INDEX];
+	} else {
+		print_panic("lk file size is zero\n");
+		return FALSE;
+	}
+#endif
+
+	return TRUE;
 }

@@ -17,7 +17,6 @@
 #include "vmm_base.h"
 #include "vmm_arch.h"
 #include "evmm_desc.h"
-#include "file_pack.h"
 #include "ldr_dbg.h"
 #include "abl_boot_param.h"
 #include "trusty_info.h"
@@ -30,49 +29,6 @@
 
 #define TOS_MAX_IMAGE_SIZE            0x100000   /*Max image size assumed to be 1 MB*/
 #define MULTIBOOT_HEADER_SIZE         32
-
-static boolean_t file_parse(evmm_desc_t *evmm_desc, uint64_t stage0_base)
-{
-	file_offset_header_t *file_hdr;
-
-	/* Find file offsets header */
-	file_hdr = get_file_offsets_header(stage0_base + MULTIBOOT_HEADER_SIZE, TOS_MAX_IMAGE_SIZE);
-	if (file_hdr == NULL) {
-		print_panic("failed to find file header\n");
-		return FALSE;
-	}
-
-	if (file_hdr->file_size[STAGE1_BIN_INDEX]) {
-		evmm_desc->stage1_file.loadtime_addr = stage0_base +
-			file_hdr->file_size[STAGE0_BIN_INDEX];
-		evmm_desc->stage1_file.loadtime_size = file_hdr->file_size[STAGE1_BIN_INDEX];
-	} else {
-		print_panic("stage1 file size is zero\n");
-		return FALSE;
-	}
-
-	if (file_hdr->file_size[EVMM_BIN_INDEX]) {
-		evmm_desc->evmm_file.loadtime_addr = evmm_desc->stage1_file.loadtime_addr +
-			evmm_desc->stage1_file.loadtime_size;
-		evmm_desc->evmm_file.loadtime_size = file_hdr->file_size[EVMM_BIN_INDEX];
-	} else {
-		print_panic("evmm file size is zero\n");
-		return FALSE;
-	}
-
-#if defined (MODULE_TRUSTY_GUEST) && defined (PACK_LK)
-	if (file_hdr->file_size[LK_BIN_INDEX]) {
-		trusty_desc->lk_file.loadtime_addr = evmm_desc->evmm_file.loadtime_addr +
-			evmm_desc->evmm_file.loadtime_size;
-		trusty_desc->lk_file.loadtime_size = file_hdr->file_size[LK_BIN_INDEX];
-	} else {
-		print_panic("lk file size is zero\n");
-		return FALSE;
-	}
-#endif
-
-	return TRUE;
-}
 
 /* Function: stage0_main
  * Description: Called by start() in stage0_entry.S. Jumps to stage1.
@@ -110,7 +66,7 @@ void stage0_main(
 		goto fail;
 	}
 
-	if (!file_parse(evmm_desc, stage0_base)) {
+	if (!file_parse(evmm_desc, stage0_base, MULTIBOOT_HEADER_SIZE, TOS_MAX_IMAGE_SIZE)) {
 		print_panic("file parse failed\n");
 		goto fail;
 	}
