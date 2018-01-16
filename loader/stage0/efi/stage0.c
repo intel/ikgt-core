@@ -17,7 +17,6 @@
 #include "vmm_base.h"
 #include "vmm_arch.h"
 #include "evmm_desc.h"
-#include "file_pack.h"
 #include "ldr_dbg.h"
 #include "guest_setup.h"
 #include "stage0_lib.h"
@@ -30,52 +29,6 @@
 #include <stack_protect.h>
 
 #define RETURN_ADDRESS() (__builtin_return_address(0))
-
-static boolean_t file_parse(evmm_desc_t *evmm_desc, uint64_t stage0_base)
-{
-	file_offset_header_t *file_hdr;
-	file_hdr = get_file_offsets_header((uint64_t)stage0_base, EVMM_PKG_BIN_SIZE);
-	if (file_hdr == NULL) {
-		print_panic("failed to find file header\n");
-		return FALSE;
-	}
-
-	/* save module information (file mapped address in RAM + base location )
-	 *  TODO: better to caculate what address is stage0 loaded by bootstub...instead of
-	 *        using the hardcode address.
-	 */
-	if (file_hdr->file_size[STAGE1_BIN_INDEX]) {
-		evmm_desc->stage1_file.loadtime_addr = stage0_base +
-			file_hdr->file_size[STAGE0_BIN_INDEX];
-		evmm_desc->stage1_file.loadtime_size =
-			file_hdr->file_size[STAGE1_BIN_INDEX];
-	} else {
-		print_panic("stage1 file size is zero\n");
-		return FALSE;
-	}
-
-	if (file_hdr->file_size[EVMM_BIN_INDEX]) {
-		evmm_desc->evmm_file.loadtime_addr = evmm_desc->stage1_file.loadtime_addr +
-			evmm_desc->stage1_file.loadtime_size;
-		evmm_desc->evmm_file.loadtime_size = file_hdr->file_size[EVMM_BIN_INDEX];
-	} else {
-		print_panic("evmm file size is zero\n");
-		return FALSE;
-	}
-
-#if defined (MODULE_TRUSTY_GUEST) && defined (PACK_LK)
-	if (file_hdr->file_size[LK_BIN_INDEX]) {
-		evmm_desc->trusty_desc.lk_file.loadtime_addr = evmm_desc->evmm_file.loadtime_addr +
-			evmm_desc->evmm_file.loadtime_size;
-		evmm_desc->trusty_desc.lk_file.loadtime_size = file_hdr->file_size[LK_BIN_INDEX];
-	} else {
-		print_panic("lk file size is zero\n");
-		return FALSE;
-	}
-#endif
-
-	return TRUE;
-}
 
 void cleanup_sensetive_data(uint64_t tos_startup_info)
 {
@@ -122,7 +75,7 @@ uint32_t stage0_main(
 		goto exit;
 	}
 
-	if(!file_parse(evmm_desc, stage0_base)) {
+	if(!file_parse(evmm_desc, stage0_base, 0, EVMM_PKG_BIN_SIZE)) {
 		print_panic("file parse failed\n");
 		goto exit;
 	}
