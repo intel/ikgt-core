@@ -62,9 +62,11 @@ void gcpu_swap_in(const guest_cpu_handle_t gcpu)
 	memcpy(gcpu->gp_ptr, &(gcpu->gp_reg[0]),
 			REG_GP_COUNT * sizeof(uint64_t));
 
-	event_raise(gcpu, EVENT_GCPU_SWAPIN, NULL);
-
+	/* Note: Do NOT reverse execution sequence of vmcs_set_ptr and EVENT_GCPU_SWAPIN.
+		 This is because the IBPB event should be triggered after VM context switch.
+		 And the IBPB event is registered as EVENT_GCPU_SWAPIN. */
 	vmcs_set_ptr(gcpu->vmcs);
+	event_raise(gcpu, EVENT_GCPU_SWAPIN, NULL);
 }
 
 /* should be called in gcpu_resume() for all vmexits */

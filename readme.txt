@@ -216,5 +216,8 @@ Config files
 	- MODULE_PERF_CTRL_ISOLATION
 		Description: Monitor IA32_PERF_GLOBAL_CTRL MSR and do guest-host/guest-guest isolation.
 
+	- MODULE_SPECTRE
+		Description: To prevent spectre attack.
+
 
 End of file

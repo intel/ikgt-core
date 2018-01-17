@@ -133,6 +133,11 @@ void vmexit_common_handler(void)
 	vmx_exit_reason_t reason;
 	event_profile_t profile;
 
+	/* Raise event to overwrite RSB to prevent Spectre Side-channel attack
+	   at the very beginning of VM Exit. This Event must be raised before any
+	   RET instruction. */
+	event_raise(NULL, EVENT_RSB_OVERWRITE, NULL);
+
 	profile.vmexit_tsc = asm_rdtsc();
 
 	gcpu = get_current_gcpu();
