@@ -321,7 +321,7 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		msr_isolation_init();
 #endif
 
-#ifdef MODULE_BLOCK_SPECTRE_ATTACK
+#ifdef MODULE_SPECTRE
 		spectre_init();
 #endif
 
