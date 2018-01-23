@@ -170,10 +170,6 @@ static void relocate_trusty_image(void)
 	/* restore lk runtime address and total size */
 	trusty_desc->lk_file.runtime_addr -= PAGE_4K_SIZE;
 	trusty_desc->lk_file.runtime_total_size += PAGE_4K_SIZE;
-
-#ifdef DEBUG //remove VMM's access to LK's memory to make sure VMM will not read/write to LK in runtime
-	hmm_unmap_hpa(trusty_desc->lk_file.runtime_addr, trusty_desc->lk_file.runtime_total_size);
-#endif
 }
 
 static void setup_trusty_sec_info(void *sec_info)
@@ -188,6 +184,9 @@ static void setup_trusty_sec_info(void *sec_info)
 	memcpy((void *)trusty_desc->lk_file.runtime_addr, sec_info, *((uint32_t *)sec_info));
 	memset(sec_info, 0, *((uint32_t *)sec_info));
 
+#ifdef DEBUG //remove VMM's access to LK's memory to make sure VMM will not read/write to LK in runtime
+	hmm_unmap_hpa(trusty_desc->lk_file.runtime_addr, trusty_desc->lk_file.runtime_total_size);
+#endif
 	print_trace(
 			"Primary guest GPM: remove sguest image base %llx size 0x%x\r\n",
 			trusty_desc->lk_file.runtime_addr,
