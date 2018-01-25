@@ -219,5 +219,7 @@ Config files
 	- MODULE_SPECTRE
 		Description: To prevent spectre attack.
 
+	- MODULE_INSTRUCTION_DECODE
+		Description: Support instruction decode
 
 End of file
