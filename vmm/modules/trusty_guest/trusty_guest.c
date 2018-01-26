@@ -106,7 +106,9 @@ enum {
 
 static uint32_t smc_stage;
 static trusty_desc_t *trusty_desc;
-static void *dev_sec_info;
+#ifdef ENABLE_SGUEST_SMP
+static uint32_t sipi_ap_wkup_addr;
+#endif
 
 static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gcpu)
 {
@@ -172,25 +174,62 @@ static void relocate_trusty_image(void)
 	trusty_desc->lk_file.runtime_total_size += PAGE_4K_SIZE;
 }
 
-static void setup_trusty_sec_info(void *sec_info)
+/* Set up trusty device security info and trusty startup info */
+static void setup_trusty_info()
 {
-	VMM_ASSERT_EX(sec_info, "sec_info is NULL!\n");
-	VMM_ASSERT_EX(*((uint32_t *)sec_info) < 0x1000, "size of sec_info exceed 1 page!\n");
+	trusty_startup_info_t *trusty_para;
+	uint32_t dev_sec_info_size;
+#ifdef MODULE_EPT_UPDATE
+	uint64_t upper_start;
+#endif
 
 	gpm_remove_mapping(guest_handle(0),
 				trusty_desc->lk_file.runtime_addr,
 				trusty_desc->lk_file.runtime_total_size);
-
-	memcpy((void *)trusty_desc->lk_file.runtime_addr, sec_info, *((uint32_t *)sec_info));
-	memset(sec_info, 0, *((uint32_t *)sec_info));
-
-#ifdef DEBUG //remove VMM's access to LK's memory to make sure VMM will not read/write to LK in runtime
-	hmm_unmap_hpa(trusty_desc->lk_file.runtime_addr, trusty_desc->lk_file.runtime_total_size);
-#endif
 	print_trace(
 			"Primary guest GPM: remove sguest image base %llx size 0x%x\r\n",
 			trusty_desc->lk_file.runtime_addr,
 			trusty_desc->lk_file.runtime_total_size);
+
+	/* Setup trusty boot info */
+	dev_sec_info_size = *((uint32_t *)trusty_desc->dev_sec_info);
+	memcpy((void *)trusty_desc->lk_file.runtime_addr, trusty_desc->dev_sec_info, dev_sec_info_size);
+	memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
+
+	/* Setup trusty startup info */
+	trusty_para = (trusty_startup_info_t *)ALIGN_F(trusty_desc->lk_file.runtime_addr + dev_sec_info_size, 8);
+	VMM_ASSERT_EX(((uint64_t)trusty_para + sizeof(trusty_startup_info_t)) <
+			(trusty_desc->lk_file.runtime_addr + PAGE_4K_SIZE),
+			"size of (dev_sec_info+trusty_startup_info) exceeds the reserved 4K size!\n");
+	trusty_para->size_of_this_struct    = sizeof(trusty_startup_info_t);
+	trusty_para->mem_size               = trusty_desc->lk_file.runtime_total_size;
+	trusty_para->calibrate_tsc_per_ms   = tsc_per_ms;
+	trusty_para->trusty_mem_base        = trusty_desc->lk_file.runtime_addr;
+
+	/* Set RDI and RSP */
+	trusty_desc->gcpu0_state.gp_reg[REG_RDI] = (uint64_t)trusty_para;
+	trusty_desc->gcpu0_state.gp_reg[REG_RSP] = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
+
+	/* TODO: refine it later */
+#ifdef ENABLE_SGUEST_SMP
+	trusty_para->sipi_ap_wkup_addr = sipi_ap_wkup_addr;
+#endif
+
+#ifdef MODULE_EPT_UPDATE
+	/* remove the whole memory region from 0 ~ top_of_mem except lk self in Trusty(guest1) EPT */
+	/* remove lower */
+	gpm_remove_mapping(guest_handle(1), 0, trusty_desc->lk_file.runtime_addr);
+
+	/* remove upper */
+	upper_start = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
+	gpm_remove_mapping(guest_handle(1), upper_start, top_of_memory - upper_start);
+
+	ept_update_install(1);
+#endif
+
+#ifdef DEBUG //remove VMM's access to LK's memory to make sure VMM will not read/write to LK in runtime
+	hmm_unmap_hpa(trusty_desc->lk_file.runtime_addr, trusty_desc->lk_file.runtime_total_size);
+#endif
 }
 
 static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
@@ -235,10 +274,11 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 					trusty_desc->lk_file.runtime_addr = trusty_boot_params->runtime_addr;
 #endif
 
-					setup_trusty_sec_info(dev_sec_info);
-					mem_free(dev_sec_info);
-					dev_sec_info = NULL;
+					setup_trusty_info();
+					mem_free(trusty_desc->dev_sec_info);
 
+					gcpu_set_gp_reg(next_gcpu, REG_RDI, trusty_desc->gcpu0_state.gp_reg[REG_RDI]);
+					gcpu_set_gp_reg(next_gcpu, REG_RSP, trusty_desc->gcpu0_state.gp_reg[REG_RSP]);
 					vmcs_write(next_gcpu->vmcs, VMCS_GUEST_RIP, trusty_desc->gcpu0_state.rip);
 				}else{
 					smc_stage = SMC_STAGE_LK_DONE;
@@ -357,11 +397,10 @@ void trusty_register_deadloop_handler(evmm_desc_t *evmm_desc)
 
 void init_trusty_guest(evmm_desc_t *evmm_desc)
 {
-	trusty_startup_info_t *trusty_para;
 	uint32_t cpu_num = 1;
 	uint32_t dev_sec_info_size;
-#ifdef MODULE_EPT_UPDATE
-	uint64_t upper_start;
+#ifndef PACK_LK
+	void *dev_sec_info;
 #endif
 
 	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
@@ -372,27 +411,12 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	dev_sec_info_size = *((uint32_t *)trusty_desc->dev_sec_info);
 	VMM_ASSERT_EX(!(dev_sec_info_size & 0x3ULL), "size of trusty boot info is not 32bit aligned!\n");
 
-	trusty_para = (trusty_startup_info_t *)ALIGN_F(trusty_desc->lk_file.runtime_addr + dev_sec_info_size, 8);
-	VMM_ASSERT_EX(((uint64_t)trusty_para + sizeof(trusty_startup_info_t)) <
-			(trusty_desc->lk_file.runtime_addr + PAGE_4K_SIZE),
-			"size of (dev_sec_info+trusty_startup_info) exceeds the reserved 4K size!\n");
-
-	/* Used to check structure in both sides are same */
-	trusty_para->size_of_this_struct    = sizeof(trusty_startup_info_t);
-	/* Used to set heap of LK */
-	trusty_para->mem_size               =
-		trusty_desc->lk_file.runtime_total_size;
-	trusty_para->calibrate_tsc_per_ms   = tsc_per_ms;
-	trusty_para->trusty_mem_base        =
-		trusty_desc->lk_file.runtime_addr;
-	trusty_desc->gcpu0_state.gp_reg[REG_RDI] = (uint64_t)trusty_para;
-
 	print_trace("Init trusty guest\n");
 
 	/* TODO: refine it later */
 #ifdef ENABLE_SGUEST_SMP
+	sipi_ap_wkup_addr = evmm_desc->sipi_ap_wkup_addr;
 	cpu_num = evmm_desc->num_of_cpu;
-	trusty_para->sipi_ap_wkup_addr = evmm_desc->sipi_ap_wkup_addr;
 #endif
 	create_guest(cpu_num, &(evmm_desc->evmm_file));
 	event_register(EVENT_GCPU_INIT, trusty_set_gcpu_state);
@@ -401,26 +425,15 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	event_register(EVENT_GCPU_MODULE_INIT, set_guest0_aps_to_hlt_state);
 #endif
 
-#ifdef MODULE_EPT_UPDATE
-	/* remove the whole memory region from 0 ~ top_of_mem except lk self in Trusty(guest1) EPT */
-	/* remove lower */
-	gpm_remove_mapping(guest_handle(1), 0, trusty_desc->lk_file.runtime_addr);
-
-	/* remove upper */
-	upper_start = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
-	gpm_remove_mapping(guest_handle(1), upper_start, top_of_memory - upper_start);
-
-	ept_update_install(1);
-#endif
-
 #ifdef PACK_LK
 	relocate_trusty_image();
-	setup_trusty_sec_info(trusty_desc->dev_sec_info);
+	setup_trusty_info();
 #else
 	/* Copy dev_sec_info from loader to VMM's memory */
 	dev_sec_info = mem_alloc(dev_sec_info_size);
 	memcpy(dev_sec_info, trusty_desc->dev_sec_info, dev_sec_info_size);
 	memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
+	trusty_desc->dev_sec_info = dev_sec_info;
 
 	schedule_next_gcpu_as_init(0);
 #endif

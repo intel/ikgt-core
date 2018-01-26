@@ -23,9 +23,9 @@
 #include "stage0_lib.h"
 #include "lib/util.h"
 
-#define TRUSTY_BOOT_NULL     (0x00)
-#define TRUSTY_BOOT_CS       (0x08)
-#define TRUSTY_BOOT_DS       (0x10)
+#define BOOT_NULL     (0x00)
+#define BOOT_CS       (0x08)
+#define BOOT_DS       (0x10)
 
 static void fill_code32_seg(segment_t *ss, uint16_t sel)
 {
@@ -99,27 +99,23 @@ void save_current_cpu_state(gcpu_state_t *s)
 	fill_data_seg(&s->segment[SEG_SS], asm_get_ss());
 }
 
-/* This funtion will set whole trusty gcpu state, except
- * 1. RIP and RDI, they will be set in VMM
- * 2. Fields should be set to 0. trusty_desc already be cleared to 0 earlier.
+/* This function will set gcpu state to 32 bit environment
+ * Caller should clear whole structure before calling this function
  */
-void trusty_gcpu_setup(trusty_desc_t *trusty_desc)
+void setup_32bit_env(gcpu_state_t *gcpu_state)
 {
-	/* Stack resides at end of trusty runtime memory */
-	trusty_desc->gcpu0_state.gp_reg[REG_RSP] = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
+	gcpu_state->rflags = RFLAGS_RSVD1;
 
-	trusty_desc->gcpu0_state.rflags = 0x3002;
+	fill_code32_seg(&gcpu_state->segment[SEG_CS], BOOT_CS);
+	fill_data_seg(&gcpu_state->segment[SEG_DS], BOOT_DS);
+	fill_data_seg(&gcpu_state->segment[SEG_ES], BOOT_DS);
+	fill_data_seg(&gcpu_state->segment[SEG_FS], BOOT_DS);
+	fill_data_seg(&gcpu_state->segment[SEG_GS], BOOT_DS);
+	fill_data_seg(&gcpu_state->segment[SEG_SS], BOOT_DS);
+	fill_tss_seg(&gcpu_state->segment[SEG_TR], BOOT_NULL);
+	gcpu_state->segment[SEG_LDTR].attributes = 0x010000;
 
-	fill_code32_seg(&trusty_desc->gcpu0_state.segment[SEG_CS], TRUSTY_BOOT_CS);
-	fill_data_seg(&trusty_desc->gcpu0_state.segment[SEG_DS], TRUSTY_BOOT_DS);
-	fill_data_seg(&trusty_desc->gcpu0_state.segment[SEG_ES], TRUSTY_BOOT_DS);
-	fill_data_seg(&trusty_desc->gcpu0_state.segment[SEG_FS], TRUSTY_BOOT_DS);
-	fill_data_seg(&trusty_desc->gcpu0_state.segment[SEG_GS], TRUSTY_BOOT_DS);
-	fill_data_seg(&trusty_desc->gcpu0_state.segment[SEG_SS], TRUSTY_BOOT_DS);
-	fill_tss_seg(&trusty_desc->gcpu0_state.segment[SEG_TR], TRUSTY_BOOT_NULL);
-	trusty_desc->gcpu0_state.segment[SEG_LDTR].attributes = 0x010000;
-
-	trusty_desc->gcpu0_state.cr0 = 0x11;
+	gcpu_state->cr0 = CR0_ET|CR0_PE;
 }
 
 void make_dummy_trusty_info(void *info)

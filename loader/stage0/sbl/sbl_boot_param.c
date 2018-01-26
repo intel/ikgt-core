@@ -19,6 +19,7 @@
 #include "evmm_desc.h"
 #include "sbl_boot_param.h"
 #include "trusty_info.h"
+#include "stage0_lib.h"
 #include "ldr_dbg.h"
 
 #include "lib/util.h"
@@ -141,7 +142,6 @@ static image_boot_params_t *cmdline_parse(multiboot_info_t *mbi)
 	}
 
 	return (image_boot_params_t *)(uint64_t)addr;
-
 }
 
 static evmm_desc_t *setup_boot_params(image_boot_params_t *image_boot_params)
@@ -188,6 +188,9 @@ static evmm_desc_t *setup_boot_params(image_boot_params_t *image_boot_params)
 
 	/* Setup payload params */
 	evmm_desc->guest0_gcpu0_state = vmm_boot_param->payload_cpu_state;
+
+	/* Setup payload gcpu state which doesn't set on sbl */
+	setup_32bit_env(&evmm_desc->guest0_gcpu0_state);
 
 #ifdef MODULE_TRUSTY_GUEST
 	/* Setup trusty info */
