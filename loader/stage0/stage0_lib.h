@@ -20,7 +20,7 @@
 #include "vmm_arch.h"
 
 void save_current_cpu_state(gcpu_state_t *s);
-void trusty_gcpu_setup(trusty_desc_t *trusty_desc);
+void setup_32bit_env(gcpu_state_t *gcpu_state);
 void make_dummy_trusty_info(void *info);
 boolean_t file_parse(evmm_desc_t *evmm_desc, uint64_t base, uint32_t offset, uint32_t size);
 
