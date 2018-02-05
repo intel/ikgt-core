@@ -39,6 +39,9 @@ typedef enum {
 	EVENT_VMENTRY_FAIL,
 	EVENT_MODULE_PROFILE,
 	EVENT_SET_CR2,
+	EVENT_RSB_OVERWRITE, /* This event must be raised before any RET instruction on VM Exit.
+				And it is used for Spectre module only. Do NOT register this event
+				if you are not familiar with Spectre module. */
 	EVENTS_COUNT
 } vmm_event_t;
 

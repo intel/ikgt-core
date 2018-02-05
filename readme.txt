@@ -196,4 +196,7 @@ Config files
 	- MODULE_PROFILE
 		Description: For debug. Profile guest OS and EVMM performance
 
+	- MODULE_SPECTRE
+		Description: To prevent spectre attack.
+
 End of file
