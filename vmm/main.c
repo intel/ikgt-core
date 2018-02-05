@@ -127,6 +127,10 @@
 #include "modules/profile.h"
 #endif
 
+#ifdef MODULE_SPECTRE
+#include "modules/spectre.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -310,6 +314,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 
 #ifdef MODULE_MSR_ISOLATION
 		msr_isolation_init();
+#endif
+
+#ifdef MODULE_SPECTRE
+		spectre_init();
 #endif
 
 		cr_write_init();
