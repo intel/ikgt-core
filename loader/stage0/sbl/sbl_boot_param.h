@@ -94,13 +94,22 @@ typedef struct {
 } platform_info_t;
 
 typedef struct {
+	uint32_t eip;
+	uint32_t eax;
+	uint32_t ebx;
+	uint32_t esi;
+	uint32_t edi;
+	uint32_t ecx;
+} payload_gcpu_state_t;
+
+typedef struct {
 	uint32_t size_of_this_struct;
 	uint32_t version;
 	uint32_t vmm_heap_addr;       /* 64KB, SBL should reserve it in e820 */
 	uint32_t sipi_page;           /* 4KB under 1M, SBL should reserve it in e820 */
 	uint32_t vmm_runtime_addr;    /* 4MB under 4G, SBL should reserve it in e820 */
 	uint32_t trusty_runtime_addr; /* 16MB under 4G, SBL should should reserve it in e820. Ignore it and set to 0 for Android. */
-	gcpu_state_t payload_cpu_state;
+	payload_gcpu_state_t payload_cpu_state;
 } vmm_boot_params_t;
 
 typedef struct {
