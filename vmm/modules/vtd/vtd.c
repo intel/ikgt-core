@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Intel Corporation
+ * Copyright (c) 2018 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,13 +23,11 @@
 #include "heap.h"
 #include "event.h"
 #include "host_cpu.h"
+#include "vtd_acpi.h"
 
 #include "lib/util.h"
 
-#include "modules/acpi.h"
 #include "modules/vtd.h"
-
-#define DMAR_SIGNATURE 0x52414d44  //the ASCII vaule for "DMAR"
 
 #define VTD_REG_CAP     0x0008
 #define VTD_REG_ECAP    0x0010
@@ -50,42 +48,6 @@
 #define VTD_PT_SNP       (1ULL << 11)
 #define VTD_PT_TM        (1ULL << 62)
 
-typedef struct {
-	acpi_table_header_t header;
-	uint8_t             width;
-	uint8_t             flags;
-	uint8_t             reserved[10];
-	uint8_t             remapping_structures[0];
-} acpi_dmar_table_t;
-
-typedef struct {
-	uint16_t    type;
-	uint16_t    length;
-} acpi_dmar_header_t;
-
-typedef struct {
-	uint8_t     dev;
-	uint8_t     func;
-} acpi_path_element_t;
-
-typedef struct {
-	uint8_t             type;
-	uint8_t             length;
-	uint16_t            reserved;
-	uint8_t             enumeration_id;
-	uint8_t             start_bus_num;
-	acpi_path_element_t path[0];
-} acpi_device_scope_t;
-
-typedef struct {
-	acpi_dmar_header_t  header;
-	uint8_t             flags;
-	uint8_t             reserved;
-	uint16_t            segment;
-	uint64_t            reg_base_hpa;
-	acpi_device_scope_t device_scope[0];
-} acpi_dma_hw_unit_t;
-
 typedef union {
 	struct {
 		uint32_t nd         : 3;
@@ -101,7 +63,7 @@ typedef union {
 		uint32_t isoch      : 1;
 		uint32_t fro_low    : 8;
 		uint32_t fro_high   : 2;
-		uint32_t sps        : 4;
+		uint32_t sllps      : 4;
 		uint32_t rsvd1      : 1;
 		uint32_t psi        : 1;
 		uint32_t nfr        : 8;
@@ -150,13 +112,11 @@ typedef struct addr_trans_table {
 } addr_trans_table_t;
 
 typedef struct {
-	uint64_t                 reg_base_hva[DMAR_MAX_ENGINE];
-	uint64_t                 reg_base_hpa[DMAR_MAX_ENGINE];
+	vtd_engine_t             engine_list[DMAR_MAX_ENGINE];
 	uint8_t                  max_leaf;
 	uint8_t                  tm;
 	uint8_t                  snoop;
-	uint8_t                  device_gpu_engine;
-	uint8_t                  pad[4];
+	uint8_t                  pad[5];
 	dma_root_entry_t         *root_table;
 	addr_trans_table_t       trans_table;
 	uint64_t                 default_ctx_hpa;
@@ -174,7 +134,12 @@ typedef union {
 	uint32_t uint32;
 } vtdpt_attr_t;
 
-static vtd_dma_remapping_t g_remapping;
+/* TM/SNOOP will be update to zero if hardware does not support */
+static vtd_dma_remapping_t g_remapping = {
+	.max_leaf = MAM_LEVEL_PML4,
+	.tm = 1,
+	.snoop = 1,
+};
 
 static inline
 uint64_t vtd_read_reg64(uint64_t base_hva, uint64_t reg)
@@ -279,135 +244,39 @@ static void init_vtd_entry_ops(mam_entry_ops_t *entry_ops)
 	entry_ops->leaf_get_attr  = vtd_leaf_get_attr;
 }
 
-#ifdef SKIP_DMAR_GPU
-// OAM-42091 work round -- start
-/*
- * Assumption:
- *	1. If DMAR engine takes charge of GPU, type of device scope should be
- *		0x01: PCI Endpoint Device, bridge is not expected, do not need to
- *		walk through bridge from start bus. And GPU should be the one and
- *		the only device in devoce scope. So device number should be 1.
- *	2. Bus:Dev:Func of GPU equals to 0:2:0.
- */
-static boolean_t dmar_engine_takes_charge_of_gcpu(acpi_dma_hw_unit_t *entry)
+static void vtd_init_cap(void)
 {
-	uint32_t num_of_devices = 0;
-	acpi_device_scope_t *device_scope;
-
-	/*
-	 * Flags.Bit0: INCLUDE_PCI_ALL. If clear, this remapping hardware unit has
-	 * under its scope only devices in the specified Segment that are explicitly
-	 * identified through the 'Device Scope' field.
-	 *
-	 * More details please reference VT Directed IO Specification
-	 * Chapter 8.3: DMA Remapping Hardware Uint Definition Structure
-	 */
-	if (entry->flags & 1) {
-		return FALSE;
-	}
-
-	device_scope = (acpi_device_scope_t *)entry->device_scope;
-	num_of_devices = (device_scope->length - OFFSET_OF(acpi_device_scope_t, path))
-		/ sizeof(acpi_path_element_t);
-
-	/*
-	 * GPU device is PCI Endpoint Device, walk through bridge is unexpected.
-	 * So numbe of device should be 1.
-	 * Device type should be 1(PCI Endpoint device)
-	 * Bus:Dev:Func of GPU shoule be 0:2:0
-	 */
-
-	if ((1 == num_of_devices) &&
-		(1 == device_scope->type) &&
-		(0 == device_scope->start_bus_num) &&
-		(2 == device_scope->path->dev) &&
-		(0 == device_scope->path->func)) {
-		return TRUE;
-	}
-
-	return FALSE;
-}
-// OAM-42091 work round -- end
-#endif
-
-static void dmar_parse_drhd(acpi_dma_hw_unit_t *entry)
-{
-	static uint32_t dmar_engine = 0;
-	uint32_t val = 0;
+	uint32_t i;
 	uint32_t idx = 0;
-	uint64_t hva = 0;
+	uint32_t val = 0;
 	vtd_cap_reg_t cap = {.uint64 = 0};
 	vtd_ext_cap_reg_t ext_cap = {.uint64 = 0};
 
-	VMM_ASSERT_EX((dmar_engine < DMAR_MAX_ENGINE),
-			"too many dmar engines\n");
+	for (i=0; i<DMAR_MAX_ENGINE; i++) {
+		if (g_remapping.engine_list[i].reg_base_hva) {
+			cap.uint64 = vtd_read_reg64(g_remapping.engine_list[i].reg_base_hva,
+							VTD_REG_CAP);
+			val = ~(cap.bits.sllps);
+			D(VMM_ASSERT(val));
+			idx = asm_bsf32(val);
 
-	VMM_ASSERT_EX(hmm_hpa_to_hva(entry->reg_base_hpa, &hva),
-			"fail to convert hpa 0x%llX to hva", entry->reg_base_hpa);
+			/* Get maxium leaf level, MAM starts from 4KB, VT-D starts from 2MB */
+			g_remapping.max_leaf = MIN(g_remapping.max_leaf, idx);
 
-	g_remapping.reg_base_hva[dmar_engine] = hva;
-	g_remapping.reg_base_hpa[dmar_engine++] = entry->reg_base_hpa;
+			/* Need 4-level page-table support */
+			VMM_ASSERT_EX(cap.bits.sagaw & (1ull << 2), "4-level page-table isn't supported by vtd\n");
 
-	/* Get maxium leaf level, MAM starts from 4KB, VT-D starts from 2MB */
-	cap.uint64 = vtd_read_reg64(hva, VTD_REG_CAP);
-	val = ~(cap.bits.sps);
-	D(VMM_ASSERT(val));
-	idx = asm_bsf32(val);
-
-	g_remapping.max_leaf = MIN(g_remapping.max_leaf, idx);
-
-	/* Need 4-level page-table support */
-	VMM_ASSERT_EX(cap.bits.sagaw & (1ull << 2), "4-level page-table isn't supported by vtd\n");
-
-	/*
-	 * Check TM/SNOOP support in external capablity register,
-	 * Since they are all used for perfermance enhencement,
-	 * and same Context entres/Paging entries are used for all buses,
-	 * minimum support will be used.
-	 */
-	ext_cap.uint64 = vtd_read_reg64(hva, VTD_REG_ECAP);
-	g_remapping.tm = g_remapping.tm & ext_cap.bits.di;
-	g_remapping.snoop = g_remapping.snoop & ext_cap.bits.sc;
-
-
-#ifdef SKIP_DMAR_GPU
-	// OAM-42091 work round -- start
-	/*
-	 * We need to figure out which engine takes charge in gpu
-	 * This is work round for OAM-42091, if this OAM-42091 addressed,
-	 * this snippet of code should be removed.
-	 */
-	if (dmar_engine_takes_charge_of_gcpu(entry)) {
-		g_remapping.device_gpu_engine = dmar_engine - 1;
-	}
-	// OAM-42091 work round -- end
-#endif
-}
-
-static void dmar_parse(acpi_dmar_table_t *dmar)
-{
-	uint32_t remaining = 0;
-	uint32_t cur_offset = 0;
-	acpi_dmar_header_t *entry;
-
-	remaining = dmar->header.length - sizeof(acpi_dmar_table_t);
-
-	while (remaining > 0) {
-		entry = (acpi_dmar_header_t *)(dmar->remapping_structures + cur_offset);
-
-		switch(entry->type) {
-			/* DMAR type hardware uint */
-			case 0:
-				dmar_parse_drhd((acpi_dma_hw_unit_t *)entry);
-				break;
-
-			/* Just take care of DMAR hw uint */
-			default:
-				break;
+			/*
+			 * Check TM/SNOOP support in external capablity register,
+			 * Since they are all used for perfermance enhencement,
+			 * and same Context entres/Paging entries are used for all buses,
+			 * minimum support will be used.
+			 */
+			ext_cap.uint64 = vtd_read_reg64(g_remapping.engine_list[i].reg_base_hva,
+							VTD_REG_ECAP);
+			g_remapping.tm = g_remapping.tm & ext_cap.bits.di;
+			g_remapping.snoop = g_remapping.snoop & ext_cap.bits.sc;
 		}
-
-		remaining -= entry->length;
-		cur_offset += entry->length;
 	}
 }
 
@@ -459,24 +328,17 @@ static void vtd_send_global_cmd(uint32_t bit)
 	uint32_t i = 0;
 
 	for (i=0; i<DMAR_MAX_ENGINE; i++) {
-
-#ifdef SKIP_DMAR_GPU
-// OAM-42091 work round -- start
-		if (i == g_remapping.device_gpu_engine)
-			continue;
-// OAM-42091 work round -- end
-#endif
-		if (g_remapping.reg_base_hva[i]) {
-			value = vtd_read_reg32(g_remapping.reg_base_hva[i],
+		if (g_remapping.engine_list[i].reg_base_hva) {
+			value = vtd_read_reg32(g_remapping.engine_list[i].reg_base_hva,
 						VTD_REG_GSTS);
 			value |= 1U << bit;
 
-			vtd_write_reg32(g_remapping.reg_base_hva[i],
+			vtd_write_reg32(g_remapping.engine_list[i].reg_base_hva,
 				VTD_REG_GCMD,
 				value);
 
 			while (1) {
-				value = vtd_read_reg32(g_remapping.reg_base_hva[i],
+				value = vtd_read_reg32(g_remapping.engine_list[i].reg_base_hva,
 							VTD_REG_GSTS);
 				if (!(value & (1ull << bit)))
 					asm_pause();
@@ -494,9 +356,9 @@ static void vtd_guest_setup(UNUSED guest_cpu_handle_t gcpu, void *pv)
 
 	/* Remove DMAR engine from Guest mapping */
 	for (i=0; i<DMAR_MAX_ENGINE; i++) {
-		if (g_remapping.reg_base_hpa[i]) {
+		if (g_remapping.engine_list[i].reg_base_hpa) {
 			gpm_remove_mapping(guest,
-				g_remapping.reg_base_hpa[i], 4096);
+				g_remapping.engine_list[i].reg_base_hpa, 4096);
 		}
 	}
 }
@@ -604,47 +466,15 @@ void vtd_assign_dev(uint16_t guest_id, uint16_t dev_id)
 
 void vtd_init(void)
 {
-	acpi_dmar_table_t *acpi_dmar = NULL;
+	vtd_dmar_parse(g_remapping.engine_list);
 
-	acpi_dmar = (acpi_dmar_table_t *)acpi_locate_table(DMAR_SIGNATURE);
-	VMM_ASSERT_EX(acpi_dmar, "acpi_dmar is NULL\n");
-	print_info("VTD is detected.\n");
-
-	memset(&g_remapping, 0, sizeof(vtd_dma_remapping_t));
-
-	/* TM/SNOOP will be update to zero if hardware does not support */
-	g_remapping.tm       = 1;
-	g_remapping.snoop    = 1;
-	g_remapping.max_leaf = MAM_LEVEL_PML4;
-	/* DMAR engine starts from 0, set an invalid value first */
-	g_remapping.device_gpu_engine = 0xFF;
-
-	dmar_parse(acpi_dmar);
-	/* Hide VT-D ACPI table */
-	memset((void *)&acpi_dmar->header.signature, 0, acpi_dmar->header.length);
+	vtd_init_cap();
 
 	vtd_init_mapping();
 
 	event_register(EVENT_GPM_SET, vtd_update_range);
 	event_register(EVENT_GUEST_MODULE_INIT, vtd_guest_setup);
 	event_register(EVENT_RESUME_FROM_S3, vtd_reinit_from_s3);
-
-#ifdef SKIP_DMAR_GPU
-	/*
-	 * Add print info here to check VT-D GPU work round easy.
-	 * DMAR engine 0 takes charge of GPU
-	 */
-	print_info("VT-D: SKIP_DMAR_GPU is on\n");
-	print_info("\tSkip DMAR engine:%d\n", g_remapping.device_gpu_engine);
-
-	if (0 != g_remapping.device_gpu_engine) {
-		print_info("*****************************************************\n");
-		print_info("!!CAUTION!!:\t");
-		print_info("\tDAMR ENGINE(%d) FOR GPU IS UNEXPECTED\n", g_remapping.device_gpu_engine);
-		print_info("*****************************************************\n");
-	}
-
-#endif
 }
 
 void vtd_done()
@@ -658,8 +488,8 @@ void vtd_done()
 			"fail to convert hva 0x%llX to hpa\n", hva);
 
 	for (i=0; i<DMAR_MAX_ENGINE; i++) {
-		if (g_remapping.reg_base_hva[i]) {
-			vtd_write_reg64(g_remapping.reg_base_hva[i],
+		if (g_remapping.engine_list[i].reg_base_hva) {
+			vtd_write_reg64(g_remapping.engine_list[i].reg_base_hva,
 				VTD_REG_RTADDR,
 				(uint64_t)hpa);
 		}
@@ -672,5 +502,4 @@ void vtd_done()
 	vtd_send_global_cmd(30);
 	/* enable translation */
 	vtd_send_global_cmd(31);
-
 }
