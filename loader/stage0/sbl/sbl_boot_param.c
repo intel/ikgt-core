@@ -67,6 +67,16 @@ static inline void fill_platform_info(evmm_desc_t *evmm_desc, platform_info_t *p
 	evmm_desc->tsc_per_ms = platform_info->cpu_frequency_MHz;
 }
 
+static void fill_payload_params(gcpu_state_t *gcpu_state, payload_gcpu_state_t *payload_gcpu_state)
+{
+	gcpu_state->rip = (uint64_t)payload_gcpu_state->eip;
+	gcpu_state->gp_reg[REG_RAX] = (uint64_t)payload_gcpu_state->eax;
+	gcpu_state->gp_reg[REG_RBX] = (uint64_t)payload_gcpu_state->ebx;
+	gcpu_state->gp_reg[REG_RSI] = (uint64_t)payload_gcpu_state->esi;
+	gcpu_state->gp_reg[REG_RDI] = (uint64_t)payload_gcpu_state->edi;
+	gcpu_state->gp_reg[REG_RCX] = (uint64_t)payload_gcpu_state->ecx;
+}
+
 static uint64_t get_top_of_memory(multiboot_info_t *mbi)
 {
 	uint32_t mmap_len;
@@ -187,7 +197,7 @@ static evmm_desc_t *setup_boot_params(image_boot_params_t *image_boot_params)
 	fill_evmm_boot_params(evmm_desc, vmm_boot_param);
 
 	/* Setup payload params */
-	evmm_desc->guest0_gcpu0_state = vmm_boot_param->payload_cpu_state;
+	fill_payload_params(&evmm_desc->guest0_gcpu0_state, &vmm_boot_param->payload_cpu_state);
 
 	/* Setup payload gcpu state which doesn't set on sbl */
 	setup_32bit_env(&evmm_desc->guest0_gcpu0_state);
