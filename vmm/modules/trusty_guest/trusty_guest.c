@@ -55,7 +55,6 @@
 
 typedef enum {
 	TRUSTY_VMCALL_SMC             = 0x74727500,
-	TRUSTY_VMCALL_PENDING_INTR    = 0x74727505,
 	TRUSTY_VMCALL_DUMP_INIT       = 0x74727507,
 }vmcall_id_t;
 
@@ -306,20 +305,6 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 	}
 }
 
-// set pending interrupt to next gcpu
-static void trusty_vmcall_set_pending_intr(guest_cpu_handle_t gcpu)
-{
-	guest_cpu_handle_t next_gcpu = gcpu->next_same_host_cpu;
-	uint8_t vector = (uint8_t)gcpu_get_gp_reg(gcpu, REG_RBX);
-
-	if(!guest_in_ring0(gcpu))
-	{
-		return;
-	}
-
-	gcpu_set_pending_intr(next_gcpu, vector);
-}
-
 static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 {
 #ifdef MODULE_DEADLOOP
@@ -346,10 +331,8 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 static void guest_register_vmcall_services()
 {
 	vmcall_register(0, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
-	vmcall_register(0, TRUSTY_VMCALL_PENDING_INTR, trusty_vmcall_set_pending_intr);
 	vmcall_register(0, TRUSTY_VMCALL_DUMP_INIT, trusty_vmcall_dump_init);
 	vmcall_register(1, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
-	vmcall_register(1, TRUSTY_VMCALL_PENDING_INTR, trusty_vmcall_set_pending_intr);
 }
 
 #ifdef AP_START_IN_HLT
