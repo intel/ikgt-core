@@ -18,6 +18,13 @@
 
 #define UNUSED  __attribute__((unused))
 #define PACKED  __attribute((packed))
+
+#if __GNUC__ >= 7
+#define FALLTHROUGH __attribute__((fallthrough))
+#else
+#define FALLTHROUGH
+#endif
+
 /* PACKED should be applied to below cases
  * 1.the size of the struct is not 32bit aligned. e.g. gdtr64_t.
  * 2.the member of the struct is not aligned with it's size.
