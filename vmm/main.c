@@ -444,7 +444,7 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		/* vtd_done() will not affect AP boot.
 		 * since BSP needs to wait for AP before gcpu_resume(), put vtd_done()
 		 * here will take BSP more time and reduce the wait time for AP. */
-		vtd_done();
+		vtd_activate();
 #endif
 	}
 

@@ -397,7 +397,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 #endif
 
 #ifdef DMA_FROM_CSE
-	vtd_assign_dev(1, DMA_FROM_CSE);
+	vtd_assign_dev(gid2did(1), DMA_FROM_CSE);
 #endif
 
 	guest_register_vmcall_services();
