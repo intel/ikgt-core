@@ -231,11 +231,34 @@ static void setup_trusty_info()
 #endif
 }
 
+static void parse_trusty_boot_param(guest_cpu_handle_t gcpu)
+{
+	uint64_t rdi;
+	trusty_boot_params_v0_t *trusty_boot_params_v0 = NULL;
+	trusty_boot_params_v1_t *trusty_boot_params_v1 = NULL;
+
+	/* avoid warning -Wbad-function-cast */
+	rdi = gcpu_get_gp_reg(gcpu, REG_RDI);
+	VMM_ASSERT_EX(rdi, "Invalid trusty boot params\n");
+
+	/* Different structure pass from OSloader
+	 * For v0 structure, runtime_addr is filled in evmm stage0 loader
+	 * For v1 structure, runtime_addr is filled here from trusty_boot_params_v1 */
+	if (trusty_desc->lk_file.runtime_addr) {
+		trusty_boot_params_v0 = (trusty_boot_params_v0_t *)rdi;
+		trusty_desc->lk_file.loadtime_addr = trusty_boot_params_v0->load_base;
+		trusty_desc->lk_file.loadtime_size = trusty_boot_params_v0->load_size;
+		relocate_trusty_image();
+	} else {
+		trusty_boot_params_v1 = (trusty_boot_params_v1_t *)rdi;
+		trusty_desc->gcpu0_state.rip = trusty_boot_params_v1->entry_point;
+		trusty_desc->lk_file.runtime_addr = trusty_boot_params_v1->runtime_addr;
+	}
+}
+
 static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 {
 	guest_cpu_handle_t next_gcpu;
-	uint64_t rdi;
-	trusty_boot_params_t *trusty_boot_params;
 
 	if(!guest_in_ring0(gcpu))
 	{
@@ -254,25 +277,7 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 				if(0 == gcpu->guest->id)
 				{
 					/* From Android */
-					/* avoid waring -Wbad-function-cast */
-					rdi = gcpu_get_gp_reg(gcpu, REG_RDI);
-					trusty_boot_params = (trusty_boot_params_t *)rdi;
-
-#ifdef DEBUG
-					VMM_ASSERT_EX(trusty_boot_params, "Invalid trusty boot params\n");
-#endif
-
-#if LOADER_STAGE0_SUB == abl
-					trusty_desc->lk_file.loadtime_addr = trusty_boot_params->load_base;
-					trusty_desc->lk_file.loadtime_size = trusty_boot_params->load_size;
-					relocate_trusty_image();
-#elif LOADER_STAGE0_SUB == sbl
-					trusty_desc->gcpu0_state.rip = trusty_boot_params->entry_point;
-					if(trusty->lk_file.runtime_addr != 0)
-						print_warn("LK's runtime address should not be filled before here.\n");
-					trusty_desc->lk_file.runtime_addr = trusty_boot_params->runtime_addr;
-#endif
-
+					parse_trusty_boot_param(gcpu);
 					setup_trusty_info();
 					mem_free(trusty_desc->dev_sec_info);
 
