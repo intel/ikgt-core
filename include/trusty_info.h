@@ -34,9 +34,7 @@ typedef struct {
 	uint8_t  padding[4];
 } trusty_startup_info_t;
 
-/* Different vmcall parameters structure from OSloader for
- * ABL and SBL */
-#if LOADER_STAGE0_SUB == abl
+/* Different vmcall parameters structure from OSloader */
 typedef struct {
 	/* Size of this structure */
 	uint64_t size_of_this_struct;
@@ -46,8 +44,8 @@ typedef struct {
 	uint32_t load_size;
 
 	/* other fields will not used in EVMM */
-} trusty_boot_params_t;
-#elif LOADER_STAGE0_SUB == sbl
+} trusty_boot_params_v0_t;
+
 typedef struct {
 	uint32_t size_of_this_struct;
 	uint32_t version;
@@ -57,7 +55,6 @@ typedef struct {
 
 	/* Entry address of trusty */
 	uint32_t entry_point;
-} trusty_boot_params_t;
-#endif
+} trusty_boot_params_v1_t;
 
 #endif
