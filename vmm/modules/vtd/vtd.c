@@ -35,8 +35,8 @@
 #define VTD_REG_CCMD    0x0028
 
 /* GCMD_REG Bits */
-#define VTD_GCMD_TE   31
-#define VTD_GCMD_SRTP 30
+#define VTD_GCMD_TE   (1ULL << 31)
+#define VTD_GCMD_SRTP (1ULL << 30)
 
 typedef union {
 	struct {
@@ -168,30 +168,21 @@ static void vtd_get_cap(uint8_t *max_leaf, uint8_t *tm, uint8_t *snoop)
 	}
 }
 
-static void vtd_send_global_cmd(uint32_t bit)
+static void vtd_send_global_cmd(vtd_engine_t *engine, uint32_t cmd)
 {
-	volatile uint32_t value = 0;
-	uint32_t i = 0;
+	volatile uint32_t value;
+	value = vtd_read_reg32(engine->reg_base_hva, VTD_REG_GSTS);
 
-	for (i=0; i<DMAR_MAX_ENGINE; i++) {
-		if (engine_list[i].reg_base_hva) {
-			value = vtd_read_reg32(engine_list[i].reg_base_hva,
-						VTD_REG_GSTS);
-			value |= 1U << bit;
+	value |= cmd;
 
-			vtd_write_reg32(engine_list[i].reg_base_hva,
-				VTD_REG_GCMD,
-				value);
+	vtd_write_reg32(engine->reg_base_hva, VTD_REG_GCMD, value);
 
-			while (1) {
-				value = vtd_read_reg32(engine_list[i].reg_base_hva,
-							VTD_REG_GSTS);
-				if (!(value & (1ull << bit)))
-					asm_pause();
-				else
-					break;
-			}
-		}
+	while (1) {
+		value = vtd_read_reg32(engine->reg_base_hva, VTD_REG_GSTS);
+		if (value & cmd)
+			break;
+		else
+			asm_pause();
 	}
 }
 
@@ -337,28 +328,39 @@ void vtd_init(void)
 	event_register(EVENT_RESUME_FROM_S3, vtd_reactivate_from_s3);
 }
 
-void vtd_activate(void)
+static uint64_t get_root_table_hpa(void)
 {
-	uint32_t i = 0;
-	uint64_t hva = 0;
-	uint64_t hpa = 0;
-
+	uint64_t hpa, hva;
 	hva = (uint64_t)g_remapping.root_table;
 	VMM_ASSERT_EX(hmm_hva_to_hpa(hva, &hpa, NULL),
 			"fail to convert hva 0x%llX to hpa\n", hva);
+	return hpa;
+}
 
-	for (i=0; i<DMAR_MAX_ENGINE; i++) {
-		if (engine_list[i].reg_base_hva) {
-			vtd_write_reg64(engine_list[i].reg_base_hva,
-				VTD_REG_RTADDR,
-				(uint64_t)hpa);
-		}
-	}
+static void vtd_enable_dmar(vtd_engine_t *engine, uint64_t rt_hpa)
+{
+	/* Set Root Table Address Register */
+	vtd_write_reg64(engine->reg_base_hva, VTD_REG_RTADDR, (uint64_t)rt_hpa);
+
+	/* Set Root Table Pointer*/
+	vtd_send_global_cmd(engine, VTD_GCMD_SRTP);
+
+	/* Translation Enable */
+	vtd_send_global_cmd(engine, VTD_GCMD_TE);
+}
+
+void vtd_activate(void)
+{
+	uint32_t i;
+	uint64_t rt_hpa;
 
 	asm_wbinvd();
 
-	/* Set Root Table Pointer*/
-	vtd_send_global_cmd(VTD_GCMD_SRTP);
-	/* Translation Enable */
-	vtd_send_global_cmd(VTD_GCMD_TE);
+	rt_hpa = get_root_table_hpa();
+
+	for (i=0; i<DMAR_MAX_ENGINE; i++) {
+		if (engine_list[i].reg_base_hva) {
+			vtd_enable_dmar(&engine_list[i], rt_hpa);
+		}
+	}
 }
