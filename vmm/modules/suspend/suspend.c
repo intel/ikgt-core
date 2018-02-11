@@ -108,6 +108,8 @@ static void prepare_s3_percpu(guest_cpu_handle_t gcpu, void *unused UNUSED)
 		"[SUSPEND] CPU(%d) going to go to S3\n",
 		host_cpu_id());
 
+	event_raise(gcpu, EVENT_SUSPEND_TO_S3, NULL);
+
 	do {
 		vmcs_clr_ptr(gcpu_next->vmcs);
 
