@@ -44,6 +44,8 @@ void gpm_set_mapping(IN guest_handle_t guest,
 
 #define gpm_remove_mapping(guest, gpa, size) gpm_set_mapping_with_cache(guest, gpa, 0, size, 0)
 
+void invalidate_gpm(guest_handle_t guest);
+
 /*-------------------------------------------------------------------------
  * Function: gpm_gpa_to_hpa
  *  Description: This function is used in order to convert Guest Physical Address
