@@ -251,6 +251,10 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 					setup_trusty_info();
 					mem_free(trusty_desc->dev_sec_info);
 
+					/* Memory mapping is updated for Guest[0] in setup_trusty_info(),
+					 * need to do cache invalidation for Guest[0] */
+					invalidate_gpm(guest_handle(0));
+
 					gcpu_set_gp_reg(next_gcpu, REG_RDI, trusty_desc->gcpu0_state.gp_reg[REG_RDI]);
 					gcpu_set_gp_reg(next_gcpu, REG_RSP, trusty_desc->gcpu0_state.gp_reg[REG_RSP]);
 					vmcs_write(next_gcpu->vmcs, VMCS_GUEST_RIP, trusty_desc->gcpu0_state.rip);

@@ -21,6 +21,7 @@
 #include "hmm.h"
 #include "heap.h"
 #include "host_cpu.h"
+#include "gcpu.h"
 #include "vtd_acpi.h"
 #include "vtd_mem_map.h"
 
@@ -33,56 +34,29 @@
 #define VTD_REG_GSTS    0x001C
 #define VTD_REG_RTADDR  0x0020
 #define VTD_REG_CCMD    0x0028
+#define VTD_REG_IVA(IRO)   ((IRO) << 4)             // IVA_REG = VTD_REG_BASE + 16*(ECAP.IRO)
+#define VTD_REG_IOTLB(IRO) (VTD_REG_IVA(IRO) + 0x8) // IOTLB_REG = IVA_REG + 0x8
 
 /* GCMD_REG Bits */
 #define VTD_GCMD_TE   (1ULL << 31)
 #define VTD_GCMD_SRTP (1ULL << 30)
 
-typedef union {
-	struct {
-		uint32_t nd         : 3;
-		uint32_t afl        : 1;
-		uint32_t rwbf       : 1;
-		uint32_t pmlr       : 1;
-		uint32_t pmhr       : 1;
-		uint32_t cm         : 1;
-		uint32_t sagaw      : 5;
-		uint32_t rsvd0      : 3;
-		uint32_t mgaw       : 6;
-		uint32_t zlr        : 1;
-		uint32_t isoch      : 1;
-		uint32_t fro_low    : 8;
-		uint32_t fro_high   : 2;
-		uint32_t sllps      : 4;
-		uint32_t rsvd1      : 1;
-		uint32_t psi        : 1;
-		uint32_t nfr        : 8;
-		uint32_t mamv       : 6;
-		uint32_t dwd        : 1;
-		uint32_t drd        : 1;
-		uint32_t rsvd2      : 8;
-	} bits;
-	uint64_t uint64;
-} vtd_cap_reg_t;
+typedef enum {
+	IOTLB_IIRG_RESERVED = 0,
+	IOTLB_IIRG_GLOBAL,
+	IOTLB_IIRG_DOMAIN,
+	IOTLB_IIRG_PAGE,
+} VTD_IOTLB_IIRG; // IIRG: IOTLB Invalidation Request Granularity
 
-typedef union {
-	struct {
-		uint32_t c      : 1;
-		uint32_t qi     : 1;
-		uint32_t di     : 1;
-		uint32_t ir     : 1;
-		uint32_t eim    : 1;
-		uint32_t ch     : 1;
-		uint32_t pt     : 1;
-		uint32_t sc     : 1;
-		uint32_t ivo    : 10;
-		uint32_t rsvd   : 2;
-		uint32_t mhmv   : 4;
-		uint32_t rsvd1  : 8;
-		uint32_t rsvd2;
-	} bits;
-	uint64_t uint64;
-} vtd_ext_cap_reg_t;
+/* IOTLB_REG */
+#define VTD_IOTLB_IVT         (1ULL << 63)
+#define VTD_IOTLB_GLOBAL_INV  (1ULL << 60)
+#define VTD_IOTLB_DOMAIN_INV  (2ULL << 60)
+#define VTD_IOTLB_PAGE_INV    (3ULL << 60)
+#define VTD_IOTLB_DR          (1ULL << 49)
+#define VTD_IOTLB_DW          (1ULL << 48)
+#define VTD_IOTLB_DID(did)    (((uint64_t)(did)) << 32)
+#define VTD_IOTLB_IAIG(v)     ((((uint64_t)(v)) >> 57) & 0x3)
 
 typedef struct {
 	uint64_t	low;
@@ -126,13 +100,25 @@ void vtd_write_reg32(uint64_t base_hva, uint64_t reg, uint32_t value)
 	*((volatile uint32_t *)(base_hva + reg)) = value;
 }
 
-static void vtd_get_cap(uint8_t *max_leaf, uint8_t *tm, uint8_t *snoop)
+static void vtd_get_cap(void)
+{
+	uint32_t i;
+	for (i=0; i<DMAR_MAX_ENGINE; i++) {
+		if (!engine_list[i].reg_base_hva)
+			break;
+
+		engine_list[i].cap.uint64 = vtd_read_reg64(engine_list[i].reg_base_hva,
+							VTD_REG_CAP);
+		engine_list[i].ecap.uint64 = vtd_read_reg64(engine_list[i].reg_base_hva,
+							VTD_REG_ECAP);
+	}
+}
+
+static void vtd_calculate_trans_cap(uint8_t *max_leaf, uint8_t *tm, uint8_t *snoop)
 {
 	uint32_t i;
 	uint32_t idx = 0;
 	uint32_t val = 0;
-	vtd_cap_reg_t cap = {.uint64 = 0};
-	vtd_ext_cap_reg_t ext_cap = {.uint64 = 0};
 
 	/* TM/SNOOP will be update to zero if hardware does not support */
 	*max_leaf = MAM_LEVEL_PML4;
@@ -143,9 +129,7 @@ static void vtd_get_cap(uint8_t *max_leaf, uint8_t *tm, uint8_t *snoop)
 		if (!engine_list[i].reg_base_hva)
 			break;
 
-		cap.uint64 = vtd_read_reg64(engine_list[i].reg_base_hva,
-						VTD_REG_CAP);
-		val = ~(cap.bits.sllps);
+		val = ~(engine_list[i].cap.bits.sllps);
 		D(VMM_ASSERT(val));
 		idx = asm_bsf32(val);
 
@@ -153,7 +137,8 @@ static void vtd_get_cap(uint8_t *max_leaf, uint8_t *tm, uint8_t *snoop)
 		*max_leaf = MIN(*max_leaf, idx);
 
 		/* Need 4-level page-table support */
-		VMM_ASSERT_EX(cap.bits.sagaw & (1ull << 2), "4-level page-table isn't supported by vtd\n");
+		VMM_ASSERT_EX(engine_list[i].cap.bits.sagaw & (1ull << 2),
+				"4-level page-table isn't supported by vtd\n");
 
 		/*
 		 * Check TM/SNOOP support in external capablity register,
@@ -161,10 +146,8 @@ static void vtd_get_cap(uint8_t *max_leaf, uint8_t *tm, uint8_t *snoop)
 		 * and same Context entres/Paging entries are used for all buses,
 		 * minimum support will be used.
 		 */
-		ext_cap.uint64 = vtd_read_reg64(engine_list[i].reg_base_hva,
-							VTD_REG_ECAP);
-		*tm = *tm & ext_cap.bits.di;
-		*snoop = *snoop & ext_cap.bits.sc;
+		*tm = *tm & engine_list[i].ecap.bits.dt;
+		*snoop = *snoop & engine_list[i].ecap.bits.sc;
 	}
 }
 
@@ -312,13 +295,70 @@ void vtd_assign_dev(uint16_t domain_id, uint16_t dev_id)
 }
 #endif
 
+static void vtd_invalidate_iotlb(vtd_engine_t *engine, VTD_IOTLB_IIRG iirg, uint16_t did)
+{
+	volatile uint64_t value;
+	uint64_t iotlb_reg_offset;
+	uint64_t cmd = VTD_IOTLB_IVT | VTD_IOTLB_DR | VTD_IOTLB_DW;
+
+	switch (iirg) {
+	case IOTLB_IIRG_GLOBAL:
+		cmd |= VTD_IOTLB_GLOBAL_INV;
+		break;
+	case IOTLB_IIRG_DOMAIN:
+		cmd |= VTD_IOTLB_DOMAIN_INV | VTD_IOTLB_DID(did);
+		break;
+	case IOTLB_IIRG_PAGE:
+		print_warn("IIRG_PAGE IOTLB Invalidate is not implemented currently. Ignore this request!");
+		return;
+	default:
+		print_panic("Invalid IOTLB Invalidation Request Granularity!\n");
+		return;
+	}
+
+	iotlb_reg_offset = VTD_REG_IOTLB(engine->ecap.bits.iro);
+
+	vtd_write_reg64(engine->reg_base_hva, iotlb_reg_offset, cmd);
+
+	while (1) {
+		value = vtd_read_reg64(engine->reg_base_hva, iotlb_reg_offset);
+		if (value & (VTD_IOTLB_IVT))
+			asm_pause();
+		else {
+			if (VTD_IOTLB_IAIG(value) == 0) {
+				print_panic("Incorrect IOTLB invalidation request!\n");
+			}
+			break;
+		}
+	}
+}
+
+static void vtd_invalidate_cache(UNUSED guest_cpu_handle_t gcpu, void *pv)
+{
+	uint32_t i;
+	guest_handle_t guest = (guest_handle_t) pv;
+
+	/* when EVENT_GPM_INVALIDATE is raised in all cpus,
+         * VT-d cache only need to be invalidated once */
+	if(host_cpu_id() != 0)
+		return;
+
+	for (i=0; i<DMAR_MAX_ENGINE; i++) {
+		if (engine_list[i].reg_base_hva) {
+			vtd_invalidate_iotlb(&engine_list[i], IOTLB_IIRG_DOMAIN, gid2did(guest->id));
+		}
+	}
+}
+
 void vtd_init(void)
 {
 	uint8_t max_leaf, tm, snoop;
 
 	vtd_dmar_parse(engine_list);
 
-	vtd_get_cap(&max_leaf, &tm, &snoop);
+	vtd_get_cap();
+
+	vtd_calculate_trans_cap(&max_leaf, &tm, &snoop);
 	set_translation_cap(max_leaf, tm, snoop);
 
 	vtd_init_dev_mapping();
@@ -326,6 +366,7 @@ void vtd_init(void)
 	event_register(EVENT_GPM_SET, vtd_update_domain_mapping);
 	event_register(EVENT_GUEST_MODULE_INIT, vtd_guest_setup);
 	event_register(EVENT_RESUME_FROM_S3, vtd_reactivate_from_s3);
+	event_register(EVENT_GPM_INVALIDATE, vtd_invalidate_cache);
 }
 
 static uint64_t get_root_table_hpa(void)

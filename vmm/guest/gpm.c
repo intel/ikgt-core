@@ -116,6 +116,12 @@ static uint32_t ept_leaf_get_attr(uint64_t leaf_entry, UNUSED uint32_t level)
 	return ept_attr.uint32;
 }
 
+void invalidate_gpm(guest_handle_t guest)
+{
+	asm_invept(guest->eptp);
+	event_raise(NULL, EVENT_GPM_INVALIDATE, guest);
+}
+
 void gpm_create_mapping(guest_handle_t guest)
 {
 	D(VMM_ASSERT(guest));
