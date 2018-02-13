@@ -58,29 +58,6 @@ typedef enum {
 	TRUSTY_VMCALL_DUMP_INIT       = 0x74727507,
 }vmcall_id_t;
 
-/* 0x31 is not used in Android (in CHT, BXT, GSD simics) */
-#define LK_TIMER_INTR	0x31
-
-/* Trusted OS calls internal to secure monitor */
-#define	SMC_ENTITY_SECURE_MONITOR	60
-
-/* Used in SMC_STDCALL_NR */
-#define SMC_NR(entity, fn, fastcall, smc64) ((((fastcall) & 0x1) << 31) | \
-					     (((smc64) & 0x1) << 30) | \
-					     (((entity) & 0x3F) << 24) | \
-					     ((fn) & 0xFFFF) \
-					    )
-
-/* Used in SMC_SC_NOP */
-#define SMC_STDCALL_NR(entity, fn)	SMC_NR((entity), (fn), 0, 0)
-
-/*
- * SMC_SC_NOP - origin defination is in smcall.h in lk
- * need use this defination to identify the timer interrupt
- * from Android to LK
- */
-#define SMC_SC_NOP	SMC_STDCALL_NR  (SMC_ENTITY_SECURE_MONITOR, 3)
-
 static boolean_t guest_in_ring0(guest_cpu_handle_t gcpu)
 {
 	uint64_t  cs_sel;
@@ -121,13 +98,6 @@ static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gc
 	gcpu_set_gp_reg(next_gcpu, REG_RSI, rsi);
 	gcpu_set_gp_reg(next_gcpu, REG_RDX, rdx);
 	gcpu_set_gp_reg(next_gcpu, REG_RBX, rbx);
-
-	/* send timer interrupt to LK */
-	if ((gcpu->guest->id == 0) &&
-		(SMC_SC_NOP == rdi) &&
-		(LK_TIMER_INTR == rsi)) {
-		gcpu_set_pending_intr(next_gcpu, LK_TIMER_INTR);
-	}
 }
 
 /* Reserved size for dev_sec_info/trusty_startup and Stack(1 page) */
