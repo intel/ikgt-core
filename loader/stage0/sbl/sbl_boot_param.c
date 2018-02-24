@@ -64,7 +64,7 @@ static inline void fill_trusty_desc(trusty_desc_t *trusty_desc, void *dev_sec_in
 static inline void fill_platform_info(evmm_desc_t *evmm_desc, platform_info_t *platform_info)
 {
 	evmm_desc->num_of_cpu = platform_info->cpu_num;
-	evmm_desc->tsc_per_ms = platform_info->cpu_frequency_MHz;
+	evmm_desc->tsc_per_ms = platform_info->cpu_frequency_MHz * 1000ULL;
 }
 
 static void fill_payload_params(gcpu_state_t *gcpu_state, payload_gcpu_state_t *payload_gcpu_state)
