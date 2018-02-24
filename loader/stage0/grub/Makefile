@@ -20,12 +20,12 @@ ASOURCES = stage0_entry.S
 
 include $(PROJS)/rule.linux
 
-OBJS = $(OUTDIR)stage0_entry.o \
-	$(OUTDIR)stage0.o \
-	$(OUTDIR)stage0_lib.o \
-	$(OUTDIR)grub_boot_param.o \
-	$(OUTDIR)guest_setup.o \
-	$(OUTDIR)linux_loader.o \
+OBJS = $(OUTDIR)/stage0_entry.o \
+	$(OUTDIR)/stage0.o \
+	$(OUTDIR)/stage0_lib.o \
+	$(OUTDIR)/grub_boot_param.o \
+	$(OUTDIR)/guest_setup.o \
+	$(OUTDIR)/linux_loader.o \
 	$(LIB_DIR)/elf_ld.o \
 	$(LIB_DIR)/elf32_ld.o \
 	$(LIB_DIR)/elf64_ld.o \
@@ -51,7 +51,7 @@ endif
 all: $(TARGET) stage0.bin
 
 $(TARGET):
-	$(LD) $(LDFLAGS) -o $(OUTDIR)$@ $(OBJS) $(wildcard $(BUILD_DIR)common/*.o)
+	$(LD) $(LDFLAGS) -o $(OUTDIR)/$@ $(OBJS) $(wildcard $(BUILD_DIR)common/*.o)
 
 stage0.bin: $(TARGET)
-	objcopy -j .text -O binary -S $(OUTDIR)$(TARGET) $(BUILD_DIR)stage0.bin
+	objcopy -j .text -O binary -S $(OUTDIR)/$(TARGET) $(BUILD_DIR)stage0.bin
