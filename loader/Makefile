@@ -18,10 +18,10 @@ export LIB_DIR = $(BUILD_DIR)lib
 
 INCLUDES = -I. \
 	-I$(PROJS)/include \
-	-I$(PROJS)/loader/include \
+	-I$(PROJS)/loader/include
 
 AINCLUDES += -I$(PROJS)/loader/include \
-	-I$(PROJS)/include \
+	-I$(PROJS)/include
 
 AFLAGS += $(AINCLUDES)
 

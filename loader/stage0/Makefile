@@ -13,15 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-export OUTDIR = $(BUILD_DIR)stage0/
+export OUTDIR = $(BUILD_DIR)stage0
 
 $(shell mkdir -p $(OUTDIR))
 
-SUBDIRS = $(LOADER_STAGE0_SUB)
+INCLUDES += -I$(PROJS)/loader/stage0 \
+	-I$(PROJS)/loader/stage0/stage0_lib
 
-CFLAGS += -I..
+CFLAGS += $(INCLUDES)
 
-CSOURCES = $(wildcard *.c)
-ASOURCES = $(wildcard *.S)
+.PHONY : all stage0_lib stage0_sub
 
-include $(PROJS)/rule.linux
+all : stage0_lib stage0_sub
+
+stage0_lib :
+	$(MAKE) -C $@
+
+stage0_sub : stage0_lib
+	$(MAKE) -C $(LOADER_STAGE0_SUB)
