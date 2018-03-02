@@ -25,7 +25,6 @@
 #define EVMM_SIGNATURE_CORP 0x43544E49  /* "INTC", edx */
 #define EVMM_SIGNATURE_VMM  0x4D4D5645  /* "EVMM", ecx */
 
-
 typedef void (*cpuid_filter_handler_t) (guest_cpu_handle_t, cpuid_params_t *);
 
 typedef struct {
@@ -72,9 +71,19 @@ void cpuid_leaf_ext_1h_filter(guest_cpu_handle_t gcpu, cpuid_params_t *p_cpuid)
 	}
 }
 
+static
+void cpuid_leaf_40000000h_filter(UNUSED guest_cpu_handle_t gcpu, cpuid_params_t *p_cpuid)
+{
+	p_cpuid->eax = 0x40000000; /* Largest basic leaf supported */
+	p_cpuid->ebx = EVMM_SIGNATURE_VMM;
+	p_cpuid->ecx = EVMM_SIGNATURE_VMM;
+	p_cpuid->edx = EVMM_SIGNATURE_VMM;
+}
+
 static cpuid_filter_t g_cpuid_filter[] = {
 	{0x1,0,cpuid_leaf_1h_filter},
 	{0x3,0,cpuid_leaf_3h_filter},
+	{0x40000000,0,cpuid_leaf_40000000h_filter},
 	{0x80000001,0,cpuid_leaf_ext_1h_filter},
 	{0xFFFFFFFF,0,NULL}
 };
