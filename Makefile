@@ -58,7 +58,7 @@ CFLAGS += -static -nostdinc -fno-hosted
 # add warning checks as much as possible.
 # -Wconversion option will cause a warning like i += 1, so we strip this
 # warning option
-CFLAGS += -Wall -Wextra -Werror -Wbad-function-cast -Wpacked -Wpadded \
+CFLAGS += -Wall -Wextra -Wbad-function-cast -Wpacked -Wpadded \
 	-Winit-self -Wswitch-default -Wtrampolines -Wdeclaration-after-statement \
 	-Wredundant-decls -Wnested-externs -Winline -Wstack-protector \
 	-Woverlength-strings -Wlogical-op -Waggregate-return \
