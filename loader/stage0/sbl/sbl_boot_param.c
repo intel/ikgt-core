@@ -77,40 +77,6 @@ static void fill_payload_params(gcpu_state_t *gcpu_state, payload_gcpu_state_t *
 	gcpu_state->gp_reg[REG_RCX] = (uint64_t)payload_gcpu_state->ecx;
 }
 
-static uint64_t get_top_of_memory(multiboot_info_t *mbi)
-{
-	uint32_t mmap_len;
-	uint64_t mmap_addr;
-	uint32_t offs = 0;
-	uint64_t tom = 0;
-	multiboot_memory_map_t *mmap = NULL;
-
-	if (!mbi) {
-		print_panic("Multiboot info is NULL!\n");
-		return 0;
-	}
-
-	/* get TOM from mmap in mubtiboot info */
-	if (!CHECK_FLAG(mbi->flags, 6)) {
-		print_panic("Multiboot info does not contain mmap field!\n");
-		return 0;
-	}
-
-	mmap_len = mbi->mmap_length;
-	mmap_addr = mbi->mmap_addr;
-
-	for (; offs < mmap_len; offs += (mmap->size + sizeof(mmap->size))) {
-		mmap = (multiboot_memory_map_t *)(mmap_addr + offs);
-		print_trace(" 0x%03x:[ base = 0x%016llx, length = 0x%016llx, type = 0x%x ]\n",
-			offs, mmap->addr, mmap->len, mmap->type);
-		if (tom < (mmap->addr + mmap->len))
-			tom = mmap->addr + mmap->len;
-	}
-	print_trace("top of memory = %llx\n", tom);
-
-	return tom;
-}
-
 /* The cmdline is present like:
  *       "ImageBootParamsAddr=0x12345"
  */

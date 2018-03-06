@@ -73,38 +73,6 @@ void *allocate_memory(uint32_t size_request)
 	return (void *)address;
 }
 
-static uint64_t get_top_of_memory(multiboot_info_t *mbi)
-{
-	uint32_t mmap_len;
-	uint64_t mmap_addr;
-	uint32_t offs = 0;
-	uint64_t tom = 0;
-	multiboot_memory_map_t *mmap = NULL;
-
-	if (!mbi)
-		return 0;
-
-	/* get TOM from mmap in mubtiboot info */
-	if (!(mbi->flags & MBI_MEMMAP)) {
-		print_panic("Multiboot info does not contain mmap field!\n");
-		return 0;
-	}
-
-	mmap_len = mbi->mmap_length;
-	mmap_addr = mbi->mmap_addr;
-
-	for (; offs < mmap_len; offs += (mmap->size + sizeof(mmap->size))) {
-		mmap = (multiboot_memory_map_t *)(mmap_addr + offs);
-		print_trace(" 0x%03x:[ base = 0x%016llx, length = 0x%016llx, type = 0x%x, size = %d ]\n",
-			offs, mmap->addr, mmap->len, mmap->type, mmap->size);
-		if (tom < (mmap->addr + mmap->len))
-			tom = mmap->addr + mmap->len;
-	}
-
-	print_trace("top of memory = 0x%llx\n", tom);
-	return tom;
-}
-
 static boolean_t hide_runtime_memory(multiboot_info_t *mbi,
 		uint64_t hide_mem_addr, uint64_t hide_mem_size)
 {
