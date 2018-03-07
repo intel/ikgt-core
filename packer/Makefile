@@ -58,7 +58,7 @@ $(TARGET): $(COBJS)
 
 pack:$(TARGET)
 ifneq (, $(findstring -DPACK_LK, $(EVMM_CMPL_FLAGS)))
-	if [ $(LKBIN_DIR) ]; then cp $(LKBIN_DIR)lk.bin $(BUILD_DIR); fi
+	if [ $(LKBIN_DIR) ]; then cp $(LKBIN_DIR)lk.elf $(BUILD_DIR); fi
 endif
 	chmod +x $(BUILD_DIR)$(TARGET) && \
 	cd $(BUILD_DIR) && \

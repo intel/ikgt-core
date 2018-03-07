@@ -159,7 +159,7 @@ Config files
 			- DMA_FROM_CSE
 				Description: Optional, allow CSE device access multi guests' memory by DMA. This macro should take the value of PCI device id(PCI_DEV(Bus:Device:Func));
 		- PACK_LK
-			Description: pack lk.bin into evmm_pkg.bin
+			Description: pack lk.elf into evmm_pkg.bin
 
 	- MODULE_VTD
 		Description: Enable VT-d. Current policy for VT-d is to use same memory layout as guest 0 (Android).

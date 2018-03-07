@@ -38,7 +38,7 @@ static char* file_list[] = {
 	"stage1.bin",
 	"evmm.elf",
 #if defined (MODULE_TRUSTY_GUEST) && defined (PACK_LK)
-	"lk.bin",
+	"lk.elf",
 #endif
 };
 
