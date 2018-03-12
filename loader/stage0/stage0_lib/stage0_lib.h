@@ -18,6 +18,9 @@
 #define _STAGE0_LIB_H_
 #include "evmm_desc.h"
 #include "vmm_arch.h"
+#include "file_pack.h"
+
+#define STAGE1_RUNTIME_SIZE   0xC000
 
 #define MULTIBOOT_MEMORY_AVAILABLE  1
 #define MULTIBOOT_MEMORY_RESERVED   2
@@ -87,9 +90,15 @@ typedef struct {
 	uint32_t type;
 } PACKED multiboot_memory_map_t;
 
+typedef struct {
+	uint64_t load_addr;
+	uint64_t size;
+} packed_file_t;
+
 void save_current_cpu_state(gcpu_state_t *s);
 void setup_32bit_env(gcpu_state_t *gcpu_state);
 void make_dummy_trusty_info(void *info);
+boolean_t get_file_params(uint64_t base, packed_file_t *packed_file);
 boolean_t file_parse(evmm_desc_t *evmm_desc, uint64_t base, uint32_t offset, uint32_t size);
 uint64_t get_top_of_memory(multiboot_info_t *mbi);
 

@@ -48,7 +48,7 @@ typedef struct {
 } file_offset_header_t;
 
 /* the func is used in different binary: pack and stage0 */
-static file_offset_header_t* get_file_offsets_header(uint64_t start_addr, uint64_t size)
+static inline file_offset_header_t* get_file_offsets_header(uint64_t start_addr, uint64_t size)
 {
 	/* search the magic file offset header */
 	uint64_t tmpbuf;
