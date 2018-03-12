@@ -17,12 +17,12 @@
 #include "vmm_base.h"
 #include "vmm_arch.h"
 #include "evmm_desc.h"
-#include "file_pack.h"
 #include "ldr_dbg.h"
 #include "device_sec_info.h"
 #include "stage0_lib.h"
 #include "lib/util.h"
 
+#define TOS_MAX_IMAGE_SIZE    0x100000 /* Max image size assumed to be 1 MB */
 #define BOOT_NULL     (0x00)
 #define BOOT_CS       (0x08)
 #define BOOT_DS       (0x10)
@@ -128,6 +128,85 @@ void make_dummy_trusty_info(void *info)
 	device_sec_info->version = 0;
 	device_sec_info->platform = 0;
 	device_sec_info->num_seeds = 1;
+}
+
+static uint32_t get_file_size(file_offset_header_t *file_hdr, uint32_t file_index)
+{
+	if (file_hdr == NULL) {
+		print_panic("file header is NULL\n");
+		return 0;
+	}
+
+	if (file_index >= PACK_BIN_COUNT) {
+		print_panic("file_index[%u] exceeds max[%u]\n", file_index, PACK_BIN_COUNT);
+		return 0;
+	}
+
+	if (!file_hdr->file_size[file_index]) {
+		print_panic("stage[%u] file size is zero\n", file_index);
+		return 0;
+	}
+
+	return file_hdr->file_size[file_index];
+}
+
+static uint32_t get_file_offset(file_offset_header_t *file_hdr, uint32_t file_index)
+{
+	uint32_t i;
+	uint32_t sum = 0;
+
+	if (file_hdr == NULL) {
+		print_panic("file header is NULL\n");
+		return 0;
+	}
+
+	if (file_index >= PACK_BIN_COUNT) {
+		print_panic("file_index[%u] exceeds max[%u]\n", file_index, PACK_BIN_COUNT);
+		return 0;
+	}
+
+	for (i = 0; i < file_index; i++) {
+		if (!file_hdr->file_size[i]) {
+			print_panic("stage[%u] file size is zero\n", i);
+			return 0;
+		}
+		sum += file_hdr->file_size[i];
+	}
+
+	return sum;
+}
+
+boolean_t get_file_params(uint64_t base, packed_file_t *packed_file)
+{
+	uint32_t i;
+	file_offset_header_t *file_hdr;
+
+	if (!packed_file) {
+		print_panic("packed_file is NULL!\n");
+		return FALSE;
+	}
+
+	file_hdr = get_file_offsets_header(base, TOS_MAX_IMAGE_SIZE);
+	if (!file_hdr) {
+		print_panic("file header is NULL\n");
+		return FALSE;
+	}
+
+	for (i = 0; i < PACK_BIN_COUNT; i++) {
+		packed_file[i].load_addr = base + get_file_offset(file_hdr, i);
+		if (!packed_file[i].load_addr) {
+			print_panic("failed to get file[%d] load addr\n", i);
+			return FALSE;
+		}
+
+		packed_file[i].size = (uint64_t)get_file_size(file_hdr, i);
+		if (!packed_file[i].size) {
+			print_panic("failed to get file[%d] size\n", i);
+			return FALSE;
+		}
+	}
+
+	return TRUE;
 }
 
 boolean_t file_parse(evmm_desc_t *evmm_desc, uint64_t base, uint32_t offset, uint32_t size)

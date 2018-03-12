@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
+* Copyright (c) 2015-2018 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 #include "vmm_arch.h"
 #include "evmm_desc.h"
 #include "abl_boot_param.h"
-#include "guest_setup.h"
 #include "stage0_lib.h"
 #include "ldr_dbg.h"
 #include "device_sec_info.h"
@@ -26,84 +25,9 @@
 #include "lib/util.h"
 #include "lib/string.h"
 
-#define CHECK_FLAG(flag,bit)	((flag) & (1 << (bit)))
+#define CHECK_FLAG(flag, bit)    ((flag) & (1 << (bit)))
 
-#define STAGE1_IMG_SIZE            0xC000
-
-/* arguments parsed from cmdline */
-typedef struct boot_param {
-	uint64_t image_boot_param_addr;
-	uint64_t cpu_num;
-	uint64_t cpu_freq;
-} boot_param_t;
-
-/* loader memory layout */
-typedef struct {
-	/* below must be page aligned for
-	 * further ept protection */
-	/* stage1 image in RAM */
-	uint8_t stage1[STAGE1_IMG_SIZE];
-
-	evmm_desc_t xd;
-
-	device_sec_info_v0_t device_sec_info;
-
-	/* add more if any */
-} memory_layout_t;
-
-static void fill_evmm_boot_params(evmm_desc_t *evmm_desc, vmm_boot_params_t *vmm_boot_params)
-{
-	memory_layout_t *loader_mem;
-	loader_mem = (memory_layout_t *)(uint64_t)vmm_boot_params->VMMheapAddr;
-
-	evmm_desc->evmm_file.runtime_addr = (uint64_t)vmm_boot_params->VMMMemBase;
-	evmm_desc->evmm_file.runtime_total_size = ((uint64_t)(vmm_boot_params->VMMMemSize)) << 10;
-
-	evmm_desc->stage1_file.runtime_addr = (uint64_t)loader_mem->stage1;
-	evmm_desc->stage1_file.runtime_total_size = STAGE1_IMG_SIZE;
-
-	evmm_desc->sipi_ap_wkup_addr = (uint64_t)vmm_boot_params->VMMSipiApWkupAddr;
-}
-
-static boolean_t fill_device_sec_info(device_sec_info_v0_t *device_sec_info, abl_trusty_boot_params_t *trusty_boot_params, const char *serial)
-{
-	uint32_t i;
-
-	device_sec_info->size_of_this_struct = sizeof(device_sec_info_v0_t);
-	device_sec_info->version = 0;
-	device_sec_info->flags = 0x1 | 0x0 | 0x0; // in manufacturing mode | secure boot disabled | production seed
-	device_sec_info->platform = 1; // APL + ABL
-
-	if (trusty_boot_params->num_seeds > ABL_SEED_LIST_MAX) {
-		print_panic("Number of seeds exceeds predefined max number!\n");
-		return FALSE;
-	}
-
-	device_sec_info->num_seeds = trusty_boot_params->num_seeds;
-
-	memset(device_sec_info->dseed_list, 0, sizeof(device_sec_info->dseed_list));
-	/* copy seed_list from ABL to device_sec_info->dseed_list */
-	for (i = 0; i < (trusty_boot_params->num_seeds); i++) {
-		device_sec_info->dseed_list[i].cse_svn = trusty_boot_params->seed_list[i].svn;
-		memcpy(device_sec_info->dseed_list[i].seed, trusty_boot_params->seed_list[i].seed, ABL_SEED_LEN);
-	}
-	/* Do NOT erase seed here, OSloader need to derive RPMB key from seed */
-	//memset(abl_trusty_boot_params->seed_list, 0, sizeof(abl_trusty_boot_params->seed_list));
-
-	memcpy(device_sec_info->serial, serial, sizeof(device_sec_info->serial));
-
-	return TRUE;
-}
-
-static void fill_trusty_desc(trusty_desc_t *trusty_desc, device_sec_info_v0_t *device_sec_info, abl_trusty_boot_params_t *trusty_boot_params)
-{
-	/* get lk runtime addr/total_size */
-	trusty_desc->lk_file.runtime_addr = (uint64_t)trusty_boot_params->TrustyMemBase;
-	trusty_desc->lk_file.runtime_total_size = ((uint64_t)(trusty_boot_params->TrustyMemSize)) << 10;
-	trusty_desc->dev_sec_info = device_sec_info;
-}
-
-static boolean_t get_emmc_serial(android_image_boot_params_t *android_boot_params, char *serial)
+boolean_t get_emmc_serial(android_image_boot_params_t *android_boot_params, char *serial)
 {
 	multiboot_info_t *mbi;
 	const char *cmdline;
@@ -153,15 +77,17 @@ static boolean_t get_emmc_serial(android_image_boot_params_t *android_boot_param
 /* The cmdline is present like:
  *       "ImageBootParamsAddr=0x12345 ABL.hwver=51,4,1900,b00f,0,8192"
  */
-static boolean_t cmdline_parse(multiboot_info_t *mbi, boot_param_t *boot_param)
+boolean_t cmdline_parse(multiboot_info_t *mbi, cmdline_params_t *cmdline_param)
 {
 	const char *cmdline;
 	const char *arg;
 	const char *param;
 	uint32_t addr, cpu_num, cpu_freq;
 
-	if (!mbi || !boot_param)
+	if (!mbi || !cmdline_param) {
+		print_panic("mbi or cmdline_params is NULL\n");
 		return FALSE;
+	}
 
 	if (!CHECK_FLAG(mbi->flags, 2)) {
 		print_panic("Multiboot info does not contain cmdline field!\n");
@@ -187,7 +113,7 @@ static boolean_t cmdline_parse(multiboot_info_t *mbi, boot_param_t *boot_param)
 		print_panic("Failed to parse image_boot_param_addr!\n");
 		return FALSE;
 	}
-	boot_param->image_boot_param_addr = (uint64_t)addr;
+	cmdline_param->image_boot_param_addr = (uint64_t)addr;
 
 	/* Parse ABL.hwver */
 	arg = strstr_s(cmdline, MAX_STR_LEN, "ABL.hwver=", sizeof("ABL.hwver=")-1);
@@ -217,7 +143,7 @@ static boolean_t cmdline_parse(multiboot_info_t *mbi, boot_param_t *boot_param)
 		print_panic("CPU number parse failed!\n");
 		return FALSE;
 	}
-	boot_param->cpu_num = (uint8_t)cpu_num;
+	cmdline_param->cpu_num = (uint8_t)cpu_num;
 
 	/* the param should point to the 2nd ','
 	 * get max non-turbo frequency from param+1 */
@@ -231,114 +157,137 @@ static boolean_t cmdline_parse(multiboot_info_t *mbi, boot_param_t *boot_param)
 		print_panic("CPU frequency parse failed!\n");
 		return FALSE;
 	}
-	boot_param->cpu_freq = cpu_freq;
+	cmdline_param->cpu_freq = cpu_freq;
 
 	return TRUE;
 }
 
-static evmm_desc_t *setup_boot_params(uint64_t image_boot_params_addr)
+/*
+ * Find boot params from cmdline used to launch stage1, evmm
+ * and trusty
+ */
+boolean_t find_boot_params(cmdline_params_t *cmdline_params,
+			abl_trusty_boot_params_t **trusty_boot,
+			vmm_boot_params_t **vmm_boot,
+			android_image_boot_params_t **and_boot)
 {
-	vmm_boot_params_t *vmm_boot_params = NULL;
-	abl_trusty_boot_params_t *trusty_boot_params = NULL;
-	android_image_boot_params_t *android_boot_params = NULL;
 	uint32_t i;
-	evmm_desc_t *evmm_desc;
 	uint64_t *p_ImageID;
-	memory_layout_t *loader_mem;
 	image_element_t *ImageElement;
-	image_boot_params_t *image_boot_params = (image_boot_params_t *)image_boot_params_addr;
+	image_params_t *image_params;
 
-	char serial[MMC_PROD_NAME_WITH_PSN_LEN] = {0};
+	if (!cmdline_params || !trusty_boot || !vmm_boot || !and_boot)
+		return FALSE;
 
-	if (!image_boot_params)
-		return NULL;
-	if (image_boot_params->Version != IMAGE_BOOT_PARAMS_VERSION)
-		return NULL;
+	image_params = (image_params_t *)cmdline_params->image_boot_param_addr;
 
-	ImageElement = (image_element_t *)(uint64_t)image_boot_params->ImageElementAddr;
-	for (i=0; i < image_boot_params->NbImage; i++, ImageElement++) {
+	if (!image_params)
+		return FALSE;
 
+	if (image_params->Version != IMAGE_BOOT_PARAMS_VERSION)
+		return FALSE;
+
+	ImageElement = (image_element_t *)(uint64_t)image_params->ImageElementAddr;
+	for (i=0; i < image_params->NbImage; i++, ImageElement++) {
 		p_ImageID = (uint64_t *)ImageElement->ImageID;
 
 		switch((uint64_t)(*p_ImageID)) {
 		case VMM_IMAGE_ID:
-			vmm_boot_params = (vmm_boot_params_t *) (uint64_t)ImageElement->ImageDataPtr;
+			*vmm_boot = (vmm_boot_params_t *)(uint64_t)ImageElement->ImageDataPtr;
 			break;
 		case TRUSTY_IMAGE_ID:
-			trusty_boot_params = (abl_trusty_boot_params_t *) (uint64_t)ImageElement->ImageDataPtr;
+			*trusty_boot = (abl_trusty_boot_params_t *)(uint64_t)ImageElement->ImageDataPtr;
 			break;
 		case ANDROID_IMAGE_ID:
-			android_boot_params = (android_image_boot_params_t *) (uint64_t)ImageElement->ImageDataPtr;
+			*and_boot = (android_image_boot_params_t *)(uint64_t)ImageElement->ImageDataPtr;
 			break;
 		default:
 			break;
 		}
 	}
 
-	if (!(vmm_boot_params && trusty_boot_params && android_boot_params))
-		return NULL;
+	if (!(*trusty_boot && *vmm_boot && *and_boot))
+		return FALSE;
 
-	if ((vmm_boot_params->Version != VMM_BOOT_PARAMS_VERSION) ||
-		(trusty_boot_params->Version != TRUSTY_BOOT_PARAMS_VERSION) ||
-		(android_boot_params->Version != ANDROID_BOOT_PARAMS_VERSION))
-		return NULL;
+	if (((*trusty_boot)->Version != TRUSTY_BOOT_PARAMS_VERSION) ||
+		((*vmm_boot)->Version    != VMM_BOOT_PARAMS_VERSION) ||
+		((*and_boot)->Version    != ANDROID_BOOT_PARAMS_VERSION))
+		return FALSE;
 
-	if (!android_boot_params->ImagePreload)
-		return NULL;
+	if (!(*and_boot)->ImagePreload)
+		return FALSE;
 
-	loader_mem = (memory_layout_t *)(uint64_t)vmm_boot_params->VMMheapAddr;
+	if (!(*vmm_boot)->VMMheapAddr)
+		return FALSE;
 
-	evmm_desc = &(loader_mem->xd);
-	memset(evmm_desc, 0, sizeof(evmm_desc_t));
-
-	fill_evmm_boot_params(evmm_desc, vmm_boot_params);
-	g0_gcpu_setup(evmm_desc, android_boot_params);
-
-	if (!get_emmc_serial(android_boot_params, serial)) {
-		print_panic("Failed to search EMMC serial number string from Guest cmdline!\n");
-		return NULL;
-	}
-
-	if(!fill_device_sec_info(&(loader_mem->device_sec_info), trusty_boot_params, serial)) {
-		print_panic("Failed to fill trusty boot info!\n");
-		return NULL;
-	}
-
-	fill_trusty_desc(&(loader_mem->xd.trusty_desc), &(loader_mem->device_sec_info), trusty_boot_params);
-
-	return evmm_desc;
+	return TRUE;
 }
 
-evmm_desc_t *boot_params_parse(const init_register_t *init_reg)
+void fill_g0gcpu0(gcpu_state_t *evmm_g0gcpu0, cpu_state_t *abl_g0gcpu0)
 {
-	evmm_desc_t *evmm_desc = NULL;
-	boot_param_t boot_param;
-	uint64_t tom = 0;
-	boolean_t ret = FALSE;
+	/* save multiboot initial state */
+	/* hardcode GP register sequence here to align with ABL */
+	evmm_g0gcpu0->gp_reg[REG_RAX] = abl_g0gcpu0->cpu_gp_register[0];
+	evmm_g0gcpu0->gp_reg[REG_RBX] = abl_g0gcpu0->cpu_gp_register[1];
+	evmm_g0gcpu0->gp_reg[REG_RCX] = abl_g0gcpu0->cpu_gp_register[2];
+	evmm_g0gcpu0->gp_reg[REG_RDX] = abl_g0gcpu0->cpu_gp_register[3];
+	evmm_g0gcpu0->gp_reg[REG_RSI] = abl_g0gcpu0->cpu_gp_register[4];
+	evmm_g0gcpu0->gp_reg[REG_RDI] = abl_g0gcpu0->cpu_gp_register[5];
+	evmm_g0gcpu0->gp_reg[REG_RBP] = abl_g0gcpu0->cpu_gp_register[6];
+	evmm_g0gcpu0->gp_reg[REG_RSP] = abl_g0gcpu0->cpu_gp_register[7];
 
-	multiboot_info_t *mbi = (multiboot_info_t *)(uint64_t)init_reg->ebx;
+	evmm_g0gcpu0->rip = abl_g0gcpu0->rip;
+	evmm_g0gcpu0->rflags = abl_g0gcpu0->rflags;
 
-	ret = cmdline_parse(mbi, &boot_param);
-	if (!ret) {
-		print_panic("cmdline parse failed!\n");
-		return NULL;
-	}
+	evmm_g0gcpu0->gdtr.base       = abl_g0gcpu0->gdtr.base;
+	evmm_g0gcpu0->gdtr.limit      = abl_g0gcpu0->gdtr.limit;
 
-	evmm_desc = setup_boot_params(boot_param.image_boot_param_addr);
-	if (!evmm_desc) {
-		print_panic("Failed to setup boot params!\n");
-		return NULL;
-	}
+	evmm_g0gcpu0->idtr.base       = abl_g0gcpu0->idtr.base;
+	evmm_g0gcpu0->idtr.limit      = abl_g0gcpu0->idtr.limit;
 
-	tom = get_top_of_memory(mbi);
-	if (tom == 0) {
-		print_panic("Failed to get top_of memory from mbi!\n");
-		return NULL;
-	}
-	evmm_desc->top_of_mem = tom;
+	evmm_g0gcpu0->cr0 = abl_g0gcpu0->cr0;
+	evmm_g0gcpu0->cr3 = abl_g0gcpu0->cr3;
+	evmm_g0gcpu0->cr4 = abl_g0gcpu0->cr4;
 
-	evmm_desc->num_of_cpu = boot_param.cpu_num;
-	evmm_desc->tsc_per_ms = boot_param.cpu_freq * 1000ULL;
+	evmm_g0gcpu0->segment[SEG_CS].base       = abl_g0gcpu0->cs.base;
+	evmm_g0gcpu0->segment[SEG_CS].limit      = abl_g0gcpu0->cs.limit;
+	evmm_g0gcpu0->segment[SEG_CS].attributes = abl_g0gcpu0->cs.attributes;
+	evmm_g0gcpu0->segment[SEG_CS].selector   = abl_g0gcpu0->cs.selector;
 
-	return evmm_desc;
+	evmm_g0gcpu0->segment[SEG_DS].base       = abl_g0gcpu0->ds.base;
+	evmm_g0gcpu0->segment[SEG_DS].limit      = abl_g0gcpu0->ds.limit;
+	evmm_g0gcpu0->segment[SEG_DS].attributes = abl_g0gcpu0->ds.attributes;
+	evmm_g0gcpu0->segment[SEG_DS].selector   = abl_g0gcpu0->ds.selector;
+
+	evmm_g0gcpu0->segment[SEG_SS].base       = abl_g0gcpu0->ss.base;
+	evmm_g0gcpu0->segment[SEG_SS].limit      = abl_g0gcpu0->ss.limit;
+	evmm_g0gcpu0->segment[SEG_SS].attributes = abl_g0gcpu0->ss.attributes;
+	evmm_g0gcpu0->segment[SEG_SS].selector   = abl_g0gcpu0->ss.selector;
+
+	evmm_g0gcpu0->segment[SEG_ES].base       = abl_g0gcpu0->es.base;
+	evmm_g0gcpu0->segment[SEG_ES].limit      = abl_g0gcpu0->es.limit;
+	evmm_g0gcpu0->segment[SEG_ES].attributes = abl_g0gcpu0->es.attributes;
+	evmm_g0gcpu0->segment[SEG_ES].selector   = abl_g0gcpu0->es.selector;
+
+	evmm_g0gcpu0->segment[SEG_FS].base       = abl_g0gcpu0->fs.base;
+	evmm_g0gcpu0->segment[SEG_FS].limit      = abl_g0gcpu0->fs.limit;
+	evmm_g0gcpu0->segment[SEG_FS].attributes = abl_g0gcpu0->fs.attributes;
+	evmm_g0gcpu0->segment[SEG_FS].selector   = abl_g0gcpu0->fs.selector;
+
+	evmm_g0gcpu0->segment[SEG_GS].base       = abl_g0gcpu0->gs.base;
+	evmm_g0gcpu0->segment[SEG_GS].limit      = abl_g0gcpu0->gs.limit;
+	evmm_g0gcpu0->segment[SEG_GS].attributes = abl_g0gcpu0->gs.attributes;
+	evmm_g0gcpu0->segment[SEG_GS].selector   = abl_g0gcpu0->gs.selector;
+
+	evmm_g0gcpu0->segment[SEG_LDTR].base       = abl_g0gcpu0->ldtr.base;
+	evmm_g0gcpu0->segment[SEG_LDTR].limit      = abl_g0gcpu0->ldtr.limit;
+	evmm_g0gcpu0->segment[SEG_LDTR].attributes = abl_g0gcpu0->ldtr.attributes;
+	evmm_g0gcpu0->segment[SEG_LDTR].selector   = abl_g0gcpu0->ldtr.selector;
+
+	evmm_g0gcpu0->segment[SEG_TR].base       = abl_g0gcpu0->tr.base;
+	evmm_g0gcpu0->segment[SEG_TR].limit      = abl_g0gcpu0->tr.limit;
+	evmm_g0gcpu0->segment[SEG_TR].attributes = abl_g0gcpu0->tr.attributes;
+	evmm_g0gcpu0->segment[SEG_TR].selector   = abl_g0gcpu0->tr.selector;
+
+	evmm_g0gcpu0->msr_efer = abl_g0gcpu0->msr_efer;
 }

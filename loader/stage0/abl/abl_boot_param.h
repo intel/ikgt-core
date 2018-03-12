@@ -1,5 +1,5 @@
 /****************************************************************************
-* Copyright (c) 2015 Intel Corporation
+* Copyright (c) 2015-2018 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 
 #include "stage0_asm.h"
 #include "evmm_desc.h"
+#include "stage0_lib.h"
 
 #define IMAGE_ID_MAX_LEN 8
 
@@ -63,7 +64,7 @@ typedef struct {
 	uint16_t Version;                  /* version of this structure */
 	uint16_t NbImage;                  /* num of images */
 	uint32_t ImageElementAddr;         /* address of list of image_element_t */
-} image_boot_params_t;
+} image_params_t;
 
 typedef struct {
 	uint16_t Version;                  /* version of this structure */
@@ -139,5 +140,18 @@ typedef struct {
 	};
 } android_image_boot_params_t;
 
-evmm_desc_t *boot_params_parse(const init_register_t *init_reg);
+/* arguments parsed from cmdline */
+typedef struct cmdline_params {
+	uint64_t image_boot_param_addr;
+	uint64_t cpu_num;
+	uint64_t cpu_freq;
+} cmdline_params_t;
+
+boolean_t cmdline_parse(multiboot_info_t *mbi, cmdline_params_t *cmdline_param);
+boolean_t find_boot_params(cmdline_params_t *cmdline_params,
+			abl_trusty_boot_params_t **trusty_boot,
+			vmm_boot_params_t **vmm_boot,
+			android_image_boot_params_t **and_boot);
+boolean_t get_emmc_serial(android_image_boot_params_t *android_boot_params, char *serial);
+void fill_g0gcpu0(gcpu_state_t *evmm_g0gcpu0, cpu_state_t *abl_g0gcpu0);
 #endif

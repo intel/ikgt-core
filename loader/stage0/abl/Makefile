@@ -15,7 +15,7 @@
 ################################################################################
 TARGET = stage0.elf
 
-CSOURCES = stage0.c guest_setup.c abl_boot_param.c
+CSOURCES = stage0.c abl_boot_param.c
 ASOURCES = stage0_entry.S
 
 include $(PROJS)/rule.linux
@@ -23,7 +23,6 @@ include $(PROJS)/rule.linux
 OBJS = $(OUTDIR)/stage0_entry.o \
 	$(OUTDIR)/stage0.o \
 	$(OUTDIR)/stage0_lib.o \
-	$(OUTDIR)/guest_setup.o \
 	$(OUTDIR)/abl_boot_param.o \
 	$(LIB_DIR)/elf_ld.o \
 	$(LIB_DIR)/elf32_ld.o \

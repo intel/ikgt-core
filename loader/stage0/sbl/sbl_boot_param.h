@@ -19,6 +19,7 @@
 
 #include "stage0_asm.h"
 #include "evmm_desc.h"
+#include "stage0_lib.h"
 
 #define IMAGE_ID_MAX_LEN 8
 
@@ -69,5 +70,5 @@ typedef struct {
 	uint64_t p_vmm_boot_param;  // vmm_boot_param_t *
 } image_boot_params_t;
 
-evmm_desc_t *boot_params_parse(const init_register_t *init_reg);
+image_boot_params_t *cmdline_parse(multiboot_info_t *mbi);
 #endif
