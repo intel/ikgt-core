@@ -18,7 +18,6 @@
 #include "vmm_arch.h"
 #include "evmm_desc.h"
 #include "grub_boot_param.h"
-#include "trusty_info.h"
 #include "ldr_dbg.h"
 #include "device_sec_info.h"
 #include "stage0_lib.h"

@@ -22,7 +22,6 @@
 #include "linux_loader.h"
 #include "guest_setup.h"
 #include "stage0_lib.h"
-#include "trusty_info.h"
 
 #include "lib/image_loader.h"
 #include "lib/util.h"

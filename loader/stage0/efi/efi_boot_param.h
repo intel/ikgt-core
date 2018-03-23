@@ -18,7 +18,6 @@
 
 #include "evmm_desc.h"
 #include "stage0_asm.h"
-#include "trusty_info.h"
 
 #define TOS_STARTUP_VERSION           1
 
