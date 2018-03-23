@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
+* Copyright (c) 2015-2018 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -56,7 +56,23 @@
 typedef enum {
 	TRUSTY_VMCALL_SMC             = 0x74727500,
 	TRUSTY_VMCALL_DUMP_INIT       = 0x74727507,
-}vmcall_id_t;
+} vmcall_id_t;
+
+enum {
+	SMC_STAGE_BOOT = 0,
+	SMC_STAGE_LK_DONE,
+	SMC_STAGE_ANDROID_DONE
+};
+
+enum {
+	GUEST_ANDROID = 0, /* OSloader or Android/Linux */
+	GUEST_TRUSTY       /* Trusty */
+};
+
+static trusty_desc_t *trusty_desc;
+#ifdef ENABLE_SGUEST_SMP
+static uint32_t sipi_ap_wkup_addr;
+#endif
 
 static boolean_t guest_in_ring0(guest_cpu_handle_t gcpu)
 {
@@ -71,20 +87,9 @@ static boolean_t guest_in_ring0(guest_cpu_handle_t gcpu)
 	}
 
 	gcpu_inject_ud(gcpu);
+
 	return FALSE;
 }
-
-enum {
-	SMC_STAGE_BOOT = 0,
-	SMC_STAGE_LK_DONE,
-	SMC_STAGE_ANDROID_DONE
-};
-
-static uint32_t smc_stage;
-static trusty_desc_t *trusty_desc;
-#ifdef ENABLE_SGUEST_SMP
-static uint32_t sipi_ap_wkup_addr;
-#endif
 
 static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gcpu)
 {
@@ -144,7 +149,7 @@ static void relocate_trusty_image(void)
 }
 
 /* Set up trusty device security info and trusty startup info */
-static void setup_trusty_info()
+static void setup_trusty_mem(void)
 {
 	trusty_startup_info_t *trusty_para;
 	uint32_t dev_sec_info_size;
@@ -152,7 +157,7 @@ static void setup_trusty_info()
 	uint64_t upper_start;
 #endif
 
-	gpm_remove_mapping(guest_handle(0),
+	gpm_remove_mapping(guest_handle(GUEST_ANDROID),
 				trusty_desc->lk_file.runtime_addr,
 				trusty_desc->lk_file.runtime_total_size);
 	print_trace(
@@ -187,13 +192,13 @@ static void setup_trusty_info()
 #ifdef MODULE_EPT_UPDATE
 	/* remove the whole memory region from 0 ~ top_of_mem except lk self in Trusty(guest1) EPT */
 	/* remove lower */
-	gpm_remove_mapping(guest_handle(1), 0, trusty_desc->lk_file.runtime_addr);
+	gpm_remove_mapping(guest_handle(GUEST_TRUSTY), 0, trusty_desc->lk_file.runtime_addr);
 
 	/* remove upper */
 	upper_start = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
-	gpm_remove_mapping(guest_handle(1), upper_start, top_of_memory - upper_start);
+	gpm_remove_mapping(guest_handle(GUEST_TRUSTY), upper_start, top_of_memory - upper_start);
 
-	ept_update_install(1);
+	ept_update_install(GUEST_TRUSTY);
 #endif
 
 #ifdef DEBUG //remove VMM's access to LK's memory to make sure VMM will not read/write to LK in runtime
@@ -226,8 +231,25 @@ static void parse_trusty_boot_param(guest_cpu_handle_t gcpu)
 	}
 }
 
+static void launch_trusty(guest_cpu_handle_t gcpu_android, guest_cpu_handle_t gcpu_trusty)
+{
+	/* Get trusty info from osloader then set trusty startup&sec info */
+	parse_trusty_boot_param(gcpu_android);
+	setup_trusty_mem();
+	mem_free(trusty_desc->dev_sec_info);
+
+	/* Memory mapping is updated for Guest[0] in setup_trusty_info(),
+	 * need to do cache invalidation for Guest[0] */
+	invalidate_gpm(guest_handle(GUEST_ANDROID));
+
+	gcpu_set_gp_reg(gcpu_trusty, REG_RDI, trusty_desc->gcpu0_state.gp_reg[REG_RDI]);
+	gcpu_set_gp_reg(gcpu_trusty, REG_RSP, trusty_desc->gcpu0_state.gp_reg[REG_RSP]);
+	vmcs_write(gcpu_trusty->vmcs, VMCS_GUEST_RIP, trusty_desc->gcpu0_state.rip);
+}
+
 static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 {
+	static uint32_t smc_stage;
 	guest_cpu_handle_t next_gcpu;
 
 	if(!guest_in_ring0(gcpu))
@@ -242,23 +264,12 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 	switch (smc_stage)
 	{
 		case SMC_STAGE_BOOT:
-			if(0 == host_cpu_id())
+			if (0 == host_cpu_id())
 			{
-				if(0 == gcpu->guest->id)
+				if (GUEST_ANDROID == gcpu->guest->id)
 				{
-					/* From Android */
-					parse_trusty_boot_param(gcpu);
-					setup_trusty_info();
-					mem_free(trusty_desc->dev_sec_info);
-
-					/* Memory mapping is updated for Guest[0] in setup_trusty_info(),
-					 * need to do cache invalidation for Guest[0] */
-					invalidate_gpm(guest_handle(0));
-
-					gcpu_set_gp_reg(next_gcpu, REG_RDI, trusty_desc->gcpu0_state.gp_reg[REG_RDI]);
-					gcpu_set_gp_reg(next_gcpu, REG_RSP, trusty_desc->gcpu0_state.gp_reg[REG_RSP]);
-					vmcs_write(next_gcpu->vmcs, VMCS_GUEST_RIP, trusty_desc->gcpu0_state.rip);
-				}else{
+					launch_trusty(gcpu, next_gcpu);
+				} else {
 					smc_stage = SMC_STAGE_LK_DONE;
 					print_info("VMM: Launch Android\n");
 				}
@@ -266,7 +277,7 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 			break;
 
 		case SMC_STAGE_LK_DONE:
-			D(VMM_ASSERT(gcpu->guest->id == 0))
+			D(VMM_ASSERT(gcpu->guest->id == GUEST_ANDROID))
 			print_init(FALSE);
 			smc_stage = SMC_STAGE_ANDROID_DONE;
 
@@ -289,7 +300,7 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 #ifdef MODULE_DEADLOOP
 	uint64_t dump_gva;
 
-	D(VMM_ASSERT(gcpu->guest->id == 0));
+	D(VMM_ASSERT(gcpu->guest->id == GUEST_ANDROID));
 
 	if(!guest_in_ring0(gcpu))
 	{
@@ -309,9 +320,9 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 
 static void guest_register_vmcall_services()
 {
-	vmcall_register(0, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
-	vmcall_register(0, TRUSTY_VMCALL_DUMP_INIT, trusty_vmcall_dump_init);
-	vmcall_register(1, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
+	vmcall_register(GUEST_ANDROID, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
+	vmcall_register(GUEST_ANDROID, TRUSTY_VMCALL_DUMP_INIT, trusty_vmcall_dump_init);
+	vmcall_register(GUEST_TRUSTY, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
 }
 
 #ifdef AP_START_IN_HLT
@@ -331,7 +342,7 @@ static void set_guest0_aps_to_hlt_state(guest_cpu_handle_t gcpu, UNUSED void *pv
 
 static void trusty_set_gcpu_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
 {
-	if (gcpu->guest->id == 1) {
+	if (gcpu->guest->id == GUEST_TRUSTY) {
 		gcpu_set_init_state(gcpu, &trusty_desc->gcpu0_state);
 
 		if (gcpu->id != 0) {
@@ -341,20 +352,19 @@ static void trusty_set_gcpu_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
 }
 
 static void *sensitive_info;
-#ifndef DEBUG //in DEBUG build, access from VMM to LK will be removed. so, only erase sensetive info in RELEASE build
 static void trusty_erase_sensetive_info(void)
 {
+#ifndef DEBUG //in DEBUG build, access from VMM to LK will be removed. so, only erase sensetive info in RELEASE build
 	memset(sensitive_info, 0, PAGE_4K_SIZE);
-}
 #endif
+}
 
 void trusty_register_deadloop_handler(evmm_desc_t *evmm_desc)
 {
 	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
 	sensitive_info = (void *)evmm_desc->trusty_desc.lk_file.runtime_addr;
-#ifndef DEBUG
+
 	register_final_deadloop_handler(trusty_erase_sensetive_info);
-#endif
 }
 
 void init_trusty_guest(evmm_desc_t *evmm_desc)
@@ -389,7 +399,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 
 #ifdef PACK_LK
 	relocate_trusty_image();
-	setup_trusty_info();
+	setup_trusty_mem();
 #else
 	/* Copy dev_sec_info from loader to VMM's memory */
 	dev_sec_info = mem_alloc(dev_sec_info_size);
@@ -401,7 +411,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 #endif
 
 #ifdef DMA_FROM_CSE
-	vtd_assign_dev(gid2did(1), DMA_FROM_CSE);
+	vtd_assign_dev(gid2did(GUEST_TRUSTY), DMA_FROM_CSE);
 #endif
 
 	guest_register_vmcall_services();

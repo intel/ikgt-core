@@ -19,7 +19,6 @@
 
 #include "stage0_asm.h"
 #include "evmm_desc.h"
-#include "trusty_info.h"
 
 #define GRUB_HEAP_ADDR                      0X12551000
 #define GRUB_HEAP_SIZE                      0x5400000

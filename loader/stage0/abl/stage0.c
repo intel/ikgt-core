@@ -19,7 +19,6 @@
 #include "evmm_desc.h"
 #include "ldr_dbg.h"
 #include "abl_boot_param.h"
-#include "trusty_info.h"
 #include "guest_setup.h"
 #include "stage0_lib.h"
 #include "lib/image_loader.h"

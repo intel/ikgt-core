@@ -19,7 +19,6 @@
 
 #include "stage0_asm.h"
 #include "evmm_desc.h"
-#include "trusty_info.h"
 
 #define IMAGE_ID_MAX_LEN 8
 
