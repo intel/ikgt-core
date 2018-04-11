@@ -16,7 +16,7 @@
 
 export PROJS = $(CURDIR)
 
-include $(PROJS)/product/$(TARGET_PRODUCT).cfg
+include $(PROJS)/product/$(TRUSTY_REF_TARGET).cfg
 export EVMM_CMPL_FLAGS
 
 # this silent flag will supress various compiling logs except warnings and errors.
