@@ -26,7 +26,6 @@
 #include "lib/image_loader.h"
 #include "lib/util.h"
 #include "lib/serial.h"
-#include <stack_protect.h>
 
 #define TOS_MAX_IMAGE_SIZE            0x100000   /*Max image size assumed to be 1 MB*/
 #define MULTIBOOT_HEADER_SIZE         32
@@ -57,17 +56,6 @@ void stage0_main(const init_register_t *init_reg,
 	multiboot_info_t *mbi = (multiboot_info_t *)(uint64_t)init_reg->ebx;
 
 	print_init(TRUE);
-
-#if (defined STACK_PROTECTOR) && (defined DEBUG)
-	/* check the extra code, which is emited by gcc when enable stack protector,
-	 * if is expected or not.
-	 */
-	if (!stack_layout_check(*((uint64_t*)&evmm_desc+2))) {
-		print_panic("stack layout is corrupted, \
-			try to check the extra stack protect code by gcc\n");
-		goto fail;
-	}
-#endif
 
 	init_memory_manager(GRUB_HEAP_ADDR, GRUB_HEAP_SIZE);
 
