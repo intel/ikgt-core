@@ -24,19 +24,3 @@ void __stack_chk_fail(void)
 	printf("stack check fail in loader\n");
 	__STOP_HERE__
 }
-
-#if (defined STACK_PROTECTOR) && (defined DEBUG)
-/* when we changed to another compiler, or another version of gcc,
- * the cookie might be placed in another place. this function is
- * used to detect such situation.
- */
-boolean_t stack_layout_check(uint64_t stack_cookie)
-{
-	uint64_t fs_cookie = get_stack_cookie_value();
-
-	if (fs_cookie != stack_cookie)
-		return FALSE;
-
-	return TRUE;
-}
-#endif

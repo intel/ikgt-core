@@ -26,7 +26,6 @@
 #include "lib/util.h"
 #include "lib/serial.h"
 #include "lib/image_loader.h"
-#include <stack_protect.h>
 
 #define RETURN_ADDRESS() (__builtin_return_address(0))
 
@@ -51,17 +50,6 @@ uint32_t stage0_main(
 	void *ret_addr;
 
 	print_init(FALSE);
-
-#if (defined STACK_PROTECTOR) && (defined DEBUG)
-	/* check the extra code, which is emited by gcc when enable stack protector,
- 	 * if is expected or not.
- 	 */
-	if (!stack_layout_check(*((uint64_t*)&evmm_desc+2))) {
-		print_panic("stack layout is corrupted, \
-			try to check the extra stack protect code by gcc\n");
-		goto exit;
-	}
-#endif
 
 	evmm_desc = boot_params_parse(tos_startup_info, stage0_base);
 

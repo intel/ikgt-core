@@ -23,7 +23,6 @@
 #include "lib/image_loader.h"
 #include "lib/util.h"
 #include "lib/serial.h"
-#include <stack_protect.h>
 
 /* loader memory layout */
 typedef struct memory_layout {
@@ -107,17 +106,6 @@ void stage0_main(
 		print_panic("VT is not supported\n");
 		goto fail;
 	}
-
-#if (defined STACK_PROTECTOR) && (defined DEBUG)
-	/* check the extra code, which is emited by gcc when enable
-	 * stack protector, if is expected or not.
-	 */
-	if (!stack_layout_check(*((uint64_t *)&evmm_desc+2))) {
-		print_panic("stack layout is corrupted, \
-			try to check the extra stack protect code by gcc\n");
-		goto fail;
-	}
-#endif
 
 	/* Phase 2: prepare parameters */
 	mbi = (multiboot_info_t *)(uint64_t)init_reg->ebx;
