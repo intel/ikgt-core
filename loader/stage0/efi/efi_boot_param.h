@@ -18,53 +18,20 @@
 
 #include "evmm_desc.h"
 #include "stage0_asm.h"
+#include "device_sec_info.h"
 
-#define TOS_STARTUP_VERSION           1
-
-/*
- * Structure for RoT info (fields defined by Google Keymaster2)
- */
-typedef struct _rot_data_t {
-	/* version 2 for current TEE keymaster2 */
-	uint32_t version;
-
-	/* 0: unlocked, 1: locked, others not used */
-	uint32_t deviceLocked;
-
-	/* GREEN:0, YELLOW:1, ORANGE:2, others not used (no RED for TEE) */
-	uint32_t verifiedBootState;
-
-	/* The current version of the OS as an integer in the format MMmmss,
-	 * where MM is a two-digit major version number, mm is a two-digit,
-	 * minor version number, and ss is a two-digit sub-minor version number.
-	 * For example, version 6.0.1 would be represented as 060001;
-	 */
-	uint32_t osVersion;
-
-	/* The month and year of the last patch as an integer in the format,
-	 * YYYYMM, where YYYY is a four-digit year and MM is a two-digit month.
-	 * For example, April 2016 would be represented as 201604.
-	 */
-	uint32_t patchMonthYear;
-
-	/* A secure hash (SHA-256 recommended by Google) of the key used to verify
-	 * the system image key size (in bytes) is zero: denotes no key provided
-	 * by Bootloader. When key size is 32, it denotes key hash256 is available.
-	 * Other values not defined now.
-	 */
-	uint32_t keySize;
-	uint8_t keyHash256[32];
-} rot_data_t;
+#define TOS_STARTUP_VERSION           2
 
 /*
  * This structure is used to pass data to TOS entry when calling to TOS entry to
  * launch VMM/Trusty.
  * It includes:
- *   1. RoT fields.
- *   2. EFI memory map info structure
- *   3. TOS image base address (<4G)
- *   4. Code address for sipi ap bringup/wakeup.
- *   5. Trusty/VMM IMR regions (base/size)
+ *   1. EFI memory map info structure
+ *   2. TOS image base address (<4G)
+ *   3. Code address for sipi ap bringup/wakeup.
+ *   4. Trusty/VMM regions (base/size)
+ *   5. Seed List for trusty get from CSE or TPM
+ *   6. Serial: MMC product name with a string representation of PSN
  */
 typedef struct tos_startup_info {
 	/* version of TOS startup info structure, currently set it as 1 */
@@ -74,9 +41,6 @@ typedef struct tos_startup_info {
 	 * and TOS loader must verify if it is matched with sizeof(tos_startup_info).
 	 */
 	uint32_t size;
-
-	/* root of trust fields */
-	rot_data_t rot;
 
 	/* UEFI memory map address */
 	uint64_t efi_memmap;
@@ -90,14 +54,28 @@ typedef struct tos_startup_info {
 	uint32_t sipi_ap_wkup_addr;
 
 	/* Bootloader retrieves the trusty/vmm memory (base/size) from CSE/BIOS,
-	 * These two regions are just two IMR spaces with size for Trusty/VMM,
-	 * and the size of IMR region should be 4KB-aligned for both.
+	 * and the size of region should be 4KB-aligned for both.
 	 */
 	uint64_t trusty_mem_base;
 	uint64_t vmm_mem_base;
 	uint32_t trusty_mem_size;
 	uint32_t vmm_mem_size;
-} tos_startup_info_t;
+
+	/* rpmb keys, Currently HMAC-SHA256 is used in RPMB spec and 256-bit (32byte) is enough.
+	   Hence only lower 32 bytes will be used for now for each entry. But keep higher 32 bytes
+	   for future extension. Note that, RPMB keys are already tied to storage device serial number.
+	   If there are multiple RPMB partitions, then we will get multiple available RPMB keys.
+	   And if rpmb_key[n][64] == 0, then the n-th RPMB key is unavailable (Either because of no such
+	   RPMB partition, or because OSloader doesn't want to share the n-th RPMB key with Trusty)
+	*/
+	uint8_t rpmb_key[RPMB_MAX_PARTITION_NUMBER][64];
+
+	/* Seed */
+	uint32_t num_seeds;
+	seed_info_t seed_list[BOOTLOADER_SEED_MAX_ENTRIES];
+	/* Concatenation of mmc product name with a string representation of PSN */
+	uint8_t serial[MMC_PROD_NAME_WITH_PSN_LEN];
+} __attribute__((packed))  tos_startup_info_t;
 
 /*  TOS image header:
  *  Bootloader/Kernelflinger retrieves required info from this header.
@@ -138,13 +116,8 @@ typedef struct tos_image_header{
 	 * Besides, Bootloader must wipe/free it after TOS launch.
 	 */
 	uint32_t tos_ldr_size;
-
-	/* The memory offset to save Seed. Bootloader calls EFI/HECI API to load Seed value
-	 * (by CSE) to the memory in this address: Trusty MEM base + seed_msg_dst_offset.
-	 * It contains the Trusty Seed message data structure.
-	 */
-	uint32_t seed_msg_dst_offset;
-} tos_image_header_t;
+	uint32_t reserved;
+}tos_image_header_t;
 
 evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr);
 
