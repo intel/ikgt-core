@@ -49,8 +49,8 @@ tos_image_header:
 	/* tos_ldr_size: EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE +
 	 *               4KB(reserved for evmm_desc_t) */
 	.long  EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE + 0x1000
-	/* seed_msg_dst_offset filled by evmm_packer */
-	.long  SEED_MSG_DST_OFFSET
+	/* reserved */
+	.long 0
 tos_image_header_end:
 
 /* layout header for files (stage0.bin,evmm.bin,stage1.bin) mapped in RAM

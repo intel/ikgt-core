@@ -32,7 +32,7 @@
 void cleanup_sensetive_data(uint64_t tos_startup_info)
 {
 	tos_startup_info_t *p_startup_info = (tos_startup_info_t *)tos_startup_info;
-	memset((void *)(p_startup_info->trusty_mem_base+SEED_MSG_DST_OFFSET), 0, sizeof(device_sec_info_v0_t));
+	memset(p_startup_info->seed_list, 0, sizeof(p_startup_info->seed_list));
 }
 
 /* Function: stage0_main
@@ -84,7 +84,7 @@ uint32_t stage0_main(
 
 	stage1_main(evmm_desc);
 exit:
-	/* wipe rot/seed data in the beginning of IMR when error occurs */
+	/* wipe seed data when error occurs */
 	cleanup_sensetive_data(tos_startup_info);
 	/* Code will not run to here when boot successfully.
 	 * The return value is set in g0_gcpu_setup() when do gcpu_resume. */
