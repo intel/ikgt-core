@@ -196,4 +196,7 @@ Config files
 	- MODULE_PROFILE
 		Description: For debug. Profile guest OS and EVMM performance
 
+	- AP_START_IN_HLT
+		Description: Set processors to HLT when init. Default is WAIT_FOR_SIPI.
+
 End of file

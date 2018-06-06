@@ -383,6 +383,21 @@ static void guest_register_vmcall_services()
 #endif
 }
 
+#ifdef AP_START_IN_HLT
+static void set_guest0_aps_to_hlt_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
+{
+	D(VMM_ASSERT(gcpu));
+
+	if (gcpu->guest->id == 0)
+	{
+		if (gcpu->id != 0)
+		{
+			vmcs_write(gcpu->vmcs, VMCS_GUEST_ACTIVITY_STATE, ACTIVITY_STATE_HLT);
+		}
+	}
+}
+#endif
+
 static void trusty_set_gcpu_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
 {
 	if (gcpu->guest->id == 1) {
@@ -442,6 +457,10 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 #endif
 	create_guest(cpu_num, &(evmm_desc->evmm_file));
 	event_register(EVENT_GCPU_INIT, trusty_set_gcpu_state);
+
+#ifdef AP_START_IN_HLT
+	event_register(EVENT_GCPU_MODULE_INIT, set_guest0_aps_to_hlt_state);
+#endif
 
 #ifdef MODULE_EPT_UPDATE
 	/* remove the whole memory region from 0 ~ top_of_mem except lk self in Trusty(guest1) EPT */
