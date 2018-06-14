@@ -67,6 +67,54 @@ file_mapping_hdr_info:
 	/* lk */
 	.long   0
 
+/* Build 0-4G page table */
+.macro build_early_page_table
+	/* fill PML4E(1 entry, cover 512G) */
+	leal pml4(%esi), %ecx
+	leal pdpt + 0x7(%esi), %eax
+	movl %eax, (%ecx)
+
+	/* detect whether CPU support 1G leaf */
+	movl $0x80000001, %eax
+	cpuid
+	bts $26, %edx
+	jnc leaf_2M
+
+leaf_1G:
+	leal pdpt(%esi), %ecx
+	/* fill PDPTE(4 entries, 1G Page per entry) */
+	movl $0x00000083, 0x00(%ecx)
+	movl $0x40000083, 0x08(%ecx)
+	movl $0x80000083, 0x10(%ecx)
+	movl $0xC0000083, 0x18(%ecx)
+	jmp 2f
+
+leaf_2M:
+	/* fill PDPTE(4 entries, 1 PD per entry) */
+	leal pdpt(%esi), %ecx
+	leal pd + 0x7(%esi), %eax
+	movl $4, %edx
+1:
+	movl %eax, (%ecx)
+	addl $0x1000, %eax
+	addl $8, %ecx
+	decl %edx
+	jnz 1b
+
+	/* fill PDE(512*4 entries, 2MB Page per entry) */
+	leal pd(%esi), %ecx
+	movl $0x00000083, %eax
+	movl $2048, %edx
+1:
+	movl %eax, (%ecx)
+	addl $0x200000, %eax
+	addl $8, %ecx
+	decl %edx
+	jnz 1b
+
+2:
+.endm
+
 /* 32bit entry point */
 .code32
 start_x32:
@@ -98,24 +146,16 @@ start_x32:
 	/* tr is not set because there's no privilege change in loader */
 
 	/* enable PAE mode, CR4.PAE */
-	movl	%cr4, %eax
-	btsl	$5, %eax
-	movl	%eax, %cr4
+	movl %cr4, %eax
+	btsl $5, %eax
+	movl %eax, %cr4
 
-	/*
-	 * Build 4G pagetable
-	 */
-	/* fill PML4E */
-	leal	pgtable(%esi), %ecx
-	leal	0x1007 (%ecx), %eax
-	movl	%eax, (%ecx)
-	/* fill PDPTE, each representing 1G */
-	movl	$0x00000083, 0x1000(%ecx)
-	movl	$0x40000083, 0x1008(%ecx)
-	movl	$0x80000083, 0x1010(%ecx)
-	movl	$0xC0000083, 0x1018(%ecx)
+	/* Build early 0-4G pagetable */
+	build_early_page_table
+
 	/* Enable the boot page tables */
-	movl	%ecx, %cr3
+	leal pml4(%esi), %ecx
+	movl %ecx, %cr3
 
 	/* enable Long mode in EFER.LME */
 	movl  $0xC0000080, %ecx
@@ -207,8 +247,12 @@ gdtr_x64_end:
  * Space for page tables
  */
 .balign 4096
-pgtable:
-	.fill 2*4096, 1, 0
+pml4:
+	.fill 4096, 1, 0
+pdpt:
+	.fill 4096, 1, 0
+pd:
+	.fill 4*4096, 1, 0
 
 #ifdef STACK_PROTECTOR
 .align 8
