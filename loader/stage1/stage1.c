@@ -119,7 +119,13 @@ void stage1_main(evmm_desc_t *xd)
 		return;
 
 	if (xd->tsc_per_ms == 0)
+		xd->tsc_per_ms = determine_nominal_tsc_freq()/1000ULL;
+
+	tsc_per_ms = xd->tsc_per_ms;
+	if (tsc_per_ms == 0) {
+		print_panic("%s: Invalid TSC frequency!\n", __func__);
 		return;
+	}
 
 #ifdef CPU_NUM
 	if ((xd->num_of_cpu != 0) &&
@@ -133,8 +139,6 @@ void stage1_main(evmm_desc_t *xd)
 		print_warn("xd->num_of_cpu is 0, will 100ms delay to enumarate APs!\n");
 	}
 #endif
-
-	tsc_per_ms = xd->tsc_per_ms;
 
 	/* Load evmm image */
 	if (!relocate_elf_image(&(xd->evmm_file), (uint64_t *)&vmm_main)) {

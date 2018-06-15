@@ -29,6 +29,8 @@ boolean_t check_vmx(void);
 
 void wait_us(uint64_t us);
 
+uint64_t determine_nominal_tsc_freq(void);
+
 #ifdef STACK_PROTECTOR
 uint64_t get_stack_cookie_value(void);
 #endif
