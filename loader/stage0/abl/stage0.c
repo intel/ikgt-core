@@ -151,7 +151,7 @@ void stage0_main(
 	evmm_desc->num_of_cpu = cmdline_params.cpu_num;
 	evmm_desc->sipi_ap_wkup_addr = (uint64_t)vmm_boot->VMMSipiApWkupAddr;
 	evmm_desc->top_of_mem = tom;
-	evmm_desc->tsc_per_ms = cmdline_params.cpu_freq * 1000ULL;
+	evmm_desc->tsc_per_ms = 0; //The TSC frequency will be set in Stage1
 
 	evmm_desc->stage1_file.loadtime_addr = packed_file[STAGE1_BIN_INDEX].load_addr;
 	evmm_desc->stage1_file.loadtime_size = packed_file[STAGE1_BIN_INDEX].size;

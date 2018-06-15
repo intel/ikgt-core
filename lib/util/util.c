@@ -112,6 +112,30 @@ void wait_us(uint64_t us)
 		asm_pause();
 }
 
+/* Determin TSC frequency(Hz) */
+uint64_t determine_nominal_tsc_freq(void)
+{
+	/*
+	 * CPUID: Time Stamp Counter and Nominal Core Crystal Clock Information Leaf
+	 * Input:
+	 *     EAX: 0x15
+	 * Output:
+	 *     EAX: denominator of the TSC/"core crystal clock" ratio
+	 *     EBX: numerator of the TSC/"core crystal clock" ratio
+	 *     ECX: core crystal clock in Hz
+	 *     EDX: reserved = 0
+	 */
+	cpuid_params_t cpuid = {0x15, 0, 0, 0};
+
+	asm_cpuid(&cpuid);
+
+	if ((cpuid.eax == 0) || (cpuid.ebx == 0) || (cpuid.ecx == 0))
+		return 0;
+
+	/* TSC frequency = "core crystal clock frequency" * EBX / EAX */
+	return (uint64_t)((uint64_t)cpuid.ecx * (uint64_t)cpuid.ebx / (uint64_t)cpuid.eax);
+}
+
 #ifdef STACK_PROTECTOR
 uint64_t get_stack_cookie_value(void)
 {
