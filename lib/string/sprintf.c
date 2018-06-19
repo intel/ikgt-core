@@ -266,7 +266,6 @@ static const char *parse_format(char *buffer_start, uint32_t buffer_size, const 
 		case 'd':
 			/* UNSIGNED DECIMAL */
 			flags |= SIGNED;
-			FALLTHROUGH;
 		case 'u':
 			value = get_value(argptr, flags);
 			count = ull2str(buffer_start, buffer_size, value, flags, width);
@@ -274,7 +273,6 @@ static const char *parse_format(char *buffer_start, uint32_t buffer_size, const 
 
 		case 'X':
 			flags |= UPHEX;
-			FALLTHROUGH;
 		case 'x':
 			flags |= HEX_TYPE;
 			value = get_value(argptr, flags);
@@ -284,7 +282,6 @@ static const char *parse_format(char *buffer_start, uint32_t buffer_size, const 
 		case 'P':
 			/* POINTER LOWER CASE */
 			flags |= UPHEX;
-			FALLTHROUGH;
 		case 'p':
 			flags |= PREFIX_ZERO | LONG_TYPE | HEX_TYPE;
 
