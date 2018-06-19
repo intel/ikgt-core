@@ -37,7 +37,6 @@ typedef struct {
 } isr_parameters_on_stack_t;
 
 typedef void (*isr_handler_t) (isr_parameters_on_stack_t *p_stack);
-static uint32_t in_isr[MAX_CPU_NUM];
 
 /*---------------- local variables ------------------ */
 
@@ -45,12 +44,6 @@ static isr_handler_t isr_table[EXCEPTION_COUNT];
 
 /*---------------------- Code ----------------------- */
 
-boolean_t not_in_isr(void)
-{
-	if (in_isr[host_cpu_id()] != 0)
-		return FALSE;
-	return TRUE;
-}
 static void print_data_in_stack(UNUSED isr_parameters_on_stack_t *p_stack)
 {
 	print_info("\nException/Interrupt occured on CPU(%u):\n",
@@ -74,7 +67,6 @@ void isr_c_handler(IN isr_parameters_on_stack_t *p_stack)
 {
 	uint8_t vector_id = (uint8_t)p_stack->vector_id;
 	isr_handler_t handler = NULL;
-	asm_inc32(&in_isr[host_cpu_id()]);
 
 	if (vector_id < EXCEPTION_COUNT)
 		handler = isr_table[vector_id];
@@ -85,7 +77,6 @@ void isr_c_handler(IN isr_parameters_on_stack_t *p_stack)
 	} else {
 		handler(p_stack);
 	}
-	asm_dec32(&in_isr[host_cpu_id()]);
 }
 
 /*-------------------------------------------------------*

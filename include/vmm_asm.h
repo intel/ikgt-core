@@ -296,22 +296,6 @@ static inline uint32_t asm_lock_cmpxchg32(volatile uint32_t *addr,
 	return retval;
 }
 
-static inline void asm_inc32(volatile uint32_t *addr)
-{
-	__asm__ __volatile__ (
-		"incl (%0)"
-		:: "r" (addr)
-		);
-}
-
-static inline void asm_dec32(volatile uint32_t *addr)
-{
-	__asm__ __volatile__ (
-		"decl (%0)"
-		:: "r" (addr)
-		);
-}
-
 static inline void asm_lock_inc32(volatile uint32_t *addr)
 {
 	__asm__ __volatile__ (

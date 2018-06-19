@@ -39,7 +39,7 @@ void printf(const char *format, ...)
 	uint32_t printed_size;
 	/* use static buffer to save stack space */
 	static va_list args;
-	char buffer[PRINTF_BUFFER_SIZE];
+	static char buffer[PRINTF_BUFFER_SIZE];
 
 	va_start(args, format);
 	printed_size = vmm_vsprintf_s(buffer, PRINTF_BUFFER_SIZE, format, args);

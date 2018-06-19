@@ -25,7 +25,5 @@
  *  RETURNS      : void
  *-------------------------------------------------------*/
 void isr_setup(void);
-boolean_t not_in_isr(void);
-
 
 #endif   /* _ISR_H_ */

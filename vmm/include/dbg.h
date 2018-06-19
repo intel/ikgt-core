@@ -18,23 +18,17 @@
 #define _VMM_DBG_H_
 
 #include "lock.h"
-#include "host_cpu.h"
-#include "isr.h"
+
 #include "lib/print.h"
 
 #ifdef LIB_PRINT
 extern vmm_lock_t vmm_print_lock;
 #define vmm_printf(fmt, ...) \
 {\
-	if (not_in_isr()) {\
-		lock_acquire_write(&vmm_print_lock); \
-		D(print_init(FALSE);) \
-		printf(fmt, ##__VA_ARGS__); \
-		lock_release(&vmm_print_lock); \
-	}else { \
-		D(print_init(FALSE);) \
-		printf(fmt, ##__VA_ARGS__); \
-	} \
+	lock_acquire_write(&vmm_print_lock); \
+	D(print_init(FALSE);) \
+	printf(fmt, ##__VA_ARGS__); \
+	lock_release(&vmm_print_lock); \
 }
 #define vmm_print_init(setup) \
 {\
