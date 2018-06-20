@@ -20,8 +20,14 @@
 #include "stage0_asm.h"
 #include "evmm_desc.h"
 #include "stage0_lib.h"
+#include "device_sec_info.h"
 
 #define IMAGE_ID_MAX_LEN 8
+#define MAX_SERIAL_NUMBER_LENGTH    16
+#define SEED_ENTRY_TYPE_SVNSEED     0x1
+#define SEED_ENTRY_TYPE_RPMBSEED    0x2
+#define SEED_ENTRY_USAGE_USEED      0x1
+#define SEED_ENTRY_USAGE_DSEED      0x2
 
 /* register value ordered by: pushal, pushfl */
 typedef struct init_register {
@@ -37,10 +43,18 @@ typedef struct init_register {
 } init_register_t;
 
 typedef struct {
-	uint32_t size_of_this_struct;
-	uint32_t version;
+	uint8_t  revision;
+	uint8_t  reserved[3];
+	uint8_t  boot_partition;
+	uint8_t  boot_mode;
+	uint16_t platform_id;
 	uint32_t cpu_num;
-	uint32_t cpu_frequency_MHz;
+	uint16_t security_flags; // Bit 0: Vb (0- disabled, 1 - enabled)
+				// Bit 1: Mb (0- disabled, 1 - enabled)
+				// Bit 2: Manufacturing state (0 - EOM not set; 1 - EOM set)
+				// Bit 3: Secure debug enabled/disabled
+	uint8_t reserved1[2];
+	char    serial_number[MAX_SERIAL_NUMBER_LENGTH];
 } platform_info_t;
 
 typedef struct {
@@ -63,12 +77,41 @@ typedef struct {
 } vmm_boot_params_t;
 
 typedef struct {
+	/* SVN based seed or RPMB seed or attestation key_box */
+	uint8_t type;
+	/* For SVN seed: useed or dseed
+	 * For RPMB seed: serial number based or not
+	 */
+	uint8_t usage;
+	/* index for the same type and usage seed */
+	uint8_t index;
+	uint8_t reserved;
+	/* reserved for future use */
+	uint16_t flags;
+	/* Total size of this seed entry */
+	uint16_t seed_entry_size;
+	/* SVN seed: struct seed_info
+	 * RPMB seed: uint8_t rpmb_key[key_len]
+	 */
+	uint8_t seed[0];
+} seed_entry_t;
+
+typedef struct {
+	uint8_t  revision;
+	uint8_t  reserved0[3];
+	uint32_t buffer_size;
+	uint8_t  total_seed_count;
+	uint8_t  reserved1[3];
+} seed_list_t;
+
+typedef struct {
 	uint32_t size_of_this_struct;
 	uint32_t version;
-	uint64_t p_device_sec_info; // device_sec_info_t *
+	uint64_t p_seed_list;       // seed_list_t *
 	uint64_t p_platform_info;   // platform_info_t *
 	uint64_t p_vmm_boot_param;  // vmm_boot_param_t *
 } image_boot_params_t;
 
 image_boot_params_t *cmdline_parse(multiboot_info_t *mbi);
+void parse_seed_list(device_sec_info_v0_t *dev_sec_info, seed_list_t *seed_list);
 #endif

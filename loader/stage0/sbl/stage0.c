@@ -30,8 +30,8 @@ typedef struct memory_layout {
 	 * further ept protection */
 	/* stage1 image in RAM */
 	uint8_t stage1[STAGE1_RUNTIME_SIZE];
-
 	evmm_desc_t xd;
+	device_sec_info_v0_t dev_sec_info;
 
 	/* add more if any */
 } memory_layout_t;
@@ -50,24 +50,39 @@ static void fill_g0gcpu0(gcpu_state_t *gcpu_state, payload_gcpu_state_t *payload
 	setup_32bit_env(gcpu_state);
 }
 
+static void fill_device_sec_info(device_sec_info_v0_t *dev_sec_info,
+				seed_list_t *seed_list,
+				platform_info_t *plat_info)
+{
+	dev_sec_info->size_of_this_struct = sizeof(device_sec_info_v0_t);
+	dev_sec_info->version = 0;
+
+	/* in manufacturing mode | secure boot disabled | production seed */
+	dev_sec_info->flags = 0x1 | 0x0 | 0x0;
+	dev_sec_info->platform = 1; /* APL + ABL/SBL */
+
+	parse_seed_list(dev_sec_info, seed_list);
+
+	memcpy(dev_sec_info->serial, plat_info->serial_number, MAX_SERIAL_NUMBER_LENGTH);
+}
+
 static boolean_t check_params(image_boot_params_t *image_boot)
 {
-	void *dev_sec_info;
+	seed_list_t *seed_list;
 	platform_info_t *plat_info;
 	vmm_boot_params_t *vmm_boot;
 
-	dev_sec_info = (void *)image_boot->p_device_sec_info;
-	plat_info    = (platform_info_t *)image_boot->p_platform_info;
-	vmm_boot     = (vmm_boot_params_t *)image_boot->p_vmm_boot_param;
+	seed_list = (seed_list_t *)image_boot->p_seed_list;
+	plat_info = (platform_info_t *)image_boot->p_platform_info;
+	vmm_boot  = (vmm_boot_params_t *)image_boot->p_vmm_boot_param;
 
-	if (!(dev_sec_info && plat_info && vmm_boot)) {
-		print_panic("dev_sec_info/plat_info/vmm_boot is NULL!\n");
+	if (!(seed_list && plat_info && vmm_boot)) {
+		print_panic("seed_list/plat_info/vmm_boot is NULL!\n");
 		return FALSE;
 	}
 
-	if (plat_info->size_of_this_struct != sizeof(platform_info_t)
-		|| vmm_boot->size_of_this_struct != sizeof(vmm_boot_params_t)) {
-		print_panic("plat_info/vmm_boot size is not match!\n");
+	if (vmm_boot->size_of_this_struct != sizeof(vmm_boot_params_t)) {
+		print_panic("vmm_boot size is not match!\n");
 		return FALSE;
 	}
 
@@ -92,7 +107,8 @@ void stage0_main(
 	uint64_t (*stage1_main)(evmm_desc_t *xd);
 	uint64_t tom;
 	multiboot_info_t *mbi;
-	void *dev_sec_info;
+	device_sec_info_v0_t *dev_sec_info;
+	seed_list_t *seed_list;
 	platform_info_t *plat_info;
 	vmm_boot_params_t *vmm_boot;
 	image_boot_params_t *image_boot;
@@ -121,9 +137,9 @@ void stage0_main(
 		goto fail;
 	}
 
-	dev_sec_info = (void *)image_boot->p_device_sec_info;
-	plat_info    = (platform_info_t *)image_boot->p_platform_info;
-	vmm_boot     = (vmm_boot_params_t *)image_boot->p_vmm_boot_param;
+	seed_list = (seed_list_t *)image_boot->p_seed_list;
+	plat_info = (platform_info_t *)image_boot->p_platform_info;
+	vmm_boot  = (vmm_boot_params_t *)image_boot->p_vmm_boot_param;
 
 	tom = get_top_of_memory(mbi);
 	if (tom == 0) {
@@ -138,14 +154,16 @@ void stage0_main(
 	/* Phase 3: Get address of evmm description */
 	loader_mem = (memory_layout_t *)(uint64_t)vmm_boot->vmm_heap_addr;
 	evmm_desc = &loader_mem->xd;
+	dev_sec_info = &loader_mem->dev_sec_info;
 
 	memset(evmm_desc, 0, sizeof(evmm_desc_t));
+	memset(dev_sec_info, 0, sizeof(device_sec_info_v0_t));
 
 	/* Phase 4: fill members of evmm description */
 	evmm_desc->num_of_cpu = plat_info->cpu_num;
 	evmm_desc->sipi_ap_wkup_addr = (uint64_t)vmm_boot->sipi_page;
 	evmm_desc->top_of_mem = tom;
-	evmm_desc->tsc_per_ms = plat_info->cpu_frequency_MHz * 1000ULL;
+	evmm_desc->tsc_per_ms = 0; //The TSC frequency will be set in Stage1
 
 	evmm_desc->stage1_file.loadtime_addr = packed_file[STAGE1_BIN_INDEX].load_addr;
 	evmm_desc->stage1_file.loadtime_size = packed_file[STAGE1_BIN_INDEX].size;
@@ -158,6 +176,8 @@ void stage0_main(
 	evmm_desc->evmm_file.runtime_total_size = 4 MEGABYTE;
 
 	fill_g0gcpu0(&evmm_desc->guest0_gcpu0_state, &vmm_boot->payload_cpu_state);
+
+	fill_device_sec_info(dev_sec_info, seed_list, plat_info);
 
 	/* loadtime_addr and loadtime_size don't need to set,
 	   runtime_addr will be set in trusty_guest.c */

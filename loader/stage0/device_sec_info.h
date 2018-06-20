@@ -40,7 +40,7 @@ typedef struct {
 
 	/* platform:
 		0: Dummy (fake secret)
-		1: APL (APL + ABL)
+		1: APL (APL + ABL/SBL)
 		2: ICL (ICL + SBL)
 		3: CWP (APL|ICL + SBL + CWP)
 		4: Brillo (Android Things)
