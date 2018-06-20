@@ -509,15 +509,15 @@ boolean_t decode_mov_to_mem(guest_cpu_handle_t gcpu, uint64_t *value, uint32_t *
 					print_warn("Can't access AH, CH, DH, BH in 64-bit mode!\n");
 					return FALSE;
 				} else {
-					*value = gcpu->gp_reg[reg_id] & 0xFF; // low byte of GPR
+					*value = gcpu_get_gp_reg(gcpu, reg_id) & 0xFF; // low byte of GPR
 				}
 
 			} else {
 
 				if (reg_id / 4 == 0)
-					*value = gcpu->gp_reg[reg_id] & 0xFF; // AL, CL, DL, BL
+					*value = gcpu_get_gp_reg(gcpu, reg_id) & 0xFF; // AL, CL, DL, BL
 				else if (reg_id / 4 == 1)
-					*value = (gcpu->gp_reg[reg_id % 4] & 0xFF00) >> 8; // AH, CH, DH, BH
+					*value = (gcpu_get_gp_reg(gcpu, reg_id % 4) & 0xFF00) >> 8; // AH, CH, DH, BH
 			}
 
 			*size = 1;
@@ -532,21 +532,21 @@ boolean_t decode_mov_to_mem(guest_cpu_handle_t gcpu, uint64_t *value, uint32_t *
 			}
 
 			reg_id = instr_ctx.reg;
-			*value = gcpu->gp_reg[reg_id];
+			*value = gcpu_get_gp_reg(gcpu, reg_id);
 			*size = instr_ctx.operand_size;
 
 			break;
 
 		case 0xa3: // (Ov, rAx) mov AX, EAX, RAX to word/double word at (seg:offset)
 
-			*value = gcpu->gp_reg[REG_RAX];
+			*value = gcpu_get_gp_reg(gcpu, REG_RAX);
 			*size = instr_ctx.operand_size;
 
 			break;
 
 		case 0xa2: // (Ob, AL) move AL to byte at (seg:offset)
 
-			*value = gcpu->gp_reg[REG_RAX];
+			*value = gcpu_get_gp_reg(gcpu, REG_RAX);
 			*size = 1;
 
 			break;
