@@ -104,7 +104,7 @@ void device_block_event(guest_cpu_handle_t gcpu, void *p)
 	vmx_exit_qualification_t ept_qualification;
 	uint64_t gpa;
 	uint64_t hpa;
-	uint32_t attrs;
+	ept_attr_t attrs;
 
 	ept_qualification.uint64 = vmcs_read(vmcs, VMCS_EXIT_QUAL);
 	gpa = vmcs_read(vmcs, VMCS_GUEST_PHY_ADDR);
@@ -121,7 +121,6 @@ void device_block_event(guest_cpu_handle_t gcpu, void *p)
 void block_mmio(uint16_t guest_id, uint64_t start_addr, uint64_t size)
 {
 	uint32_t i = 0;
-	uint64_t mem_size = 0;
 	uint32_t page_num = 0;
 	ept_attr_t attr;
 	guest_handle_t guest;
@@ -214,12 +213,13 @@ static uint8_t pci_device_bar_decode(uint16_t pci_dev, uint8_t  bar_offset, base
 	uint64_t encoded_size = 0;
 	uint64_t mask;
 	uint32_t address_type = PCI_BAR_MMIO_32; //0:32 bits, 2:64 bits
+#if LOG_LEVEL >= LEVEL_TRACE
 	pci_dev_t dev_addr;
 
 	dev_addr.u16 = pci_dev;
 	print_trace("%x:%x:%x:%x, bar_value_low=0x%x\r\n",
 			dev_addr.bits.bus, dev_addr.bits.dev, dev_addr.bits.fun, bar_offset, bar_value_low);
-
+#endif
 
 	if (bar_value_low <= 1) {
 		bar->type = PCI_BAR_UNUSED;
@@ -348,17 +348,17 @@ static void pci_cfg_bars_decode(pci_block_device_t *pci_dev_info)
 	}
 }
 
-static uint32_t io_blocking_read_handler(guest_cpu_handle_t gcpu,
-				uint16_t port_id,
-				uint32_t port_size)
+static uint32_t io_blocking_read_handler(UNUSED guest_cpu_handle_t gcpu,
+				UNUSED uint16_t port_id,
+				UNUSED uint32_t port_size)
 {
 	return 0xFFFFFFFF;
 }
 
-static void io_blocking_write_handler(guest_cpu_handle_t gcpu,
-				uint16_t port_id,
-				uint32_t port_size,
-				uint32_t p_value)
+static void io_blocking_write_handler(UNUSED guest_cpu_handle_t gcpu,
+				UNUSED uint16_t port_id,
+				UNUSED uint32_t port_size,
+				UNUSED uint32_t p_value)
 {
 }
 
@@ -464,13 +464,9 @@ static pci_block_device_t *pci_block_device_add(uint16_t guest_id, uint16_t pci_
 /* block_pci_device() must be called between guest creation and gcpu initialization */
 void block_pci_device(uint16_t guest_id, uint16_t pci_dev)
 {
-	uint16_t pci_addr;
 	uint32_t i;
-	uint32_t addr_type;
 	uint32_t bar_idx;
-	uint64_t mask;
 	uint64_t mmcfg_addr;
-	pci_block_guest_t *p_pci_block_guest;
 	pci_block_device_t *p_pci_block_device;
 	pci_dev_t dev_addr;
 
