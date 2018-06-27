@@ -141,7 +141,7 @@ void vmexit_common_handler(void)
 	profile.vmexit_tsc = asm_rdtsc();
 
 	gcpu = get_current_gcpu();
-	D(VMM_ASSERT(gcpu));
+	VMM_ASSERT(gcpu);
 
 	/* clear guest cpu cache data. in fact it clears all VMCS caches too. */
 	vmcs_clear_cache(gcpu->vmcs);
@@ -164,11 +164,10 @@ void vmexit_common_handler(void)
 
 	/* select guest for execution */
 	next_gcpu = get_current_gcpu();
+	VMM_ASSERT(next_gcpu);
 
 	profile.next_gcpu = next_gcpu;
 	event_raise(gcpu, EVENT_MODULE_PROFILE, (void *)&profile);
-
-	D(VMM_ASSERT(next_gcpu));
 
 	gcpu_resume(next_gcpu);
 }
