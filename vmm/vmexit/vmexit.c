@@ -165,10 +165,10 @@ void vmexit_common_handler(void)
 	/* select guest for execution */
 	next_gcpu = get_current_gcpu();
 
+	D(VMM_ASSERT(next_gcpu));
+
 	profile.next_gcpu = next_gcpu;
 	event_raise(gcpu, EVENT_MODULE_PROFILE, (void *)&profile);
-
-	D(VMM_ASSERT(next_gcpu));
 
 	gcpu_resume(next_gcpu);
 }
