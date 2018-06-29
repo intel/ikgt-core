@@ -170,6 +170,7 @@ void vmexit_ept_violation(UNUSED guest_cpu_handle_t gcpu)
 		print_panic("\tgva=0x%llx\n",
 			vmcs_read(gcpu->vmcs, VMCS_GUEST_LINEAR_ADDR));
 	}
+	print_panic("\tRIP=0x%llx\n", vmcs_read(gcpu->vmcs, VMCS_GUEST_RIP));
 
 	VMM_DEADLOOP();
 }
