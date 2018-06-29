@@ -90,7 +90,7 @@ static void trusty_vmcall_ept_update(guest_cpu_handle_t gcpu)
 	case ADD:
 		assert_mapping_status(gcpu, start, size, FALSE);
 
-		attr.uint32 = 0x7;
+		attr.uint32 = 0x3;
 		attr.bits.emt = CACHE_TYPE_WB;
 		gpm_set_mapping(gcpu->guest, start, start, size, attr.uint32);
 		break;

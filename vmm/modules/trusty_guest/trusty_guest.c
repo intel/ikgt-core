@@ -153,9 +153,22 @@ static void setup_trusty_mem(void)
 {
 	trusty_startup_info_t *trusty_para;
 	uint32_t dev_sec_info_size;
-#ifdef MODULE_EPT_UPDATE
 	uint64_t upper_start;
-#endif
+
+	/* Set trusty memory mapping with RW(0x3) attribute except lk itself */
+	/* Set lower */
+	gpm_set_mapping(guest_handle(GUEST_TRUSTY),
+			0,
+			0,
+			trusty_desc->lk_file.runtime_addr,
+			0x3);
+	/* Set upper */
+	upper_start = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
+	gpm_set_mapping(guest_handle(GUEST_TRUSTY),
+			upper_start,
+			upper_start,
+			top_of_memory - upper_start,
+			0x3);
 
 	gpm_remove_mapping(guest_handle(GUEST_ANDROID),
 				trusty_desc->lk_file.runtime_addr,
