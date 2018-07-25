@@ -58,6 +58,9 @@ static boolean_t fill_device_sec_info(device_sec_info_v0_t *dev_sec_info, tos_st
 	/* copy serial info from startup_info to  dev_sec_info*/
 	memcpy(dev_sec_info->serial, p_startup_info->serial, MMC_PROD_NAME_WITH_PSN_LEN);
 
+	/* copy RPMB keys from startup_info to  dev_sec_info*/
+	memcpy(dev_sec_info->rpmb_key, p_startup_info->rpmb_key, RPMB_MAX_PARTITION_NUMBER*64);
+
 	/* clear the seed */
 	memset(p_startup_info->seed_list, 0, sizeof(p_startup_info->seed_list));
 	return TRUE;
