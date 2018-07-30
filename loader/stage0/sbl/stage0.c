@@ -63,7 +63,7 @@ static void fill_device_sec_info(device_sec_info_v0_t *dev_sec_info,
 
 	parse_seed_list(dev_sec_info, seed_list);
 
-	memcpy(dev_sec_info->serial, plat_info->serial_number, MAX_SERIAL_NUMBER_LENGTH);
+	memcpy(dev_sec_info->serial, plat_info->serial_number, MMC_PROD_NAME_WITH_PSN_LEN);
 }
 
 static boolean_t check_params(image_boot_params_t *image_boot)
