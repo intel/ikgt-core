@@ -207,9 +207,6 @@ Config files
 		- TIME_PROFILE
 		Description: For debug. Profile guest OS and EVMM performance
 
-	- AP_START_IN_HLT
-		Description: Set processors to HLT when init. Default is WAIT_FOR_SIPI.
-
 	- MODULE_INTERRUPT_IPI
 		Description: Deliver interrupt to Guest by Self-IPI.
 
@@ -221,5 +218,8 @@ Config files
 
 	- MODULE_INSTRUCTION_DECODE
 		Description: Support instruction decode
+
+	- AP_START_IN_HLT
+		Description: Set processors to HLT when init. Default is WAIT_FOR_SIPI.
 
 End of file
