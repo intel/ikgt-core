@@ -139,6 +139,10 @@
 #include "modules/spectre.h"
 #endif
 
+#ifdef MODULE_L1TF
+#include "modules/l1tf.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -296,6 +300,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 #endif
 #endif
 	}
+
+#ifdef MODULE_L1TF
+	l1tf_init();
+#endif
 
 #ifdef MODULE_FXSAVE
 	fxsave_enable();

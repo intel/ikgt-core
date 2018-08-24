@@ -16,21 +16,10 @@
 #include "guest.h"
 #include "gcpu.h"
 #include "event.h"
+#include "lib/util.h"
 
 #include "modules/spectre.h"
 #include "modules/msr_isolation.h"
-
-/* eax=7, ecx=0 */
-#define CPUID_EDX_IBRS_IBPB  (1U << 26)
-
-#define MSR_SPEC_CTRL              ((uint32_t)0x48)
-#define MSR_PRED_CMD               ((uint32_t)0x49)
-
-/* IA-32 MSR Register SPEC_CTRL(0x48) */
-#define SPEC_CTRL_IBRS             (1ull << 0)
-
-/* IA-32 MSR Register PRED_CMD(0x49) */
-#define PRED_CMD_IBPB              (1ull << 0)
 
 /* Overwrite RSB(Return Stack Buffer) by 32 CALLs */
 static void rsb_overwrite(UNUSED guest_cpu_handle_t gcpu, UNUSED void *pv)
@@ -98,4 +87,3 @@ void spectre_init(void)
 		print_warn("IA32_SPEC_CTRL and IA32_PRED_CMD are not supported!");
 	}
 }
-
