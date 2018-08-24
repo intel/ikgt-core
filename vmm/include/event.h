@@ -45,6 +45,8 @@ typedef enum {
 	EVENT_RSB_OVERWRITE, /* This event must be raised before any RET instruction on VM Exit.
 				And it is used for Spectre module only. Do NOT register this event
 				if you are not familiar with Spectre module. */
+	EVENT_SWITCH_TO_SECURE,
+	EVENT_SWITCH_TO_NONSECURE,
 	EVENTS_COUNT
 } vmm_event_t;
 

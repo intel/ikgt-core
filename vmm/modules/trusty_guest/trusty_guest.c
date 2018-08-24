@@ -270,6 +270,13 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 		return;
 	}
 
+	/* Raise event to mitigate L1TF */
+	if (GUEST_TRUSTY == gcpu->guest->id) {
+		event_raise(NULL, EVENT_SWITCH_TO_NONSECURE, NULL);
+	} else if (GUEST_ANDROID == gcpu->guest->id) {
+		event_raise(NULL, EVENT_SWITCH_TO_SECURE, NULL);
+	}
+
 	vmcs_read(gcpu->vmcs, VMCS_GUEST_RIP);// update cache
 	vmcs_read(gcpu->vmcs, VMCS_EXIT_INSTR_LEN);// update cache
 	next_gcpu = schedule_next_gcpu();

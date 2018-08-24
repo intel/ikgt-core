@@ -46,6 +46,7 @@
 #define CPUID_EDX_SYSCALL_SYSRET (1U << 11) /* edx bit 11 for syscall/ret */
 #define CPUID_EDX_PSE36      (1U << 17)
 #define CPUID_EDX_FXSAVE     (1U << 24)
+#define CPUID_EDX_HTT        (1U << 28)
 /*eax = 7 ecx = 0*/
 #define CPUID_EBX_TSC_ADJUST (1U << 1)
 #define CPUID_EBX_SGX        (1U << 2)
@@ -54,6 +55,10 @@
 #define CPUID_XSS            (1ULL << 8)
 /*eax = 0x80000001*/
 #define CPUID_EDX_1G_PAGE    (1U << 26)
+/* eax = 7, ecx = 0 */
+#define CPUID_EDX_IBRS_IBPB  (1U << 26)
+#define CPUID_EDX_L1D_FLUSH  (1U << 28)
+#define CPUID_EDX_ARCH_CAP   (1U << 29)
 
 /*
  * Descriptor for the Global Descriptor Table(GDT) and Interrupt Descriptor
@@ -449,6 +454,27 @@ typedef uint8_t cache_type_t;
 #define MSR_PAT                    ((uint32_t)0x277)
 #define MSR_PERF_GLOBAL_CTRL       ((uint32_t)0x38F)
 #define MSR_EFER                   ((uint32_t)0xC0000080)
+
+/*
+ * MSRs for Side Channal Attack Dectection and Mitigation
+ */
+#define MSR_SPEC_CTRL              ((uint32_t)0x48)
+#define MSR_PRED_CMD               ((uint32_t)0x49)
+#define MSR_ARCH_CAP               ((uint32_t)0x10A)
+#define MSR_FLUSH_CMD              ((uint32_t)0x10B)
+
+/* IA-32 MSR Register SPEC_CTRL(0x48) */
+#define SPEC_CTRL_IBRS             (1ull << 0)
+
+/* IA-32 MSR Register PRED_CMD(0x49) */
+#define PRED_CMD_IBPB              (1ull << 0)
+
+/* IA-32 MSR Register ARCH_CAPABILITIES(0x10A) */
+#define RDCL_NO                    (1ull << 0)
+#define SKIP_L1DFL_VMENTRY         (1ull << 3)
+
+/* IA-32 MSR Register FLUSH_CMD(0x10B) */
+#define L1D_FLUSH                  (1ull << 0)
 
 /*
  * IA-32 MSR Register EFER (0xC0000080)
