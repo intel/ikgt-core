@@ -155,9 +155,6 @@ static uint32_t ipc_process_messages_all(guest_cpu_handle_t gcpu, uint16_t hcpu_
 	ipc_func_t func;
 	void* arg;
 
-	print_warn("%s(): hcpu%d, request=0x%x\n", __FUNCTION__,
-		hcpu_id, request);
-
 	index &= (IPC_MESSAGE_NUM - 1);
 	count = 0;
 	// go through (index+1) .. IPC_MESSAGE_NUM, 0 .. index
