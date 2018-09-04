@@ -84,9 +84,7 @@ typedef struct {
 
 #define BITARRAY_SET(__bitbase, __bitoffset)  (asm_bts64((__bitbase), (__bitoffset)))
 #define BITARRAY_CLR(__bitbase, __bitoffset)  (asm_btr64((__bitbase), (__bitoffset)))
-#define BITARRAY_GET(__bitbase, __bitoffset)  \
-	(((((uint8_t *)(__bitbase))[(__bitoffset) >> 3]) >> \
-			((__bitoffset) & 0x7)) & 0x1)
+#define BITARRAY_GET(__bitbase, __bitoffset)  (asm_bt64((__bitbase), (__bitoffset)))
 
 /* according to IA32 spec, shift left/shift right instructions (SAL/SAR/SHL/SHR)
 * treat the "count" as "count % 64" (for 32 bit, it is 32).
