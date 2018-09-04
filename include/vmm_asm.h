@@ -422,6 +422,20 @@ static inline void asm_bts64(uint64_t *bitmap, uint64_t offset)
 	);
 }
 
+static inline uint8_t asm_bt64(uint64_t *bitmap, uint64_t offset)
+{
+	uint8_t value = 0;
+	__asm__ __volatile__ (
+		"btq %1, (%2)	\n"
+		"adc $0, %0	\n" /* CF stores the value of the bit */
+		: "+r" (value)
+		: "r" (offset), "r" (bitmap)
+		: "cc", "memory"
+	);
+
+	return value;
+}
+
 static inline uint64_t asm_get_dr0(void)
 {
 	uint64_t value;
