@@ -271,8 +271,10 @@ void vmx_cap_init()
 	g_vmx_cap.init_cr4 |= nice_have & cr_may1;
 
 	misc_data.uint64 = get_misc_data_cap();
+#if (MAX_CPU_NUM > 1)
 	VMM_ASSERT_EX(misc_data.bits.sipi,
 		"wait-for-SIPI is not supported\n");
+#endif
 	VMM_ASSERT_EX(misc_data.bits.save_guest_mode,
 		"auto-save of IA-32e mode guest in vmentry control is not supported.\n");
 }

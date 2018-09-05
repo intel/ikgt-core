@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
+* Copyright (c) 2018 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -52,5 +52,29 @@ boolean_t get_image_section(void *image_base, uint16_t index, image_section_info
  * Return value - FALSE on any error
  *---------------------------------------------------------------------- */
 boolean_t relocate_elf_image(module_file_info_t *file_info, uint64_t *p_entry);
+
+/*----------------------------------------------------------------------
+ * Parse multiboot module by index
+ *
+ *  INPUT        void *addr      -- multiboot info address
+ *  INPUT/OUTPUT uint64_t *start -- start address of this module
+ *  INPUT/OUTPUT uint64_t *size  -- size of this module
+ *  INPUT        uint64_t index  -- module index (support Trusty/Testrunner only)
+ *---------------------------------------------------------------------- */
+boolean_t parse_multiboot_module(void *addr,
+		uint64_t *start,
+		uint64_t *size,
+		uint64_t index);
+
+/*----------------------------------------------------------------------
+ * Relocate multiboot image
+ *
+ *  INPUT        uint64_t *start       -- start address of this image
+ *  INPUT        uint64_t size         -- size of this image
+ *  INPUT/OUTPUT uint64_t *entry_point -- entry point after relocation
+ *---------------------------------------------------------------------- */
+boolean_t relocate_multiboot_image(uint64_t *start,
+				uint64_t size,
+				uint64_t *entry_point);
 
 #endif     /* _IMAGE_LOADER_H_ */
