@@ -19,6 +19,7 @@
 #include "hmm.h"
 
 #include "modules/acpi.h"
+#include "lib/util.h"
 
 /*------------------------------Types and Macros---------------------------*/
 /* Constants used in searching for the RSDP in low memory */
@@ -264,4 +265,18 @@ acpi_table_header_t *acpi_locate_table(uint32_t sig)
 	table = get_acpi_table_from_rsdp(rsdp, sig);
 
 	return table;
+}
+
+void make_fake_acpi(acpi_table_header_t *header)
+{
+	header->signature = 0x454B4146; /* "FAKE" */
+	header->length = sizeof(acpi_table_header_t);
+	header->revision = 0;
+	memcpy((void *)header->oem_id, "FAKE", 5);
+	memcpy((void *)header->oem_table_id, "FAKE", 5);
+	header->oem_revision = 0;
+	memcpy((void *)header->asl_compiler_id, "FAK", 4);
+	header->asl_compiler_revision = 0;
+	header->check_sum = 0;
+	header->check_sum = -checksum((uint8_t *)header, header->length);
 }
