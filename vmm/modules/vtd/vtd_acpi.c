@@ -162,7 +162,8 @@ void vtd_dmar_parse(vtd_engine_t *engine_list)
 	}
 	VMM_ASSERT_EX(id, "No DMAR HW unit found from ACPI table!");
 
-	/* Hide VT-D ACPI table */
+	/* Hide VT-D ACPI table and make a fake one */
 	memset((void *)&acpi_dmar->header.signature, 0, acpi_dmar->header.length);
+	make_fake_acpi(&acpi_dmar->header);
 }
 

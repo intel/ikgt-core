@@ -87,5 +87,6 @@ typedef struct {
 void acpi_print_header(acpi_table_header_t *table_header);
 #endif
 acpi_table_header_t *acpi_locate_table(uint32_t sig);
+void make_fake_acpi(acpi_table_header_t *header);
 
 #endif
