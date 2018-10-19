@@ -134,25 +134,17 @@ static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gc
 
  */
 
-static void relocate_trusty_image(uint64_t offset)
+static void relocate_trusty_image(void)
 {
-	boolean_t ret = FALSE;
 	/* lk region: first page is trusty info, last page is stack. */
-	trusty_desc->lk_file.runtime_addr += offset;
+	trusty_desc->lk_file.runtime_addr += PAGE_4K_SIZE;
 	trusty_desc->lk_file.runtime_total_size -= PAGE_4K_SIZE;
 
-	ret = relocate_elf_image(&trusty_desc->lk_file, &trusty_desc->gcpu0_state.rip);
-
-	if (!ret) {
-		print_trace("Failed to load ELF file. Try multiboot now!\n");
-		ret = relocate_multiboot_image((uint64_t *)trusty_desc->lk_file.loadtime_addr,
-				trusty_desc->lk_file.loadtime_size,
-				&trusty_desc->gcpu0_state.rip);
-	}
-	VMM_ASSERT_EX(ret, "Failed to relocate Trusty image!\n");
+	VMM_ASSERT_EX(relocate_elf_image(&(trusty_desc->lk_file), &trusty_desc->gcpu0_state.rip),
+			"relocate trusty image failed!\n");
 
 	/* restore lk runtime address and total size */
-	trusty_desc->lk_file.runtime_addr -= offset;
+	trusty_desc->lk_file.runtime_addr -= PAGE_4K_SIZE;
 	trusty_desc->lk_file.runtime_total_size += PAGE_4K_SIZE;
 }
 
@@ -244,7 +236,7 @@ static void parse_trusty_boot_param(guest_cpu_handle_t gcpu)
 		trusty_boot_params_v0 = (trusty_boot_params_v0_t *)rdi;
 		trusty_desc->lk_file.loadtime_addr = trusty_boot_params_v0->load_base;
 		trusty_desc->lk_file.loadtime_size = trusty_boot_params_v0->load_size;
-		relocate_trusty_image(PAGE_4K_SIZE);
+		relocate_trusty_image();
 	} else {
 		trusty_boot_params_v1 = (trusty_boot_params_v1_t *)rdi;
 		trusty_desc->gcpu0_state.rip = trusty_boot_params_v1->entry_point;
@@ -399,7 +391,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 {
 	uint32_t cpu_num = 1;
 	uint32_t dev_sec_info_size;
-#if !defined(PACK_LK) && !defined (QEMU_LK)
+#ifndef PACK_LK
 	void *dev_sec_info;
 #endif
 
@@ -426,10 +418,8 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 #endif
 
 #ifdef PACK_LK
-	relocate_trusty_image(PAGE_4K_SIZE);
+	relocate_trusty_image();
 	setup_trusty_mem();
-#elif QEMU_LK
-	relocate_trusty_image(0);
 #else
 	/* Copy dev_sec_info from loader to VMM's memory */
 	dev_sec_info = mem_alloc(dev_sec_info_size);
