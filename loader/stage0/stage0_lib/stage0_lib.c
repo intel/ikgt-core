@@ -27,6 +27,15 @@
 #define BOOT_CS       (0x08)
 #define BOOT_DS       (0x10)
 
+typedef struct {
+	uint32_t Type;           // Field size is 32 bits followed by 32 bit pad
+	uint32_t Pad;
+	uint64_t PhysicalStart;  // Field size is 64 bits
+	uint64_t VirtualStart;   // Field size is 64 bits
+	uint64_t NumberOfPages;  // Field size is 64 bits
+	uint64_t Attribute;      // Field size is 64 bits
+} efi_mem_desc_t;
+
 static void fill_code32_seg(segment_t *ss, uint16_t sel)
 {
 	ss->base = 0;
@@ -291,6 +300,32 @@ uint64_t get_top_of_memory(multiboot_info_t *mbi)
 			offs, mmap->addr, mmap->len, mmap->type, mmap->size);
 		if (tom < (mmap->addr + mmap->len))
 			tom = mmap->addr + mmap->len;
+	}
+	print_trace("top of memory = %llx\n", tom);
+
+	return tom;
+}
+
+/* Get top of memory from efi memory map description */
+uint64_t get_efi_tom(uint64_t mmap_addr, uint32_t mmap_size)
+{
+	uint64_t tom = 0;
+	efi_mem_desc_t *mmap = NULL;
+	uint32_t i;
+	uint32_t nr_entry;
+
+	if (mmap_addr == 0) {
+		print_panic("mmap_addr is NULL\n");
+		return 0;
+	}
+
+	mmap = (efi_mem_desc_t *)mmap_addr;
+	nr_entry = mmap_size/sizeof(efi_mem_desc_t);
+
+	for (i = 0; i < nr_entry; i++) {
+		if (tom < (mmap->PhysicalStart + mmap->NumberOfPages * PAGE_4K_SIZE))
+			tom = mmap->PhysicalStart + mmap->NumberOfPages * PAGE_4K_SIZE;
+		mmap ++;
 	}
 	print_trace("top of memory = %llx\n", tom);
 

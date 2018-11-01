@@ -83,11 +83,13 @@ uint32_t stage0_main(
 	}
 
 	stage1_main(evmm_desc);
+
+	print_panic("stage1_main() returned because of a error.\n");
 exit:
 	/* wipe seed data when error occurs */
 	cleanup_sensetive_data(tos_startup_info);
 	/* Code will not run to here when boot successfully.
 	 * The return value is set in g0_gcpu_setup() when do gcpu_resume. */
-	return -1;
+	return 0;
 }
 /* End of file */
