@@ -13,8 +13,8 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
-#ifndef _KFL_BOOT_PARAM_H_
-#define _KFL_BOOT_PARAM_H_
+#ifndef _OSLOADER_BOOT_PARAM_H_
+#define _OSLOADER_BOOT_PARAM_H_
 
 #include "evmm_desc.h"
 #include "stage0_asm.h"
@@ -75,6 +75,7 @@ typedef struct tos_startup_info {
 	seed_info_t seed_list[BOOTLOADER_SEED_MAX_ENTRIES];
 	/* Concatenation of mmc product name with a string representation of PSN */
 	uint8_t serial[MMC_PROD_NAME_WITH_PSN_LEN];
+	uint8_t num_of_cpu;
 } __attribute__((packed))  tos_startup_info_t;
 
 /*  TOS image header:
@@ -121,4 +122,4 @@ typedef struct tos_image_header{
 
 evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr);
 
-#endif /* _KFL_BOOT_PARAM_H_ */
+#endif /* _OSLOADER_BOOT_PARAM_H_ */

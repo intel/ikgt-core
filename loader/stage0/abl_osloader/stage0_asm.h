@@ -27,4 +27,15 @@
 #define STAGE1_IMG_SIZE	              0xC000
 #define SEED_MSG_DST_OFFSET           0
 
+/* Simple and small GDT entries for booting only: */
+#define __BOOT_NULL     (0x00)
+#define __BOOT_CS       (0x08)
+#define __BOOT_DS       (0x10)
+
+/* Multiboot header Definitions of OS image*/
+#define MULTIBOOT_HEADER_MAGIC          0x1BADB002
+
+/* The flags for the Multiboot header (non-ELF) */
+#define MULTIBOOT_HEADER_FLAGS         0x00010003
+
 #endif

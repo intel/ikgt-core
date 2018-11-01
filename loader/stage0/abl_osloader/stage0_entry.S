@@ -28,24 +28,24 @@
 start:
 .align 8
 
-/* Multiboot header. */
-multiboot_header:
-	/* magic */
-	.long   MULTIBOOT_HEADER_MAGIC
-	/* flags */
-	.long   MULTIBOOT_HEADER_FLAGS
-	/* checksum */
-	.long   -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
-	/* header_addr */
-	.long   LOAD_ADDR + multiboot_header - start
-	/* load_addr */
-	.long   LOAD_ADDR
-	/* load_end_addr */
-	.long   0
-	/* bss_end_addr */
-	.long   0
-	/* entry_addr */
-	.long   LOAD_ADDR + start_x32 - start
+/****** tos image private header ******/
+tos_image_header:
+	/* 64 bit magic value*/
+	.quad  TOS_HEADER_MAGIC
+	/* version of this header */
+	.long  TOS_HEADER_VERSION
+	/* size of header structure */
+	.long  tos_image_header_end - tos_image_header
+	/* TOS image version and patch level combination */
+	.long  TOS_IMAGE_VERSION
+	/* entry offset */
+	.long  start_x32 - start
+	/* tos_ldr_size: EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE +
+	 *               4KB(reserved for evmm_desc_t) */
+	.long  EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE + 0x1000
+	/* reserved */
+	.long 0
+tos_image_header_end:
 
 /* layout header for files (stage0.bin,evmm.bin,stage1.bin) mapped in RAM
  *  by search this header, to get the address of these
@@ -118,18 +118,26 @@ leaf_2M:
 /* 32bit entry point */
 .code32
 start_x32:
+	/* save esp to edi for stage0_main's first parameter */
+	movl 0x4(%esp), %edi
+
 	/* save the orinal env */
 	pushal
 	pushfl
-
-	/* save esp to edi for stage0_main's first parameter */
-	movl %esp, %edi
+	pushw %ds
 
 	cli
 	/* esi will used to caculate the relative address of flags */
 	call 1f
 1:  popl %esi
 	subl $1b, %esi
+
+	/* save old 32bit gdtr in memory */
+	lea  old_gdtr(%esi), %eax
+	sgdt (%eax)
+
+	lea old_cs(%esi), %eax
+	movw %cs, (%eax)
 
 	/* prepare for entering 64 bit mode */
 	/* load new GDT with the 64bit segments using 32bit descriptor */
@@ -176,12 +184,54 @@ start_x32:
 	/* jump from 32bit compat mode into 64bit mode. */
 	lret
 
+.code32
+compat_mode:
+	/* disable IA32e paging */
+	mov %cr0, %eax
+	btc $31, %eax
+	mov %eax, %cr0
+
+	/* restore cr4 */
+	mov %cr4, %eax
+	btc $5, %eax
+	mov %eax, %cr4
+
+
+	/* clear MSR bit (8): EFER.LME */
+	mov  $0xC0000080, %ecx
+	rdmsr
+	btc  $8,%eax
+	wrmsr
+
+	/* resume the saved register */
+	popw %ds
+	popfl
+	popal
+
+	xorl %eax, %eax
+
+	/* return back to OSloader */
+	ret
+
 /*
  * 64bit entry point, used by evmm boot header
  *  Scratch Registers   - rdi, rsi, rdx, rcx, r8, r9, r10, r11
  */
 .code64
 start_x64:
+	pushfq
+	pushq %rbp
+	pushq %r9
+	pushq %r10
+	pushq %r11
+	pushq %r12
+	pushq %r13
+	pushq %r14
+	pushq %r15
+
+	/* save old stack */
+	movq %rsp, old_rsp(%rip)
+
 	/* reset rflags */
 	pushq $0
 	popfq
@@ -223,7 +273,35 @@ start_x64:
 	movq %rsp, %rdx			/* rdx saved the new rsp */
 
 	call stage0_main
-	/* it should never return */
+
+	/* restore old rsp */
+	movq old_rsp(%rip), %rsp
+
+	popq %r15
+	popq %r14
+	popq %r13
+	popq %r12
+	popq %r11
+	popq %r10
+	popq %r9
+	popq %rbp
+	popfq
+
+	/* load the orignal 32bit gdt */
+	lea  old_gdtr(%rip), %rax
+	lgdt (%rax)
+
+	/* restore original 32bit CS */
+	lea old_cs(%rip), %rax
+	xor %rbx, %rbx
+	movw (%rax), %bx
+	pushq %rbx
+
+	lea compat_mode(%rip), %rax
+	pushq %rax
+
+	/* jump from 64bit mode to compat mode */
+	lretq
 
 /* stack for stage0 */
 .align 4
@@ -242,6 +320,16 @@ gdtr_x64:
 	.word	gdt_x64_end - gdt_x64 - 1
 	.long	0
 gdtr_x64_end:
+
+old_rsp:
+	.quad 0
+
+old_gdtr:
+	.word 0
+	.quad 0
+
+old_cs:
+	.word 0
 
 /*
  * Space for page tables

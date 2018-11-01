@@ -44,7 +44,7 @@ static boolean_t fill_device_sec_info(device_sec_info_v0_t *dev_sec_info, tos_st
 
 	/* in manufacturing mode | secure boot disabled | production seed */
 	dev_sec_info->flags = 0x1 | 0x0 | 0x0;
-	dev_sec_info->platform = 4; /* Brillo platform */
+	dev_sec_info->platform = 1; /* Bxt platform */
 
 	/* copy seed_list from startup_info to dev_sec_info */
 	memset(dev_sec_info->dseed_list, 0, sizeof(dev_sec_info->dseed_list));
@@ -72,6 +72,7 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 	memory_layout_t *loader_mem;
 	evmm_desc_t *evmm_desc;
 	device_sec_info_v0_t *dev_sec_info;
+	uint64_t tom;
 
 	if(!p_startup_info) {
 		print_panic("p_startup_info is NULL\n");
@@ -81,6 +82,12 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 	if (p_startup_info->version != TOS_STARTUP_VERSION ||
 		p_startup_info->size != sizeof(tos_startup_info_t)) {
 		print_panic("TOS version/size not match\n");
+		return NULL;
+	}
+
+	tom = get_efi_tom(p_startup_info->efi_memmap, p_startup_info->efi_memmap_size);
+	if (tom == 0) {
+		print_panic("Failed to get top_of memory from mbi!\n");
 		return NULL;
 	}
 
@@ -97,8 +104,9 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 
 	evmm_desc->sipi_ap_wkup_addr = (uint64_t)p_startup_info->sipi_ap_wkup_addr;
 
-	evmm_desc->tsc_per_ms = TSC_PER_MS;
-	evmm_desc->top_of_mem = TOP_OF_MEM;
+	evmm_desc->num_of_cpu = p_startup_info->num_of_cpu;
+	evmm_desc->tsc_per_ms = 0; //fill in stage1
+	evmm_desc->top_of_mem = tom;
 
 	dev_sec_info = &(loader_mem->dev_sec_info);
 	if (!fill_device_sec_info(dev_sec_info, p_startup_info)) {
