@@ -512,7 +512,6 @@ static void handle_ins(guest_cpu_handle_t gcpu,
 				uint32_t rep_cnt,
 				io_read_handler_t read_handler)
 {
-	guest_handle_t guest = gcpu->guest;
 	vmcs_obj_t vmcs = gcpu->vmcs;
 	pf_info_t pfinfo;
 	uint8_t buf[IO_BUFFER_SIZE];
@@ -552,7 +551,7 @@ static void handle_ins(guest_cpu_handle_t gcpu,
 
 		if (!ret) {
 			VMM_ASSERT_EX(pfinfo.is_pf, "Guest(%d) fail to copy io to "
-					"gva(0x%llX) with df(%d)\n", guest->id, gva, df?1:0);
+					"gva(0x%llX) with df(%d)\n", gcpu->guest->id, gva, df?1:0);
 			gcpu_set_cr2(gcpu, pfinfo.cr2);
 			gcpu_inject_pf(gcpu, pfinfo.ec);
 			return;
@@ -573,7 +572,6 @@ static void handle_outs(guest_cpu_handle_t gcpu,
 				uint32_t rep_cnt,
 				io_write_handler_t write_handler)
 {
-	guest_handle_t guest = gcpu->guest;
 	vmcs_obj_t vmcs = gcpu->vmcs;
 	pf_info_t pfinfo;
 	uint8_t buf[IO_BUFFER_SIZE];
@@ -603,7 +601,7 @@ static void handle_outs(guest_cpu_handle_t gcpu,
 
 		if (!ret) {
 			VMM_ASSERT_EX(pfinfo.is_pf, "Guest(%d) fail to copy io from "
-					"gva(0x%llX) with df(%d)\n", guest->id, gva, df?1:0);
+					"gva(0x%llX) with df(%d)\n", gcpu->guest->id, gva, df?1:0);
 			gcpu_set_cr2(gcpu, pfinfo.cr2);
 			gcpu_inject_pf(gcpu, pfinfo.ec);
 			return;
