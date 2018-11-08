@@ -133,6 +133,7 @@ void stage0_main(
 
 	loader_mem = (memory_layout_t *)(uint64_t)vmm_boot->VMMheapAddr;
 	dev_sec_info = &loader_mem->dev_sec_info;
+	memset(dev_sec_info, 0, sizeof(device_sec_info_v0_t));
 
 	if (!fill_device_sec_info(dev_sec_info, trusty_boot, and_boot)) {
 		goto fail;

@@ -29,6 +29,7 @@
 #include "heap.h"
 #include "trusty_info.h"
 #include "gcpu_inject_event.h"
+#include "device_sec_info.h"
 
 #include "lib/util.h"
 #include "lib/image_loader.h"
@@ -51,6 +52,10 @@
 
 #ifdef MODULE_VTD
 #include "modules/vtd.h"
+#endif
+
+#ifdef DERIVE_KEY
+#include "modules/crypto.h"
 #endif
 
 typedef enum {
@@ -156,12 +161,59 @@ static void relocate_trusty_image(uint64_t offset)
 	trusty_desc->lk_file.runtime_total_size += PAGE_4K_SIZE;
 }
 
+#ifdef DERIVE_KEY
+static int get_max_svn_index(device_sec_info_v0_t *sec_info)
+{
+	uint32_t i, max_svn_idx = 0;
+
+	if ((sec_info->num_seeds == 0) || (sec_info->num_seeds > BOOTLOADER_SEED_MAX_ENTRIES))
+		return -1;
+
+	for (i = 1; i < sec_info->num_seeds; i ++) {
+		if (sec_info->dseed_list[i].cse_svn > sec_info->dseed_list[i - 1].cse_svn) {
+			max_svn_idx = i;
+		}
+	}
+
+	return max_svn_idx;
+}
+
+static void key_derive(device_sec_info_v0_t *sec_info)
+{
+	const char salt[] = "Attestation Keybox Encryption Key";
+	const uint8_t *ikm;
+	uint8_t *prk;
+	uint32_t ikm_len;
+	int max_svn_idx;
+
+	max_svn_idx = get_max_svn_index(sec_info);
+	if (max_svn_idx < 0) {
+		print_info("VMM: failed to get max svn index\n");
+		memset(sec_info, 0, sizeof(device_sec_info_v0_t));
+		return;
+	}
+
+	ikm = sec_info->dseed_list[max_svn_idx].seed;
+	ikm_len = 32;
+
+	prk = sec_info->attkb_enc_key;
+
+	if (hmac_sha256((const uint8_t *)salt, sizeof(salt), ikm, ikm_len, prk) != 1) {
+		memset(sec_info, 0, sizeof(device_sec_info_v0_t));
+		print_panic("VMM: failed to derive key!\n");
+	}
+}
+#endif
+
 /* Set up trusty device security info and trusty startup info */
 static void setup_trusty_mem(void)
 {
 	trusty_startup_info_t *trusty_para;
 	uint32_t dev_sec_info_size;
 	uint64_t upper_start;
+#ifdef DERIVE_KEY
+	device_sec_info_v0_t *sec_info;
+#endif
 
 	/* Set trusty memory mapping with RW(0x3) attribute except lk itself */
 	/* Set lower */
@@ -190,6 +242,11 @@ static void setup_trusty_mem(void)
 	dev_sec_info_size = *((uint32_t *)trusty_desc->dev_sec_info);
 	memcpy((void *)trusty_desc->lk_file.runtime_addr, trusty_desc->dev_sec_info, dev_sec_info_size);
 	memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
+
+#ifdef DERIVE_KEY
+	sec_info = (device_sec_info_v0_t *)trusty_desc->lk_file.runtime_addr;
+	key_derive(sec_info);
+#endif
 
 	/* Setup trusty startup info */
 	trusty_para = (trusty_startup_info_t *)ALIGN_F(trusty_desc->lk_file.runtime_addr + dev_sec_info_size, 8);

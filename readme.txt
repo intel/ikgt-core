@@ -160,6 +160,9 @@ Config files
 				Description: Optional, allow CSE device access multi guests' memory by DMA. This macro should take the value of PCI device id(PCI_DEV(Bus:Device:Func));
 		- PACK_LK
 			Description: pack lk.elf into evmm_pkg.bin
+			- DERIVE_KEY
+				Description: Derive key
+				Dependency: MODULE_CRYPTO
 
 	- MODULE_VTD
 		Description: Enable VT-d. Current policy for VT-d is to use same memory layout as guest 0 (Android).
@@ -221,5 +224,8 @@ Config files
 
 	- AP_START_IN_HLT
 		Description: Set processors to HLT when init. Default is WAIT_FOR_SIPI.
+
+	- MODULE_CRYPTO
+		Description: add hkdf and kdf crypto lib support
 
 End of file
