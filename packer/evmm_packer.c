@@ -25,6 +25,8 @@
 
 #if defined (MODULE_TRUSTY_GUEST) && defined (PACK_LK)
 #define EVMM_PKG_BIN_NAME    "evmm_lk_pkg.bin"
+#elif defined (MODULE_OPTEE_GUEST) && defined (PACK_OPTEE)
+#define EVMM_PKG_BIN_NAME    "evmm_optee_pkg.bin"
 #else
 #define EVMM_PKG_BIN_NAME    "evmm_pkg.bin"
 #endif
@@ -39,6 +41,10 @@ static char* file_list[] = {
 	"evmm.elf",
 #if defined (MODULE_TRUSTY_GUEST) && defined (PACK_LK)
 	"lk.elf",
+#endif
+
+#if  defined (MODULE_OPTEE_GUEST) && defined (PACK_OPTEE)
+	"tee-pager.bin",
 #endif
 };
 

@@ -34,6 +34,10 @@ enum {
 	LK_BIN_INDEX,
 #endif
 
+#if defined (MODULE_OPTEE_GUEST) && defined (PACK_OPTEE)
+	OPTEE_BIN_INDEX,
+#endif
+
 	/* keep this as the last one */
 	PACK_BIN_COUNT
 } file_pack_index_t;

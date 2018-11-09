@@ -1,5 +1,5 @@
 /****************************************************************************
-* Copyright (c) 2015 Intel Corporation
+* Copyright (c) 2016 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,25 +14,30 @@
 * limitations under the License.
 ****************************************************************************/
 
-#ifndef _GRUB_BOOT_PARAM_H_
-#define _GRUB_BOOT_PARAM_H_
+#ifndef _OPTEE_INFO_H_
+#define _OPTEE_INFO_H_
 
-#include "stage0_asm.h"
-#include "stage0_lib.h"
-#include "evmm_desc.h"
+/* Different vmcall parameters structure from OSloader */
+typedef struct {
+	/* Size of this structure */
+	uint64_t size_of_this_struct;
+	/* Load time base address of trusty */
+	uint32_t load_base;
+	/* Load time size of trusty */
+	uint32_t load_size;
 
-#define GRUB_HEAP_ADDR                      0X12551000
-#define GRUB_HEAP_SIZE                      0x5400000
+	/* other fields will not used in EVMM */
+} optee_boot_params_v0_t;
 
-typedef enum {
-	MFIRST_MODULE = 0,
-	MVMLINUZ = MFIRST_MODULE,
-	MINITRD,
-	GRUB_MODULE_COUNT
-} grub_module_index_t;
+typedef struct {
+	uint32_t size_of_this_struct;
+	uint32_t version;
 
-evmm_desc_t *boot_params_parse(multiboot_info_t *mbi);
-void init_memory_manager(uint64_t heap_base_address, uint32_t heap_size);
-void *allocate_memory(uint32_t size_request);
+	/* 16MB under 4G */
+	uint32_t runtime_addr;
+
+	/* Entry address of trusty */
+	uint32_t entry_point;
+} optee_boot_params_v1_t;
 
 #endif

@@ -25,7 +25,11 @@ TARGET = evmmpacker
 ifneq (, $(findstring -DPACK_LK, $(EVMM_CMPL_FLAGS)))
 PACKAGE = evmm_lk_pkg.bin
 else
+ifneq (, $(findstring -DPACK_OPTEE, $(EVMM_CMPL_FLAGS)))
+PACKAGE = evmm_optee_pkg.bin
+else
 PACKAGE = evmm_pkg.bin
+endif
 endif
 
 CSOURCES = $(wildcard *.c)
@@ -59,6 +63,10 @@ $(TARGET): $(COBJS)
 pack:$(TARGET)
 ifneq (, $(findstring -DPACK_LK, $(EVMM_CMPL_FLAGS)))
 	if [ $(LKBIN_DIR) ]; then cp $(LKBIN_DIR)lk.elf $(BUILD_DIR); fi
+else
+ifneq (, $(findstring -DPACK_OPTEE, $(EVMM_CMPL_FLAGS)))
+	if [ $(OPTEEBIN_DIR) ]; then cp $(OPTEEBIN_DIR)tee-pager.bin $(BUILD_DIR); fi
+endif
 endif
 	chmod +x $(BUILD_DIR)$(TARGET) && \
 	cd $(BUILD_DIR) && \

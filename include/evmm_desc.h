@@ -84,6 +84,13 @@ typedef struct {
 } trusty_desc_t;
 
 typedef struct {
+	/* op-tee or others */
+	module_file_info_t optee_file;
+	gcpu_state_t gcpu0_state;
+	void *dev_sec_info;
+} optee_desc_t;
+
+typedef struct {
 	uint8_t num_of_cpu; /* filled in stage0/1 */
 	uint8_t pad[3];
 	uint32_t sipi_ap_wkup_addr; /* filled in stage0 */
@@ -97,6 +104,11 @@ typedef struct {
 #ifdef MODULE_TRUSTY_GUEST
 	/* trusty related info */
 	trusty_desc_t trusty_desc; /* filled in stage0 */
+#endif
+
+#ifdef MODULE_OPTEE_GUEST
+    /* op-tee related info */
+	optee_desc_t optee_desc; /* filled in stage0 */
 #endif
 } evmm_desc_t;
 

@@ -85,7 +85,13 @@ void stage0_main(const init_register_t *init_reg,
 		goto fail;
 	}
 
+#ifdef MODULE_TRUSTY_GUEST
 	setup_32bit_env(&(evmm_desc->trusty_desc.gcpu0_state));
+#endif
+
+#ifdef MODULE_OPTEE_GUEST
+	setup_32bit_env(&(evmm_desc->optee_desc.gcpu0_state));
+#endif
 
 	if (!relocate_elf_image(&(evmm_desc->stage1_file), (uint64_t *)&stage1_main)) {
 		print_panic("relocate stage1 failed\n");
