@@ -189,9 +189,17 @@ static evmm_desc_t *init_evmm_desc(void)
 	make_dummy_trusty_info(&(loader_mem->dev_sec_info));
 
 	/*fill trusty boot params*/
+#ifdef MODULE_TRUSTY_GUEST
 	evmm_desc->trusty_desc.lk_file.runtime_addr = (uint64_t)lk_runtime_mem;
 	evmm_desc->trusty_desc.lk_file.runtime_total_size = LK_RUNTIME_SIZE;
 	evmm_desc->trusty_desc.dev_sec_info = &(loader_mem->dev_sec_info);
+#endif
+
+#ifdef MODULE_OPTEE_GUEST
+	evmm_desc->optee_desc.optee_file.runtime_addr = (uint64_t)lk_runtime_mem;
+	evmm_desc->optee_desc.optee_file.runtime_total_size = LK_RUNTIME_SIZE;
+	evmm_desc->optee_desc.dev_sec_info = &(loader_mem->dev_sec_info);
+#endif
 
 	return evmm_desc;
 }
