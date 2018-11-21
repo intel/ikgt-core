@@ -299,11 +299,18 @@ static void optee_set_gcpu_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
 void init_optee_guest(evmm_desc_t *evmm_desc)
 {
 	uint32_t cpu_num = 1;
+	uint32_t dev_sec_info_size;
+#if !defined(PACK_OPTEE)
+	void *dev_sec_info;
+#endif
 
 	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
 
 	optee_desc = (optee_desc_t *)&evmm_desc->optee_desc;
 	D(VMM_ASSERT(optee_desc));
+
+	dev_sec_info_size = *((uint32_t *)optee_desc->dev_sec_info);
+	VMM_ASSERT_EX(!(dev_sec_info_size & 0x3ULL), "size of optee boot info is not 32bit aligned!\n");
 
 	print_trace("Init op-tee guest\n");
 
