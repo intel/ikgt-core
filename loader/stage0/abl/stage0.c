@@ -167,11 +167,21 @@ void stage0_main(
 	fill_g0gcpu0(&evmm_desc->guest0_gcpu0_state, &and_boot->CpuState);
 
 	/* loadtime_addr and loadtime_size will be filled in vmcall from osloader */
+#if defined (MODULE_TRUSTY_GUEST)
 	evmm_desc->trusty_desc.lk_file.runtime_addr = (uint64_t)trusty_boot->TrustyMemBase;
 	evmm_desc->trusty_desc.lk_file.runtime_total_size = ((uint64_t)(trusty_boot->TrustyMemSize)) << 10;
 	evmm_desc->trusty_desc.dev_sec_info = dev_sec_info;
 	/* rip and rsp will be filled in vmcall from osloader */
 	setup_32bit_env(&evmm_desc->trusty_desc.gcpu0_state);
+#endif
+
+#if defined (MODULE_OPTEE_GUEST)
+	evmm_desc->optee_desc.optee_file.runtime_addr = (uint64_t)trusty_boot->TrustyMemBase;
+	evmm_desc->optee_desc.optee_file.runtime_total_size = ((uint64_t)(trusty_boot->TrustyMemSize)) << 10;
+	evmm_desc->optee_desc.dev_sec_info = dev_sec_info;
+	/* rip and rsp will be filled in vmcall from osloader */
+	setup_32bit_env(&evmm_desc->optee_desc.gcpu0_state);
+#endif
 
 	/* Phase 5: relocate stage1 file and move to stage1 */
 	if (!relocate_elf_image(&(evmm_desc->stage1_file), (uint64_t *)&stage1_main)) {
