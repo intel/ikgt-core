@@ -118,6 +118,8 @@ typedef struct {
 	}
 #endif
 
+#define RETURN_ADDRESS() (__builtin_return_address(0))
+
 static inline boolean_t addr_is_canonical(boolean_t is_64bit, uint64_t addr)
 {
 	if (is_64bit)

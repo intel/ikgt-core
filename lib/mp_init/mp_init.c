@@ -196,11 +196,11 @@ uint32_t launch_aps(uint32_t sipi_page, uint8_t expected_cpu_num, uint64_t c_ent
 		return 1;
 
 	/* prepare for sipi */
-	for (i=0; i<=(MAX_CPU_NUM); i++) {
+	for (i=0; i <= (MAX_CPU_NUM); i++) {
 		esp = (uint32_t)(uint64_t)(&ap_stack[i*STARTAP_STACK_SIZE]);
 		setup_cpu_startup_stack(i, esp);
 	}
-	setup_sipi_page(sipi_page, FALSE, (uint64_t)c_entry);
+	setup_sipi_page(sipi_page, FALSE, c_entry);
 
 	/* send sipi */
 	wakeup_aps(sipi_page);

@@ -20,7 +20,7 @@
 #include "stage0_asm.h"
 #include "device_sec_info.h"
 
-#define TOS_STARTUP_VERSION           2
+#define TRUSTY_KEYBOX_KEY_SIZE        32
 
 /*
  * This structure is used to pass data to TOS entry when calling to TOS entry to
@@ -75,6 +75,10 @@ typedef struct tos_startup_info {
 	seed_info_t seed_list[BOOTLOADER_SEED_MAX_ENTRIES];
 	/* Concatenation of mmc product name with a string representation of PSN */
 	uint8_t serial[MMC_PROD_NAME_WITH_PSN_LEN];
+
+	uint8_t attkb_key[TRUSTY_KEYBOX_KEY_SIZE];
+
+	uint64_t system_table_addr;
 } __attribute__((packed))  tos_startup_info_t;
 
 /*  TOS image header:
@@ -116,7 +120,9 @@ typedef struct tos_image_header{
 	 * Besides, Bootloader must wipe/free it after TOS launch.
 	 */
 	uint32_t tos_ldr_size;
-	uint32_t reserved;
+	/* Version to indicate version of tos_startup_info_t */
+	uint8_t startup_struct_version;
+	uint8_t reserved[3];
 }tos_image_header_t;
 
 evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr);

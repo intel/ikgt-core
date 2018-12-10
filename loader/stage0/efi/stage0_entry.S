@@ -49,8 +49,9 @@ tos_image_header:
 	/* tos_ldr_size: EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE +
 	 *               4KB(reserved for evmm_desc_t) */
 	.long  EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE + 0x1000
+	.byte  TOS_STARTUP_VERSION
 	/* reserved */
-	.long 0
+	.fill 3, 1, 0
 tos_image_header_end:
 
 /* layout header for files (stage0.bin,evmm.bin,stage1.bin) mapped in RAM
@@ -135,6 +136,11 @@ start_x64:
 
 	callq stage0_main
 
+	/* Here give UEFI BIOS a window to handle interrupts */
+	sti
+	nop
+	cli
+
 	/* restore the old rsp */
 	leaq old_rsp(%rip), %rcx
 	movq (%rcx), %rsp
@@ -153,7 +159,7 @@ old_rsp:
 	.quad 0
 
 /* stack for stage0 */
-.align 4
+.align 16
 bspstack_start:
 	.fill STAGE0_STACK_SIZE, 1, 0xCC
 bspstack:
