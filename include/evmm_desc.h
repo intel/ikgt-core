@@ -100,6 +100,9 @@ typedef struct {
 	module_file_info_t stage1_file; /* filled in stage0 */
 	module_file_info_t evmm_file; /* filled in stage0 */
 	gcpu_state_t guest0_gcpu0_state; /* filled in stage0 */
+#ifdef MODULE_APS_STATE
+	gcpu_state_t guest0_aps_state[MAX_CPU_NUM - 1]; /* filled in stage1 */
+#endif
 
 #ifdef MODULE_TRUSTY_GUEST
 	/* trusty related info */

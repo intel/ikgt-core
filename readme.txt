@@ -228,4 +228,7 @@ Config files
 	- MODULE_CRYPTO
 		Description: add hkdf and kdf crypto lib support
 
+	- MODULE_APS_STATE
+		Description: set Guest APs to init state
+
 End of file
