@@ -110,8 +110,13 @@ typedef struct {
 #endif
 
 #ifdef MODULE_OPTEE_GUEST
-    /* op-tee related info */
+	/* op-tee related info */
 	optee_desc_t optee_desc; /* filled in stage0 */
+#endif
+
+#ifdef LIB_EFI_SERVICES
+	/* System table base address. Only for EFI platform. */
+	uint64_t system_table_base;
 #endif
 } evmm_desc_t;
 

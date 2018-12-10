@@ -90,6 +90,9 @@ Config files
 			- SERIAL_BASE
 				Description: If SERIAL_PCI is not define, serial base (IO or MMIO) should be specified by this flag.
 
+	- LIB_EFI_SERVICES
+		Description: Support UEFI services
+
 	- MODULE_VMCALL
 		Description: Vmcall support.
 
