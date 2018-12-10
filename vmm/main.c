@@ -147,6 +147,10 @@
 #include "modules/l1tf.h"
 #endif
 
+#ifdef MODULE_APS_STATE
+#include "modules/aps_state.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -238,6 +242,9 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 
 		/* Prepare guest0 gcpu initial state */
 		prepare_g0gcpu_init_state(&evmm_desc->guest0_gcpu0_state);
+#ifdef MODULE_APS_STATE
+		prepare_g0ap_init_state(&evmm_desc->guest0_aps_state[0]);
+#endif
 
 		/* Initialize GDT for all cpus */
 		gdt_setup();
