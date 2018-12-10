@@ -176,3 +176,54 @@ void wakeup_aps(uint32_t sipi_page)
 	//wait_us(10000);
 	//broadcast_startup(sipi_page >> 12);
 }
+
+#define STARTAP_STACK_SIZE 0x400
+static uint8_t ap_stack[STARTAP_STACK_SIZE * (MAX_CPU_NUM+1)];
+/*---------------------------------------------------------------------------
+ * Input:
+ * sipi_page        - address to be used for bootstap.
+ * expected_cpu_num - expected cpu num to launch
+ * Return:
+ * number of cpus that were init (including BSP).
+ *---------------------------------------------------------------------------*/
+uint32_t launch_aps(uint32_t sipi_page, uint8_t expected_cpu_num, uint64_t c_entry)
+{
+	uint32_t num_of_cpu;
+	uint32_t i, esp;
+	uint64_t tsc_start;
+
+	if (expected_cpu_num == 1)
+		return 1;
+
+	/* prepare for sipi */
+	for (i=0; i<=(MAX_CPU_NUM); i++) {
+		esp = (uint32_t)(uint64_t)(&ap_stack[i*STARTAP_STACK_SIZE]);
+		setup_cpu_startup_stack(i, esp);
+	}
+	setup_sipi_page(sipi_page, FALSE, (uint64_t)c_entry);
+
+	/* send sipi */
+	wakeup_aps(sipi_page);
+
+	if(expected_cpu_num != 0) {
+		tsc_start = asm_rdtsc();
+		do {
+			num_of_cpu = get_active_cpu_num();
+
+			/* According to IA32 Spec, aps should all up in 100ms */
+			if ((asm_rdtsc() - tsc_start) > tsc_per_ms * 100) {
+				return (uint32_t)-1;
+			}
+
+		} while (num_of_cpu != expected_cpu_num);
+	} else {
+		/* wait for predefined timeout 100ms.
+		 * See IA32 spec volume 3 chapter 8 multiple-processor management
+		 * 8.4 MP initialization 8.4.4 MP initialization example */
+		wait_us(100000);
+
+		num_of_cpu = get_active_cpu_num();
+	}
+
+	return num_of_cpu;
+}

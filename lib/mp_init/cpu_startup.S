@@ -111,5 +111,8 @@ cpu_startup64:
 	/* take cpu_id as parameter to C function */
 	mov %esi, %edi
 
+	/* clear second parameter since no need for legacy startup */
+	xor %rsi, %rsi
+
 	/* call into C function */
 	call *hand_over_entry(%rip)
