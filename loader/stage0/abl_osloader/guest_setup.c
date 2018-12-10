@@ -20,6 +20,7 @@
 #include "ldr_dbg.h"
 #include "evmm_desc.h"
 #include "vmm_arch.h"
+#include "lib/util.h"
 
 boolean_t g0_gcpu_setup(evmm_desc_t *evmm_desc, uint64_t rsp, uint64_t rip)
 {

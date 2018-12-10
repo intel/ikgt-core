@@ -22,6 +22,7 @@
 #include "ldr_dbg.h"
 #include "guest_setup.h"
 #include "stage0_lib.h"
+#include "lib/util.h"
 
 boolean_t g0_gcpu_setup(evmm_desc_t *evmm_desc,
 		uint64_t boot_param_addr, uint64_t kernel_entry_point)

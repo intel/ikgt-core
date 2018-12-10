@@ -18,6 +18,7 @@
 #define _UTIL_H_
 
 #include "vmm_base.h"
+#include "evmm_desc.h"
 
 extern uint64_t tsc_per_ms;
 
@@ -34,5 +35,7 @@ uint64_t determine_nominal_tsc_freq(void);
 #ifdef STACK_PROTECTOR
 uint64_t get_stack_cookie_value(void);
 #endif
+
+void save_current_cpu_state(gcpu_state_t *s);
 
 #endif
