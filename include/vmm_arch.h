@@ -424,6 +424,14 @@ typedef struct {
 	uint16_t	reserved[3];
 } segment_t;
 
+inline void fill_segment(segment_t *seg, uint64_t base, uint32_t limit, uint32_t attr, uint16_t sel)
+{
+	seg->base = base;
+	seg->limit = limit;
+	seg->attributes = attr;
+	seg->selector = sel;
+}
+
 typedef uint8_t cache_type_t;
 
 #define CACHE_TYPE_UC 0x0            /* Strong Uncacheable */

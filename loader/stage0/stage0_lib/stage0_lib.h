@@ -102,7 +102,6 @@ typedef struct {
 	uint64_t size;
 } packed_file_t;
 
-void save_current_cpu_state(gcpu_state_t *s);
 void setup_32bit_env(gcpu_state_t *gcpu_state);
 void make_dummy_trusty_info(void *info);
 boolean_t get_file_params(uint64_t base, packed_file_t *packed_file);

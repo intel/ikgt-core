@@ -149,3 +149,33 @@ uint64_t get_stack_cookie_value(void)
 	return cookie;
 }
 #endif
+
+void save_current_cpu_state(gcpu_state_t *s)
+{
+	asm_sgdt(&(s->gdtr));
+	asm_sidt(&(s->idtr));
+	s->cr0 = asm_get_cr0();
+	s->cr3 = asm_get_cr3();
+	s->cr4 = asm_get_cr4();
+
+	s->msr_efer = asm_rdmsr(MSR_EFER);
+
+	/* The selector of LDTR in current environment is invalid which indicates
+	 * the bootloader is not using LDTR. So set LDTR unusable here. In
+	 * future, exception might occur if LDTR is used in bootloader. Then bootloader
+	 * will find us since we changed LDTR to 0, and we can fix it for that bootloader. */
+	fill_segment(&s->segment[SEG_LDTR], 0, 0, 0x10000, 0);
+	/* TSS is used for RING switch, which is usually not used in bootloader since
+	 * bootloader always runs in RING0. So we hardcode TR here. In future, #TS
+	 * might occur if TSS is used bootloader. Then bootlaoder will find us since we
+	 * changed TR to 0, and we can fix it for that bootlaoder. */
+	fill_segment(&s->segment[SEG_TR], 0, 0xffffffff, 0x808b, 0);
+	/* For segments: get selector from current environment, selector of ES/FS/GS are from DS,
+	 * hardcode other fields to make guest launch successful. */
+	fill_segment(&s->segment[SEG_CS], 0, 0xffffffff, 0xa09b, asm_get_cs());
+	fill_segment(&s->segment[SEG_DS], 0, 0xffffffff, 0xc093, asm_get_ds());
+	fill_segment(&s->segment[SEG_ES], 0, 0xffffffff, 0xc093, asm_get_ds());
+	fill_segment(&s->segment[SEG_FS], 0, 0xffffffff, 0xc093, asm_get_ds());
+	fill_segment(&s->segment[SEG_GS], 0, 0xffffffff, 0xc093, asm_get_ds());
+	fill_segment(&s->segment[SEG_SS], 0, 0xffffffff, 0xc093, asm_get_ds());
+}
