@@ -32,4 +32,6 @@ void wakeup_aps(uint32_t sipi_page);
 /* Get active cpu number */
 uint32_t get_active_cpu_num(void);
 
+uint32_t launch_aps(uint32_t sipi_page, uint8_t expected_cpu_num, uint64_t c_entry);
+
 #endif /* _MP_INIT_H_ */
