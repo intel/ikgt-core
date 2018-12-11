@@ -18,6 +18,9 @@
 #include "vmm_util.h"
 #include "vmcs.h"
 #include "gcpu.h"
+#ifdef WORKAROUND_MISSING_INIT_SIGNAL
+#include "gcpu_state.h"
+#endif
 #include "event.h"
 #include "vmexit_cr_access.h"
 
@@ -43,6 +46,11 @@ void vmexit_sipi_event(guest_cpu_handle_t gcpu)
 	event_sipi_vmexit_t sipi_vmexit_param;
 
 	D(VMM_ASSERT(gcpu));
+
+#ifdef WORKAROUND_MISSING_INIT_SIGNAL
+	/* BUG-ID: 1506983096 */
+	gcpu_set_reset_state(gcpu);
+#endif
 
 	qualification.uint64 = vmcs_read(gcpu->vmcs, VMCS_EXIT_QUAL);
 	vector = (uint8_t)(qualification.sipi.vector);
