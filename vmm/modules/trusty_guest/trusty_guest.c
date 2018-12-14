@@ -58,6 +58,10 @@
 #include "modules/crypto.h"
 #endif
 
+#ifdef MODULE_VIRTUAL_APIC
+#include "modules/virtual_apic.h"
+#endif
+
 typedef enum {
 	TRUSTY_VMCALL_SMC             = 0x74727500,
 	TRUSTY_VMCALL_DUMP_INIT       = 0x74727507,
@@ -327,6 +331,11 @@ static void launch_trusty(guest_cpu_handle_t gcpu_android, guest_cpu_handle_t gc
 
 static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 {
+#ifdef MODULE_VIRTUAL_APIC
+	irr_t virr;
+	uint8_t vector;
+#endif
+
 	static uint32_t smc_stage;
 	guest_cpu_handle_t next_gcpu;
 
@@ -344,7 +353,24 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 
 	vmcs_read(gcpu->vmcs, VMCS_GUEST_RIP);// update cache
 	vmcs_read(gcpu->vmcs, VMCS_EXIT_INSTR_LEN);// update cache
+
+#ifdef MODULE_VIRTUAL_APIC
+	/* get virr for current gcpu before gcpu switch */
+	vapic_get_virr(gcpu, &virr);
+	vapic_clear_virr(gcpu);
+#endif
+
 	next_gcpu = schedule_next_gcpu();
+
+#ifdef MODULE_VIRTUAL_APIC
+	vapic_merge_virr(next_gcpu, &virr);
+
+	/* migrate vector bufferred in pending_intr list */
+	for(vector=gcpu_get_pending_intr(gcpu); vector>=0x20; vector=gcpu_get_pending_intr(gcpu)) {
+		gcpu_set_pending_intr(next_gcpu, vector);
+		gcpu_clear_pending_intr(gcpu, vector);
+	}
+#endif
 
 	switch (smc_stage)
 	{

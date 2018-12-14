@@ -69,16 +69,16 @@ uint32_t get_proctl1_cap(uint32_t* p_may0);
  * proc2 control define
  *
  *------------------------------------------------------------------------- */
-#define PROC2_APIC_ACCESSES       (1u << 0)
+#define PROC2_VAPIC_ACCESSES      (1u << 0)
 #define PRO2C_ENABLE_EPT          (1u << 1)
 #define PROC2_DESCRIPTOR_EXIT     (1u << 2)
 #define PROC2_ENABLE_RDTSCP       (1u << 3)
-#define PROC2_X2APIC_MODE         (1u << 4)
+#define PROC2_VX2APIC_MODE        (1u << 4)
 #define PROC2_ENABLEC_VPID        (1u << 5)
 #define PROC2_WBINVD_EXIT         (1u << 6)
 #define PROC2_UNRESTRICTED_GUEST  (1u << 7)
-#define PROC2_APIC_REGISTER       (1u << 8)
-#define PROC2_INT_DELIVERY        (1u << 9)
+#define PROC2_APIC_REG_VIRTUALIZE (1u << 8)
+#define PROC2_VINT_DELIVERY       (1u << 9)
 #define PROC2_PAUSE_LOOP_EXIT     (1u << 10)
 #define PROC2_RDRAND_EXIT         (1u << 11)
 #define PROC2_ENABLE_INVPCID      (1u << 12)

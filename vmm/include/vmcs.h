@@ -37,6 +37,15 @@ typedef enum {
 	VMCS_IO_BITMAP_B,
 	VMCS_MSR_BITMAP,
 	VMCS_TSC_OFFSET,
+	VMCS_VIRTUAL_APIC_ADDR,     // for virtual apic
+	VMCS_APIC_ACCESS_ADDR,      // for virtual apic
+	VMCS_POST_INTR_NOTI_VECTOR, // for virtual apic
+	VMCS_POST_INTR_DESC_ADDR,   // for virtual apic
+	VMCS_EOI_EXIT_BITMAP0,      // for virtual apic
+	VMCS_EOI_EXIT_BITMAP1,      // for virtual apic
+	VMCS_EOI_EXIT_BITMAP2,      // for virtual apic
+	VMCS_EOI_EXIT_BITMAP3,      // for virtual apic
+	VMCS_TPR_THRESHOLD,         // for virtual apic
 	VMCS_EPTP_ADDRESS,
 	VMCS_XSS_EXIT_BITMAP,
 	VMCS_PIN_CTRL,
@@ -89,6 +98,7 @@ typedef enum {
 	                               // = VMCS_ALWAYS_VALID_COUNT
 	VMCS_GUEST_DBGCTL,             // init as 0 (see dirty_bitmap in vmcs_create)
 	VMCS_GUEST_INTERRUPTIBILITY,   // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_GUEST_INTERRUPT_STATUS,   // for virtual apic
 	VMCS_GUEST_PEND_DBG_EXCEPTION, // init as 0 (see dirty_bitmap in vmcs_create)
 	VMCS_ENTRY_ERR_CODE,           // init as 0 (see dirty_bitmap in vmcs_create)
 	                               // = VMCS_INIT_TO_ZERO_LAST
