@@ -155,6 +155,10 @@
 #include "modules/aps_state.h"
 #endif
 
+#ifdef MODULE_VIRTUAL_APIC
+#include "modules/virtual_apic.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -408,6 +412,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 
 #ifdef MODULE_EXT_INTR
 		ext_intr_init();
+#endif
+
+#ifdef MODULE_VIRTUAL_APIC
+		virtual_apic_init();
 #endif
 
 #ifdef MODULE_VMEXIT_INIT
