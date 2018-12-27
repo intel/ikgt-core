@@ -101,9 +101,6 @@ Config files
 
 	- MODULE_ACPI
 		Description: Provide api to search ACPI tables.
-		SubFlags:
-			- ACPI_RSDP
-				Description: hard-code the RSDP address to accelerate ACPI table search
 
 	- MODULE_IO_MONITOR
 		Description: Provide api to monitor IO access.

@@ -58,6 +58,20 @@ void memcpy(void *dest, const void *src, uint64_t count)
 	return;
 }
 
+int memcmp(const void *dest, const void *src, uint64_t count)
+{
+	int ret;
+	__asm__ __volatile__(
+		"xor %%eax, %%eax  \n\t"
+		"cld               \n\t"
+		"repe cmpsb        \n\t"
+		"setnz %%al        \n\t"
+		: "=a"(ret)
+		: "D"((uint64_t)dest), "S"((uint64_t)src), "c"(count)
+	);
+	return ret;
+}
+
 uint32_t lock_inc32(volatile uint32_t *addr)
 {
 	uint32_t retval = 1;

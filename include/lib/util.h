@@ -24,6 +24,7 @@ extern uint64_t tsc_per_ms;
 
 void memcpy(void *dest, const void *src, uint64_t count);
 void memset(void *dest, uint8_t val, uint64_t count);
+int memcmp(const void *dest, const void *src, uint64_t count);
 uint32_t lock_inc32(volatile uint32_t *addr);
 
 boolean_t check_vmx(void);

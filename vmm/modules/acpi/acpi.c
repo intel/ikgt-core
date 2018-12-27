@@ -21,6 +21,10 @@
 #include "modules/acpi.h"
 #include "lib/util.h"
 
+#ifdef LIB_EFI_SERVICES
+#include "lib/efi/efi_services.h"
+#endif
+
 /*------------------------------Types and Macros---------------------------*/
 /* Constants used in searching for the RSDP in low memory */
 #define ACPI_RSDP_SCAN_STEP 16
@@ -105,39 +109,6 @@ static uint8_t checksum(uint8_t *buffer, uint32_t length)
 	return sum;
 }
 
-/* Scan for RSDP table and return mapped address of rsdp, if found */
-static acpi_table_rsdp_t *scan_for_rsdp(void *addr, uint32_t length)
-{
-	acpi_table_rsdp_t *rsdp;
-	unsigned char *begin;
-	unsigned char *i, *end;
-
-	begin = addr;
-	end = begin + length;
-
-	/* Search from given start address for the requested length */
-	for (i = begin; i < end; i += ACPI_RSDP_SCAN_STEP) {
-		/* The signature and checksum must both be correct */
-		if (*(uint64_t *)i != ACPI_SIG_RSD_PTR) {
-			continue;
-		}
-
-		print_trace("Got the rsdp header, now check the checksum\n");
-		rsdp = (acpi_table_rsdp_t *)i;
-
-		/* signature matches, check the appropriate checksum */
-		if (!checksum((unsigned char *)rsdp,
-			/* rsdp->length is only valid when the revision is 2 or above */
-			(rsdp->revision < 2) ? ACPI_V1_RSDP_LENGTH : rsdp->length)) {
-			/* check_sum valid, we have found a valid RSDP */
-			print_trace("Found acpi rsdp table\n");
-			return rsdp;
-		}
-	}
-
-	return NULL;
-}
-
 /* Find an acpi table with specified signature and return mapped address */
 static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 						     uint32_t sig)
@@ -215,6 +186,40 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 	return NULL;
 }
 
+#ifndef LIB_EFI_SERVICES
+/* Scan for RSDP table and return mapped address of rsdp, if found */
+static acpi_table_rsdp_t *scan_for_rsdp(void *addr, uint32_t length)
+{
+	acpi_table_rsdp_t *rsdp;
+	unsigned char *begin;
+	unsigned char *i, *end;
+
+	begin = addr;
+	end = begin + length;
+
+	/* Search from given start address for the requested length */
+	for (i = begin; i < end; i += ACPI_RSDP_SCAN_STEP) {
+		/* The signature and checksum must both be correct */
+		if (*(uint64_t *)i != ACPI_SIG_RSD_PTR) {
+			continue;
+		}
+
+		print_trace("Got the rsdp header, now check the checksum\n");
+		rsdp = (acpi_table_rsdp_t *)i;
+
+		/* signature matches, check the appropriate checksum */
+		if (!checksum((unsigned char *)rsdp,
+			/* rsdp->length is only valid when the revision is 2 or above */
+			(rsdp->revision < 2) ? ACPI_V1_RSDP_LENGTH : rsdp->length)) {
+			/* check_sum valid, we have found a valid RSDP */
+			print_trace("Found acpi rsdp table\n");
+			return rsdp;
+		}
+	}
+
+	return NULL;
+}
+
 static acpi_table_rsdp_t *acpi_locate_rsdp(void)
 {
 	acpi_table_rsdp_t *rsdp;
@@ -238,6 +243,7 @@ static acpi_table_rsdp_t *acpi_locate_rsdp(void)
 
 	return rsdp;
 }
+#endif
 
 acpi_table_header_t *acpi_locate_table(uint32_t sig)
 {
@@ -245,18 +251,17 @@ acpi_table_header_t *acpi_locate_table(uint32_t sig)
 	void *table;
 
 	if (rsdp == NULL) {
-#ifdef ACPI_RSDP
-#ifdef DEBUG
-		rsdp = acpi_locate_rsdp();
-		VMM_ASSERT_EX(rsdp == (acpi_table_rsdp_t *)ACPI_RSDP,
-			"rsdp is not equal to ACPI_RSDP\n");
-#else
-		rsdp = (acpi_table_rsdp_t *)ACPI_RSDP;
-		if (rsdp->signature != ACPI_SIG_RSD_PTR) {
-			print_warn("the signature in ACPI_RSDP is not correct\n");
-			rsdp = acpi_locate_rsdp();
-		}
-#endif
+/*
+ * According to ACPI Specification Chapter 5.2.5.2 - Find the RSDP on
+ * UEFI Enabled Systems: The OS loader must retrieve the pointer to
+ * the RSDP structure from the EFI System Table. So here use EFI service
+ * to locate RSDP if EFI_SERVICES defined. Otherwise search the physical
+ * memory ranges.
+ */
+#ifdef LIB_EFI_SERVICES
+		rsdp = (acpi_table_rsdp_t *)efi_locate_acpi_table();
+		VMM_ASSERT_EX(rsdp, "Failed to locate RSDP from EFI_SYS_TABLE\n");
+		VMM_ASSERT_EX(rsdp->signature == ACPI_SIG_RSD_PTR, "Invalid signature of RSDP\n");
 #else
 		rsdp = acpi_locate_rsdp();
 #endif
