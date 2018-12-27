@@ -43,6 +43,10 @@
 
 #include "lib/util.h"
 
+#ifdef LIB_EFI_SERVICES
+#include "lib/efi/efi_services.h"
+#endif
+
 #ifdef MODULE_IPC
 #include "modules/ipc.h"
 #endif
@@ -260,6 +264,11 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		hmm_setup(evmm_desc);
 		mtrr_init();
 		page_walk_init();
+
+		/* Initialize EFI SERVICES */
+#ifdef LIB_EFI_SERVICES
+		VMM_ASSERT_EX(init_efi_services(evmm_desc->system_table_base), "Failed init efi services\n");
+#endif
 	}
 
 	if (cpuid == 0) {
