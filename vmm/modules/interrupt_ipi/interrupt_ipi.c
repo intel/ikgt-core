@@ -25,7 +25,7 @@ static void inject_intr_by_ipi(guest_cpu_handle_t gcpu, void *pv)
 	uint8_t vector;
 	boolean_t *handled = (boolean_t *)pv;
 
-	for(vector = gcpu_get_pending_intr(gcpu); vector > 0x20; vector = gcpu_get_pending_intr(gcpu)) {
+	for(vector = gcpu_get_pending_intr(gcpu); vector >= 0x20; vector = gcpu_get_pending_intr(gcpu)) {
 		if(!send_self_ipi(vector)) {
 			print_warn("Inject INTR failed: failed to send self IPI!\n");
 			*handled = FALSE;
