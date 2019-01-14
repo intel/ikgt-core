@@ -111,6 +111,14 @@ void stage1_main(evmm_desc_t *xd)
 #if (CPU_NUM != 1)
 	uint32_t num_of_cpu;
 #endif
+
+#ifdef LIB_EFI_SERVICES
+	if (!init_efi_services(xd->system_table_base)) {
+		print_panic("%s: Failed init efi services\n", __func__);
+		return;
+	}
+#endif
+
 	print_init(FALSE);
 
 	if (xd->top_of_mem == 0)
@@ -132,7 +140,7 @@ void stage1_main(evmm_desc_t *xd)
 	}
 	xd->num_of_cpu = CPU_NUM;
 #else
-#ifndef LIB_EFI_SERVICES
+#ifndef START_AP_BY_EFI_MP_SERVICE
 	if (xd->num_of_cpu == 0)
 		print_warn("xd->num_of_cpu is 0, will 100ms delay to enumarate APs!\n");
 #endif
@@ -151,12 +159,7 @@ void stage1_main(evmm_desc_t *xd)
  * #if defined (CPU_NUM) && (CPU_NUM == 1). So #if (CPU_NUM != 1)
  * means CPU_NUM is not defined or defined but not equal to 1.*/
 #if (CPU_NUM != 1)
-#ifdef LIB_EFI_SERVICES
-	if (!init_efi_services(xd->system_table_base)) {
-		print_panic("%s: Failed init efi services\n", __func__);
-		return;
-	}
-
+#ifdef START_AP_BY_EFI_MP_SERVICE
 	num_of_cpu = (uint32_t)efi_launch_aps((uint64_t)ap_continue);
 	if ((num_of_cpu == 0) || (num_of_cpu > MAX_CPU_NUM)) {
 		print_panic("%s: (EFI)Failed to launch all APs\n", __func__);

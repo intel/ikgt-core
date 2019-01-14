@@ -92,6 +92,9 @@ Config files
 
 	- LIB_EFI_SERVICES
 		Description: Support UEFI services
+		SubFlags:
+			- START_AP_BY_EFI_MP_SERVICE
+				Description: Startup APs by EFI_MP_SERVICES
 
 	- MODULE_VMCALL
 		Description: Vmcall support.
