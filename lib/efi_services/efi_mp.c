@@ -17,6 +17,7 @@
 
 extern efi_boot_services_t *g_bs;
 extern void EFI_API ap_start(void *arg);
+extern void printf(const char *format, ...);
 
 typedef void (*hand_over_c_func_t)(uint32_t cpu_id, void *arg, uint64_t old_rsp);
 hand_over_c_func_t hand_over_entry;
@@ -55,6 +56,7 @@ uint64_t efi_launch_aps(uint64_t c_entry)
 	if (ret != EFI_SUCCESS) {
 		return 0;
 	}
+	printf("## get_number_of_processors() num_processors=%d,num_enabled_processors=%d\n", num_processors, num_enabled_processors);
 
 	if (num_enabled_processors == 1ULL) {
 		goto out;
@@ -66,8 +68,10 @@ uint64_t efi_launch_aps(uint64_t c_entry)
 		return 0;
 	}
 
+	printf("## enter startup_all_aps()\n");
 	/* Signal APs to startup */
 	ret = mp->startup_all_aps(mp, ap_start, FALSE, empty_event, 0, NULL, NULL);
+	printf("## return startup_all_aps() ret=%d\n", ret);
 	if (ret != EFI_SUCCESS) {
 		return 0;
 	}
