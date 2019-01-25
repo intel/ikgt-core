@@ -14,7 +14,6 @@
  * limitations under the License.
  *******************************************************************************/
 #include "dbg.h"
-#include "vmm_util.h"
 #include "hmm.h"
 #include "vtd_acpi.h"
 #include "lib/util.h"

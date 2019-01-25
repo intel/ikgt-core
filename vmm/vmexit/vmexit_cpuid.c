@@ -17,7 +17,6 @@
 #include "vmm_base.h"
 #include "gcpu.h"
 #include "guest.h"
-#include "vmm_util.h"
 #include "vmexit_cpuid.h"
 
 /* used for CPUID leaf 0x3.

@@ -18,7 +18,6 @@
 #include "evmm_desc.h"
 #include "heap.h"
 #include "gdt.h"
-#include "vmm_util.h"
 #include "idt.h"
 #include "isr.h"
 #include "stack.h"
@@ -527,6 +526,18 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 	//print_panic("CPU%d Resume initial guest cpu failed\n", cpuid);
 
 	//VMM_DEADLOOP();
+}
+
+typedef void (*func_main_continue_t) (void *params);
+static inline void hw_set_stack_pointer(uint64_t new_rsp, func_main_continue_t func, void *params)
+{
+	__asm__ __volatile__(
+		"mov %0, %%rsp;"
+		"mov %2, %%rdi;"
+		"call *%1;"
+		"jmp ."
+		::"r"(new_rsp), "r"((uint64_t)func), "r"((uint64_t)params)
+	);
 }
 
 void vmm_main(uint32_t cpuid,

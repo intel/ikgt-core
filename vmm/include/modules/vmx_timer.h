@@ -22,7 +22,6 @@
 #endif
 
 #include "vmx_cap.h"
-#include "vmm_util.h"
 
 typedef enum {
 	TIMER_MODE_PERIOD,

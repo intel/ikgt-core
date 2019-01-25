@@ -14,7 +14,6 @@
 * limitations under the License.
 *******************************************************************************/
 #include "heap.h"
-#include "vmm_util.h"
 #include "dbg.h"
 #include "hmm.h"
 #include "host_cpu.h"

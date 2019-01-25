@@ -21,7 +21,6 @@
 #include "vmcs.h"
 #include "vmx_cap.h"
 #include "hmm.h"
-#include "vmm_util.h"
 #include "vmx_asm.h"
 #include "stack.h"
 #include "scheduler.h"

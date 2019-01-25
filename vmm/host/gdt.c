@@ -17,7 +17,6 @@
 #include "vmm_base.h"
 #include "vmm_arch.h"
 #include "heap.h"
-#include "vmm_util.h"
 #include "gdt.h"
 #include "dbg.h"
 #include "host_cpu.h"
@@ -213,7 +212,7 @@ void gdt_load(IN uint16_t cpu_id)
 
 	asm_set_ds(GDT_DATA_OFFSET);
 	asm_set_ss(GDT_DATA_OFFSET);
-	hw_write_cs(GDT_CODE64_OFFSET);
+	asm_set_cs(GDT_CODE64_OFFSET);
 
 	asm_ltr(TSS_ENTRY_OFFSET(cpu_id));
 

@@ -17,7 +17,6 @@
 #include "hmm.h"
 #include "guest.h"
 #include "gcpu.h"
-#include "vmm_util.h"
 #include "page_walker.h"
 
 #define PAGE_FLAG_P (1ull<<0)

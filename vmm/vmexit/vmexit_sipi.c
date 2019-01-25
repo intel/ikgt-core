@@ -15,7 +15,6 @@
 *******************************************************************************/
 
 #include "vmm_base.h"
-#include "vmm_util.h"
 #include "vmcs.h"
 #include "gcpu.h"
 #ifdef WORKAROUND_MISSING_INIT_SIGNAL

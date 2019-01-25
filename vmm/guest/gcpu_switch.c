@@ -24,7 +24,6 @@
 #include "host_cpu.h"
 #include "gcpu_inject_event.h"
 #include "event.h"
-#include "vmm_util.h"
 #include "stack.h"
 
 #include "lib/util.h"
