@@ -48,7 +48,6 @@
 #include "gcpu_state.h"
 #include "gcpu_switch.h"
 #include "hmm.h"
-#include "vmm_util.h"
 #include "vmcs.h"
 #include "vmx_cap.h"
 #include "stack.h"

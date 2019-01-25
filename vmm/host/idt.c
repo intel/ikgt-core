@@ -19,10 +19,11 @@
  */
 
 #include "vmm_base.h"
+#include "vmm_asm.h"
 #include "vmm_arch.h"
 #include "heap.h"
-#include "vmm_util.h"
 #include "idt.h"
+#include "gdt.h"
 #include "dbg.h"
 
 /*

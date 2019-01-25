@@ -17,7 +17,6 @@
 #include "vmm_base.h"
 #include "vmm_arch.h"
 #include "heap.h"
-#include "vmm_util.h"
 #include "guest.h"
 #include "gcpu.h"
 #include "gcpu_inject_event.h"

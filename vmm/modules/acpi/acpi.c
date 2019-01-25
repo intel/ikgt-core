@@ -176,8 +176,8 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 		if ((tbl->signature == sig) &&
 			!checksum((unsigned char *)tbl, tbl->length)) {
 			/* Found the table with matched signature */
-			print_trace("Found the table %s address = 0x%llX length = 0x%X\n",
-				sig, tbl, tbl->length);
+			print_trace("Found the table [%c%c%c%c]: address = 0x%llX length = 0x%X\n",
+				(char)sig, (char)(sig>>8), (char)(sig>>16), (char)(sig>>24), tbl, tbl->length);
 			return tbl;
 		}
 	}

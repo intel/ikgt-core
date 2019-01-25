@@ -14,18 +14,17 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <vmm_arch.h>
-#include <heap.h>
-#include <vmm_util.h>
-#include <idt.h>
-#include <gdt.h>
-#include <dbg.h>
+#include "vmm_arch.h"
+#include "heap.h"
+#include "idt.h"
+#include "gdt.h"
+#include "dbg.h"
 #include "hmm.h"
 #include "stack.h"
 #include "vmm_arch.h"
 #include "host_cpu.h"
 
-#include <lib/image_loader.h>
+#include "lib/image_loader.h"
 #include "lib/util.h"
 
 #define CR3_ATTR_RW 0x3 //p,w,!x

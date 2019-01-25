@@ -15,7 +15,6 @@
 *******************************************************************************/
 
 #include "vmm_base.h"
-#include "vmm_util.h"
 #include "gcpu.h"
 #include "vmexit.h"
 

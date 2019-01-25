@@ -14,12 +14,11 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <mam.h>
-#include <hmm.h>
-#include <heap.h>
-#include <dbg.h>
-#include <vmm_util.h>
-#include <vmx_cap.h>
+#include "mam.h"
+#include "hmm.h"
+#include "heap.h"
+#include "dbg.h"
+#include "vmx_cap.h"
 
 /* ASSUMPTION: for the memory allocated from vmm_page_alloc(), hva == hpa
 ** this is correct for pre-os launch. for host CR3, all hva == hpa, except:

@@ -15,7 +15,6 @@
 *******************************************************************************/
 
 #include "vmx_cap.h"
-#include "vmm_util.h"
 #include "heap.h"
 #include "hmm.h"
 #include "host_cpu.h"

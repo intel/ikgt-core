@@ -17,7 +17,6 @@
 #include "vmm_base.h"
 #include "gcpu.h"
 #include "guest.h"
-#include "vmm_util.h"
 #include "scheduler.h"
 #include "dbg.h"
 

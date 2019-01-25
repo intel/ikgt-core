@@ -24,7 +24,6 @@
 #include "gpm.h"
 #include "hmm.h"
 #include "event.h"
-#include "vmm_util.h"
 
 #include "modules/vmenter_check.h"
 

@@ -651,6 +651,21 @@ static inline uint16_t asm_get_ss(void)
 	return value;
 }
 
+static inline void asm_set_cs(uint16_t data)
+{
+	__asm__ __volatile__ (
+		"xor %%rax, %%rax;"
+		"movw %0, %%ax;"
+		"pushq %%rax;"
+		"lea 1f(%%rip), %%rdx;"
+		"pushq %%rdx;"
+		"lretq;"
+		"1: nop;"
+		:: "r" (data)
+		: "rax", "rdx"
+	);
+}
+
 static inline void asm_set_ds(uint16_t data)
 {
 	__asm__ __volatile__ (
@@ -846,5 +861,38 @@ static inline uint32_t asm_get_pkru(void)
 		::"edx", "ecx"
 		);
 	return value;
+}
+
+static inline uint32_t get_max_phy_addr(void)
+{
+	cpuid_params_t cpuid_params = {0x80000008, 0, 0, 0};
+
+	asm_cpuid(&cpuid_params);
+
+	return (cpuid_params.eax & 0xFF);
+}
+
+#define hw_flash_tlb()      asm_set_cr3(asm_get_cr3())
+
+static inline void asm_perform_iret(void)
+{
+	__asm__ __volatile__(
+		"lea     1f(%%rip), %%rax;"  // RIP -> RAX
+		"mov     %%cs,   %%rbx;"     // CS  -> RBX
+		"mov     %%rsp,  %%rcx;"     // RSP -> RCX
+		"mov     %%ss,   %%rdx;"     // SS  -> RDX
+
+		"push    %%rdx;"             // [       SS         ]
+		"push    %%rcx;"             // [       RSP        ]
+		"pushfq;"                    // [      RFLAGS      ]
+		"push    %%rbx;"             // [       CS         ]
+		"push    %%rax;"             // [       RIP        ]
+
+		"iretq;"                     // perform IRET
+
+		"1: nop"
+
+		::: "rax", "rbx", "rcx", "rdx"
+	);
 }
 #endif

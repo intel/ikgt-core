@@ -25,7 +25,6 @@
 #include "vmx_cap.h"
 #include "event.h"
 #include "host_cpu.h"
-#include "vmm_util.h"
 
 #include "lib/lapic_ipi.h"
 #include "lib/util.h"
@@ -80,7 +79,7 @@ static void vmexit_nmi(guest_cpu_handle_t gcpu)
 			break;
 		case VECTOR_TYPE_NMI:
 			host_cpu_inc_pending_nmi();
-			hw_perform_asm_iret();
+			asm_perform_iret();
 			print_trace("hcpu%d, %s(): nmi=%d\n", host_cpu_id(),
 				__FUNCTION__, host_cpu_get_pending_nmi());
 			break;

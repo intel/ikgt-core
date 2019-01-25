@@ -20,7 +20,6 @@
 #include "dbg.h"
 #include "host_cpu.h"
 #include "gcpu.h"
-#include "vmm_util.h"
 #include "vmexit.h"
 #include "gcpu_inject_event.h"
 

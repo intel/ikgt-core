@@ -15,7 +15,6 @@
 *******************************************************************************/
 #include "guest.h"
 #include "gcpu.h"
-#include "vmm_util.h"
 #include "host_cpu.h"
 #include "dbg.h"
 #include "event.h"
