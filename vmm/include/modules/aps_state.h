@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2018 Intel Corporation.
+ * Copyright (c) 2015-2019 Intel Corporation.
  * All rights reserved.
  *
- * SPDX-License-Identidfier: Apache-2.0
+ * SPDX-License-Identifier: Apache-2.0
  *
  */
+
 #ifndef _APS_STATE_H_
 #define _APS_STATE_H_
 
