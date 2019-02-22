@@ -32,6 +32,8 @@
 #define MBI_APM          (1 << 10)
 #define MBI_VBE          (1 << 11)
 
+#define CHECK_FLAG(flag, bit)    ((flag) & (1 << (bit)))
+
 typedef struct {
 	uint32_t tabsize;
 	uint32_t strsize;
