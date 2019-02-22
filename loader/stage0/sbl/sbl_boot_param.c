@@ -15,8 +15,6 @@
 #include "lib/util.h"
 #include "lib/string.h"
 
-#define CHECK_FLAG(flag, bit)   ((flag) & (1 << (bit)))
-
 /* The cmdline is present like:
  *       "ImageBootParamsAddr=0x12345"
  */

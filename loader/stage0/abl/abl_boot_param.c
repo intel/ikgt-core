@@ -17,8 +17,6 @@
 #include "lib/util.h"
 #include "lib/string.h"
 
-#define CHECK_FLAG(flag, bit)    ((flag) & (1 << (bit)))
-
 boolean_t get_emmc_serial(android_image_boot_params_t *android_boot_params, char *serial)
 {
 	multiboot_info_t *mbi;

@@ -374,7 +374,7 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 					launch_trusty(gcpu, next_gcpu);
 				} else {
 					smc_stage = SMC_STAGE_LK_DONE;
-					print_info("VMM: Launch Android\n");
+					print_info("VMM: Launch Normal World\n");
 				}
 			}
 			break;
