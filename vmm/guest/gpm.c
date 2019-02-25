@@ -103,7 +103,7 @@ static uint32_t ept_leaf_get_attr(uint64_t leaf_entry, UNUSED uint32_t level)
 	{
 		ept_attr.uint32 = leaf_entry & EPT_ATTR_MASK; // get r,w,x,emt
 	}
-	if ((leaf_entry & EPT_VE) == 1)
+	if (leaf_entry & EPT_VE)
 		ept_attr.bits.ve = 1;
 	return ept_attr.uint32;
 }
