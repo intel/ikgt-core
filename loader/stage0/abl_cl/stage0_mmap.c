@@ -58,6 +58,7 @@ boolean_t init_stage0_mmap(multiboot_info_t *mbi, uint32_t *tmp_type)
 		stage0_mmap[i].addr = mmap->addr;
 		stage0_mmap[i].len = mmap->len;
 		stage0_mmap[i].type = mmap->type;
+
 		if (i != 0)
 			stage0_mmap[i - 1].next = (stage0_mmap_t *)&stage0_mmap[i];
 		if (mmap->type > max_type) {
@@ -206,10 +207,34 @@ inline static void set_e820_entry(e820entry_t *e820_map, stage0_mmap_t *mmap)
 {
 	e820_map->addr = mmap->addr;
 	e820_map->size = mmap->len;
-	if (mmap->type == g_tmp_type) {
-		e820_map->type = MULTIBOOT_MEMORY_AVAILABLE;
-	} else {
-		e820_map->type = mmap->type;
+	e820_map->type = mmap->type;
+}
+
+static void stage0_mmap_restore_type(void)
+{
+	stage0_mmap_t *mmap = &stage0_mmap[0];
+
+	while (mmap) {
+		if (mmap->type == g_tmp_type) {
+			mmap->type = MULTIBOOT_MEMORY_AVAILABLE;
+		}
+		mmap = mmap->next;
+	}
+}
+
+static void stage0_mmap_merge(void)
+{
+	stage0_mmap_t *mmap = &stage0_mmap[0];
+
+	while (mmap) {
+		if (mmap->next &&
+		    (mmap->type == mmap->next->type) &&
+		    (mmap->addr + mmap->len == mmap->next->addr)) {
+			mmap->len += mmap->next->len;
+			mmap->next = mmap->next->next;
+		} else {
+			mmap = mmap->next;
+		}
 	}
 }
 
@@ -223,18 +248,12 @@ boolean_t stage0_mmap_to_e820(boot_params_t *bp)
 		return FALSE;
 	}
 
+	stage0_mmap_restore_type();
+	stage0_mmap_merge();
+
 	while (mmap) {
-		if (i == 0) {
-			set_e820_entry(&bp->e820_map[i], mmap);
-			i++;
-		} else if ((mmap->type == g_tmp_type) &&
-				(bp->e820_map[i-1].type == MULTIBOOT_MEMORY_AVAILABLE) &&
-				(bp->e820_map[i-1].addr + bp->e820_map[i-1].size == mmap->addr)) {
-			bp->e820_map[i-1].size += mmap->len;
-		} else {
-			set_e820_entry(&bp->e820_map[i], mmap);
-			i++;
-		}
+		set_e820_entry(&bp->e820_map[i], mmap);
+		i++;
 		mmap = mmap->next;
 	}
 	bp->e820_entries = i;
