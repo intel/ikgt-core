@@ -74,6 +74,60 @@ static uint32_t get_image_size(uint64_t base)
 	return sum;
 }
 
+static boolean_t fill_device_sec_info(device_sec_info_v0_t *dev_sec_info, uint64_t svnseed_addr, uint64_t rpmb_key_addr)
+{
+	uint32_t i;
+	abl_svnseed_t *svnseed = (abl_svnseed_t *)svnseed_addr;
+	uint8_t *rpmb_key = (uint8_t *)rpmb_key_addr;
+
+	if (!svnseed) {
+		print_panic("%s: Invalid input params!\n", __func__);
+		return FALSE;
+	}
+
+	if (svnseed->size_of_this_struct != sizeof(abl_svnseed_t)) {
+		print_panic("%s: structure size of abl_svnseed mismatch!\n", __func__);
+		return FALSE;
+	}
+
+	if (svnseed->num_seeds > ABL_SEED_LIST_MAX) {
+		print_panic("%s: number of svnseed exceed max value!\n", __func__);
+		return FALSE;
+	}
+
+	dev_sec_info->size_of_this_struct = sizeof(device_sec_info_v0_t);
+	dev_sec_info->version = 0;
+
+	/* in manufaturing mode | secure boot disabled | production seed */
+	dev_sec_info->flags = 0x1 | 0x0 | 0x0;
+	dev_sec_info->platform = 1; // APL + ABL
+
+	dev_sec_info->num_seeds = svnseed->num_seeds;
+
+	/* copy svnseed to dseed_list */
+	for (i = 0; i < svnseed->num_seeds; i++) {
+		dev_sec_info->dseed_list[i].cse_svn = svnseed->seed_list[i].svn;
+		memcpy(dev_sec_info->dseed_list[i].seed, svnseed->seed_list[i].seed, ABL_SEED_LEN);
+	}
+
+	/* clear original seed */
+	memset(svnseed, 0, sizeof(abl_svnseed_t));
+
+	if (rpmb_key) {
+		/* RPMB key provisioned by ABL */
+		/* copy rpmb key */
+		memcpy(&dev_sec_info->rpmb_key[0][0], rpmb_key, ABL_RPMB_KEY_LEN);
+
+		/* clear original rpmb key */
+		memset(rpmb_key, 0, ABL_RPMB_KEY_LEN);
+	} else {
+		/* RPMB key is not provisioned, set a pre-defined key */
+		memset(dev_sec_info->rpmb_key, 0x00, sizeof(dev_sec_info->rpmb_key));
+	}
+
+	return TRUE;
+}
+
 /* Function: stage0_main
  * Description: Called by start() in stage0_entry.S. Jumps to stage1.
  * This function never returns back.
@@ -164,7 +218,10 @@ void stage0_main(
 	insert_stage0_mmap((uint64_t)mbi, sizeof(multiboot_info_t), tmp_type);
 	insert_stage0_mmap((uint64_t)mbi->mmap_addr, (uint64_t)mbi->mmap_length, tmp_type);
 	insert_stage0_mmap((uint64_t)mbi->cmdline, (uint64_t)cmdline_len + 1, tmp_type);
-	//TODO: remove SEED/RPMB region
+	insert_stage0_mmap(cmdline_params.svnseed_addr, sizeof(abl_svnseed_t), tmp_type);
+	if (cmdline_params.rpmb_key_addr) {
+		insert_stage0_mmap(cmdline_params.rpmb_key_addr, ABL_RPMB_KEY_LEN, tmp_type);
+	}
 
 	ret = get_max_stage0_mmap(&mem_base, &mem_len);
 	if (!ret) {
@@ -229,7 +286,7 @@ void stage0_main(
 	dev_sec_info = &loader_mem->dev_sec_info;
 	memset(dev_sec_info, 0, sizeof(device_sec_info_v0_t));
 
-	make_dummy_trusty_info(dev_sec_info);
+	fill_device_sec_info(dev_sec_info, cmdline_params.svnseed_addr, cmdline_params.rpmb_key_addr);
 
 	/* Phase 4: Get address of evmm description */
 	evmm_desc = &loader_mem->xd;

@@ -17,13 +17,21 @@
 #include "lib/string.h"
 
 /*
- * The ABL.image is like: "0x600000@0xa000a000" which means size@addr with hexadecimal coding
+ * The argument is like: "image1=0x600000@0xa000a000" which means size@addr with hexadecimal coding
  */
-static boolean_t parse_region(const char *cmdline, uint32_t *base, uint32_t *size)
+static boolean_t parse_region(const char *cmdline, const char *str, uint32_t *base, uint32_t *size)
 {
 	const char *arg;
+	uint32_t len = strnlen_s(str, MAX_STR_LEN);
 
-	*size = str2uint(cmdline, 10, &arg, 16);
+	arg = strstr_s(cmdline, MAX_STR_LEN, str, len);
+	if (!arg) {
+		print_panic("%s: %s not found in cmdline\n", __func__, str);
+		return FALSE;
+	}
+
+	arg += len;
+	*size = str2uint(arg, 10, &arg, 16);
 	if ((*size == (uint32_t)-1) || (*size == 0)) {
 		print_panic("Failed to parse image size!\n");
 		return FALSE;
@@ -44,6 +52,8 @@ static boolean_t parse_region(const char *cmdline, uint32_t *base, uint32_t *siz
 	return TRUE;
 }
 
+#define ABL_VER_STR     "ABL.hwver="
+#define ABL_VER_STR_LEN (sizeof(ABL_VER_STR) - 1)
 /* The ABL.hwver is like:
  *	"51,4,1900,b00f,0,8192" which means as below:
  *      "cpu_stepping,number_of_cores,max_non_turbo_frequency,platform_id,sku,total_amount_of_memory_present"
@@ -53,17 +63,25 @@ static uint32_t get_cpu_num(const char *cmdline)
 	const char *arg;
 	uint32_t cpu_num;
 
+	arg = strstr_s(cmdline, MAX_STR_LEN, ABL_VER_STR, ABL_VER_STR_LEN);
+	if (!arg) {
+		print_panic("ABL.hwver not found in cmdline\n");
+		return FALSE;
+	}
+
+	arg += ABL_VER_STR_LEN;
+
 	/* skip cpu stepping and get cpu numbers
 	 * assume cpu stepping will not longer than 5 */
-	cmdline = strstr_s(cmdline, 5, ",", 1);
-	if (!cmdline) {
+	arg = strstr_s(arg, 5, ",", 1);
+	if (!arg) {
 		print_panic("CPU number not found in cmdline!\n");
 		return 0;
 	}
 
-	/* now the param point to the 1st ','
-	 * get cpu number from param+1 */
-	cpu_num = str2uint(cmdline+1, 2, &arg, 10);
+	/* now the arg point to the 1st ','
+	 * get cpu number from arg+1 */
+	cpu_num = str2uint(arg + 1, 2, NULL, 10);
 	if ((cpu_num > MAX_CPU_NUM) || (cpu_num == 0)) {
 		print_panic("CPU number parse failed!\n");
 		return 0;
@@ -72,14 +90,50 @@ static uint32_t get_cpu_num(const char *cmdline)
 	return cpu_num;
 }
 
+/* Parse argument like: str=0xdeadbeef */
+static boolean_t parse_integer_arg(const char *cmdline, const char *str, uint32_t base, boolean_t wipe_orig, uint32_t *value)
+{
+	const char *arg, *arg_end;
+	uint32_t len;
+
+	len = strnlen_s(str, MAX_STR_LEN);
+
+	arg = strstr_s(cmdline, MAX_STR_LEN, str, len);
+	if (!arg) {
+		return FALSE;
+	}
+
+	*value = str2uint(arg + len, 10, &arg_end, base);
+	if (*value == (uint32_t)-1) {
+		return FALSE;
+	}
+
+	if (wipe_orig) {
+		memset((void *)(uint64_t)arg, ' ', (uint32_t)(arg_end - arg));
+	}
+
+	return TRUE;
+}
+
+static boolean_t parse_addr(const char *cmdline, const char *str, uint32_t *addr)
+{
+	boolean_t ret;
+
+	/* Parse ABL.svnseed (must have) */
+	ret = parse_integer_arg(cmdline, str, 16, TRUE, addr);
+	if (!ret || (*addr == 0)) {
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 /* The cmdline is present like:
  *       "ABL.image1=0x600000@0xa000a000 ABL.hwver=51,4,1900,b00f,0,8192"
  */
 boolean_t cmdline_parse(multiboot_info_t *mbi, cmdline_params_t *cmdline_param)
 {
 	const char *cmdline;
-	const char *arg;
-	uint32_t addr = 0, size = 0;
 	uint32_t cpu_num;
 	boolean_t ret;
 
@@ -95,37 +149,30 @@ boolean_t cmdline_parse(multiboot_info_t *mbi, cmdline_params_t *cmdline_param)
 
 	cmdline = (const char *)(uint64_t)mbi->cmdline;
 
-	/* Parse ABL.hwver */
-	arg = strstr_s(cmdline, MAX_STR_LEN, "ABL.hwver=", sizeof("ABL.hwver=")-1);
-	if (!arg) {
-		print_panic("ABL.hwver not found in cmdline\n");
+	/* Parse address of seed (must have)*/
+	ret = parse_addr(cmdline, "ABL.svnseed=", &cmdline_param->svnseed_addr);
+	if (!ret) {
+		print_panic("Failed to parse address of svnseed!\n");
 		return FALSE;
 	}
 
-	arg = arg + sizeof("ABL.hwver=") - 1;
+	/* Parse address of rpmb key (optional) */
+	parse_addr(cmdline, "ABL.rpmb=", &cmdline_param->rpmb_key_addr);
 
-	cpu_num = get_cpu_num(arg);
+	/* Parse cpu num from cmdline (must have) */
+	cpu_num = get_cpu_num(cmdline);
 	if (cpu_num == 0) {
 		print_panic("Failed to get cpu num!\n");
 		return FALSE;
 	}
 	cmdline_param->cpu_num = (uint64_t)cpu_num;
 
-	/* image1 (bzImage, must have) */
-	arg = strstr_s(cmdline, MAX_STR_LEN, "ABL.image1=", sizeof("ABL.image1=")-1);
-	if (!arg) {
-		print_panic("ABL.image1 not found in cmdline!\n");
-		return FALSE;
-	}
-
-	arg = arg + sizeof("ABL.image1=")-1;
-	ret = parse_region(arg, &addr, &size);
+	/* Parse image1 (bzImage, must have) */
+	ret = parse_region(cmdline, "ABL.image1=", &cmdline_param->bzImage_base, &cmdline_param->bzImage_size);
 	if (!ret) {
-		print_panic("ABL.image1 params parse failed!\n");
+		print_panic("Failed to parse ABL.image1!\n");
 		return FALSE;
 	}
-	cmdline_param->bzImage_size = (uint64_t)size;
-	cmdline_param->bzImage_base = (uint64_t)addr;
 
 	/* currently, clear linux doesn't need initrd */
 	cmdline_param->initrd_size = 0;
