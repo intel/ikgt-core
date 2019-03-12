@@ -159,10 +159,9 @@ void stage0_main(
 
 	fill_g0gcpu0(&evmm_desc->guest0_gcpu0_state, &and_boot->CpuState);
 
-	/* loadtime_addr and loadtime_size will be filled in vmcall from osloader */
 #if defined (MODULE_TRUSTY_GUEST)
-	evmm_desc->trusty_desc.lk_file.runtime_addr = (uint64_t)trusty_boot->TrustyMemBase;
-	evmm_desc->trusty_desc.lk_file.runtime_total_size = ((uint64_t)(trusty_boot->TrustyMemSize)) << 10;
+	/* tos.img will be relocated by osloader */
+	evmm_desc->trusty_desc.lk_file.runtime_total_size = 16 MEGABYTE;
 	evmm_desc->trusty_desc.dev_sec_info = dev_sec_info;
 	/* rip and rsp will be filled in vmcall from osloader */
 	setup_32bit_env(&evmm_desc->trusty_desc.gcpu0_state);
