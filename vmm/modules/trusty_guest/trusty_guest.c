@@ -135,6 +135,7 @@ static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gc
 
  */
 
+#if defined (PACK_LK) || defined (QEMU_LK)
 static void relocate_trusty_image(uint64_t offset)
 {
 	boolean_t ret = FALSE;
@@ -156,6 +157,7 @@ static void relocate_trusty_image(uint64_t offset)
 	trusty_desc->lk_file.runtime_addr -= offset;
 	trusty_desc->lk_file.runtime_total_size += PAGE_4K_SIZE;
 }
+#endif
 
 #ifdef DERIVE_KEY
 static int get_max_svn_index(device_sec_info_v0_t *sec_info)
@@ -283,26 +285,16 @@ static void setup_trusty_mem(void)
 static void parse_trusty_boot_param(guest_cpu_handle_t gcpu)
 {
 	uint64_t rdi;
-	trusty_boot_params_v0_t *trusty_boot_params_v0 = NULL;
-	trusty_boot_params_v1_t *trusty_boot_params_v1 = NULL;
+	trusty_boot_params_t *trusty_boot_params = NULL;
 
 	/* avoid warning -Wbad-function-cast */
 	rdi = gcpu_get_gp_reg(gcpu, REG_RDI);
 	VMM_ASSERT_EX(rdi, "Invalid trusty boot params\n");
 
-	/* Different structure pass from OSloader
-	 * For v0 structure, runtime_addr is filled in evmm stage0 loader
-	 * For v1 structure, runtime_addr is filled here from trusty_boot_params_v1 */
-	if (trusty_desc->lk_file.runtime_addr) {
-		trusty_boot_params_v0 = (trusty_boot_params_v0_t *)rdi;
-		trusty_desc->lk_file.loadtime_addr = trusty_boot_params_v0->load_base;
-		trusty_desc->lk_file.loadtime_size = trusty_boot_params_v0->load_size;
-		relocate_trusty_image(PAGE_4K_SIZE);
-	} else {
-		trusty_boot_params_v1 = (trusty_boot_params_v1_t *)rdi;
-		trusty_desc->gcpu0_state.rip = trusty_boot_params_v1->entry_point;
-		trusty_desc->lk_file.runtime_addr = trusty_boot_params_v1->runtime_addr;
-	}
+	/* trusty_boot_params is passed from OSloader */
+	trusty_boot_params = (trusty_boot_params_t *)rdi;
+	trusty_desc->gcpu0_state.rip = trusty_boot_params->entry_point;
+	trusty_desc->lk_file.runtime_addr = trusty_boot_params->runtime_addr;
 }
 
 static void launch_trusty(guest_cpu_handle_t gcpu_android, guest_cpu_handle_t gcpu_trusty)
