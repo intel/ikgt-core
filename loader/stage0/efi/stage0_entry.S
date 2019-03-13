@@ -37,9 +37,8 @@ tos_image_header:
 	.long  TOS_IMAGE_VERSION
 	/* entry offset */
 	.long  start_x64 - start
-	/* tos_ldr_size: EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE +
-	 *               4KB(reserved for evmm_desc_t) */
-	.long  EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE + 0x1000
+	/* tos_ldr_size: EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE + EVMM_PAYLOAD_SIZE */
+	.long  EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE + EVMM_PAYLOAD_SIZE
 	.byte  TOS_STARTUP_VERSION
 	/* reserved */
 	.fill 3, 1, 0
