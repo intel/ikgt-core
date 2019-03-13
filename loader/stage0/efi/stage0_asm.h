@@ -24,4 +24,7 @@
 #define STAGE1_IMG_SIZE	              0xC000
 #define SEED_MSG_DST_OFFSET           0
 
+/* This payload memory will store evmm_desc_t and device_sec_info_t */
+#define EVMM_PAYLOAD_SIZE             0x2000
+
 #endif

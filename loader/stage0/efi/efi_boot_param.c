@@ -7,6 +7,7 @@
  */
 
 #include "vmm_base.h"
+#include "stage0_asm.h"
 #include "ldr_dbg.h"
 #include "efi_boot_param.h"
 #include "stage0_lib.h"
@@ -15,12 +16,18 @@
 #include "lib/util.h"
 
 typedef struct {
+	evmm_desc_t xd;
+	device_sec_info_v0_t dev_sec_info;
+} evmm_payload_t;
+
+typedef struct {
 	uint8_t image_load[EVMM_PKG_BIN_SIZE];
 	uint8_t stage1[STAGE1_IMG_SIZE];
-	evmm_desc_t xd;
-
-	device_sec_info_v0_t dev_sec_info;
+	evmm_payload_t payload;
 } memory_layout_t;
+
+_Static_assert(sizeof(evmm_payload_t) <= EVMM_PAYLOAD_SIZE,
+	       "EVMM_PAYLOAD_SIZE is not big enough to hold evmm_payload_t!");
 
 static boolean_t fill_device_sec_info(device_sec_info_v0_t *dev_sec_info, tos_startup_info_t *p_startup_info)
 {
@@ -78,7 +85,7 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 	}
 
 	loader_mem = (memory_layout_t *) loader_addr;
-	evmm_desc = &(loader_mem->xd);
+	evmm_desc = &(loader_mem->payload.xd);
 	memset(evmm_desc, 0, sizeof(evmm_desc_t));
 
 	/* get evmm/stage1 runtime_addr/total_size */
@@ -96,7 +103,7 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 	evmm_desc->tsc_per_ms = TSC_PER_MS;
 	evmm_desc->top_of_mem = TOP_OF_MEM;
 
-	dev_sec_info = &(loader_mem->dev_sec_info);
+	dev_sec_info = &(loader_mem->payload.dev_sec_info);
 	if (!fill_device_sec_info(dev_sec_info, p_startup_info)) {
 		print_panic("failed to fill the device_sec_info\n");
 		return NULL;
