@@ -692,7 +692,7 @@ static void io_monitor_gcpu_init(guest_cpu_handle_t gcpu, UNUSED void *pv)
 
 	io_mon_guest = io_monitor_guest_lookup(guest->id);
 	if (io_mon_guest == NULL) {
-		print_warn("IO bitmap for guest %d is not allocated\n", guest->id);
+		D(print_warn("IO bitmap for guest %d is not allocated\n", guest->id));
 		return;
 	}
 
