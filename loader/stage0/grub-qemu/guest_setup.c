@@ -39,3 +39,19 @@ boolean_t g0_gcpu_setup(evmm_desc_t *desc, uint64_t entry)
 
 	return TRUE;
 }
+
+void trusty_gcpu0_setup(evmm_desc_t *desc)
+{
+#if TRUSTY_64BIT_ENTRY
+	/* EAX: multiboot magic */
+	desc->trusty_desc.gcpu0_state.gp_reg[REG_RAX] = 0x2BADB002;
+	/* EBX: Trusty memory region size (16MB) in KB */
+	desc->trusty_desc.gcpu0_state.gp_reg[REG_RBX] = 0x4000;
+	/* RFLAGS: reuse loader's RFLAGS */
+	desc->trusty_desc.gcpu0_state.rflags          = asm_get_rflags();
+
+	save_current_cpu_state(&desc->trusty_desc.gcpu0_state);
+#else
+	setup_32bit_env(&(evmm_desc->trusty_desc.gcpu0_state));
+#endif
+}
