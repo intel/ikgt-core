@@ -13,6 +13,7 @@
 #include "ldr_dbg.h"
 #include "grub_boot_param.h"
 #include "guest_setup.h"
+#include "linux_loader.h"
 #include "stage0_lib.h"
 
 #include "lib/image_loader.h"
@@ -45,10 +46,13 @@ void stage0_main(const init_register_t *init_reg,
 	evmm_desc_t *evmm_desc = NULL;
 	multiboot_info_t *mbi = (multiboot_info_t *)(uint64_t)init_reg->ebx;
 	uint64_t (*stage1_main) (evmm_desc_t *xd);
-	uint64_t testrunner_entry = 0;
+	uint64_t entry = 0;
+	uint64_t boot_param_addr = 0;
+#ifdef MODULE_TRUSTY_GUEST
 	uint64_t file_start;
 	uint64_t file_size;
 	boolean_t ret;
+#endif
 
 	if (NULL == mbi) {
 		print_panic("Invalid multiboot info\n");
@@ -70,11 +74,15 @@ void stage0_main(const init_register_t *init_reg,
 		goto fail;
 	}
 
-	if (!file_parse(evmm_desc, stage0_base, MULTIBOOT_HEADER_SIZE, TOS_MAX_IMAGE_SIZE)) {
+	if (!file_parse(evmm_desc,
+			stage0_base,
+			MULTIBOOT_HEADER_SIZE,
+			TOS_MAX_IMAGE_SIZE)) {
 		print_panic("file parse failed\n");
 		goto fail;
 	}
 
+#ifdef MODULE_TRUSTY_GUEST
 	ret = parse_multiboot_module(mbi, &file_start, &file_size, TRUSTYIMG);
 	if (FALSE == ret) {
 		print_panic("Failed to parse module(%d)\n", TRUSTYIMG);
@@ -84,29 +92,35 @@ void stage0_main(const init_register_t *init_reg,
 	evmm_desc->trusty_desc.lk_file.loadtime_addr = file_start;
 	evmm_desc->trusty_desc.lk_file.loadtime_size = file_size;
 
-	ret = parse_multiboot_module(mbi, &file_start, &file_size, TESTRUNNER);
-	if (FALSE == ret) {
-		print_panic("Failed to parse module(%d)\n", TESTRUNNER);
-		goto fail;
+	ret = linux_kernel_parse(mbi, &boot_param_addr, &entry);
+	if(!ret){
+		print_info("Try to load test-runner binary.\n");
+		ret = parse_multiboot_module(mbi, &file_start, &file_size, TESTRUNNER);
+		if (ret) {
+			ret = relocate_multiboot_image((uint64_t *)file_start,
+					file_size,
+					(uint64_t *)&entry);
+		}
 	}
+#else
+	linux_kernel_parse(mbi, &boot_param_addr, &entry);
+#endif
 
-	relocate_multiboot_image((uint64_t *)file_start,
-            file_size,
-            (uint64_t *)&testrunner_entry);
 
-	if (0 == testrunner_entry) {
+	if (0 == entry) {
 		print_panic("Entry address invalid\n");
 		goto fail;
 	}
 
 	/* Primary guest environment setup */
-	if(!g0_gcpu_setup(evmm_desc, testrunner_entry)) {
+	if(!g0_gcpu_setup(boot_param_addr, evmm_desc, entry)) {
 		print_panic("Guest[0] setup failed\n");
 		goto fail;
 	}
 
-
+#ifdef MODULE_TRUSTY_GUEST
 	trusty_gcpu0_setup(evmm_desc);
+#endif
 
 	if (!relocate_elf_image(&(evmm_desc->stage1_file), (uint64_t *)&stage1_main)) {
 		print_panic("relocate stage1 failed\n");

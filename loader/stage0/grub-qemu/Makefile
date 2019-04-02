@@ -8,7 +8,7 @@
 
 TARGET = stage0.elf
 
-CSOURCES = stage0.c grub_boot_param.c guest_setup.c
+CSOURCES = stage0.c grub_boot_param.c guest_setup.c linux_loader.c
 ASOURCES = stage0_entry.S
 
 include $(PROJS)/rule.linux
@@ -18,6 +18,7 @@ OBJS = $(OUTDIR)/stage0_entry.o \
 	$(OUTDIR)/stage0_lib.o \
 	$(OUTDIR)/grub_boot_param.o \
 	$(OUTDIR)/guest_setup.o \
+	$(OUTDIR)/linux_loader.o \
 	$(LIB_DIR)/elf_ld.o \
 	$(LIB_DIR)/elf32_ld.o \
 	$(LIB_DIR)/elf64_ld.o \
