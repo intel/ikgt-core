@@ -17,23 +17,17 @@
 #include "guest_setup.h"
 #include "stage0_lib.h"
 
-boolean_t g0_gcpu_setup(evmm_desc_t *desc, uint64_t entry)
+boolean_t g0_gcpu_setup(uint64_t rsi, evmm_desc_t *desc, uint64_t rip)
 {
-	void *rsp = allocate_memory(PAGE_4K_SIZE);
-	if (rsp == NULL) {
-		print_panic("allocate stack mem failed!\n");
-		return FALSE;
-	}
-
 	desc->guest0_gcpu0_state.gp_reg[REG_RAX] = 0;
 	desc->guest0_gcpu0_state.gp_reg[REG_RBX] = 0;
 	desc->guest0_gcpu0_state.gp_reg[REG_RCX] = 0;
 	desc->guest0_gcpu0_state.gp_reg[REG_RDX] = 0;
-	desc->guest0_gcpu0_state.gp_reg[REG_RSI] = 0;
+	desc->guest0_gcpu0_state.gp_reg[REG_RSI] = rsi;
 	desc->guest0_gcpu0_state.gp_reg[REG_RDI] = 0;
 	desc->guest0_gcpu0_state.gp_reg[REG_RBP] = 0;
-	desc->guest0_gcpu0_state.gp_reg[REG_RSP] = (uint64_t)rsp;
-	desc->guest0_gcpu0_state.rip             = entry;
+	desc->guest0_gcpu0_state.gp_reg[REG_RSP] = 0;
+	desc->guest0_gcpu0_state.rip             = rip;
 	desc->guest0_gcpu0_state.rflags          = asm_get_rflags();
 
 	save_current_cpu_state(&desc->guest0_gcpu0_state);
@@ -41,6 +35,7 @@ boolean_t g0_gcpu_setup(evmm_desc_t *desc, uint64_t entry)
 	return TRUE;
 }
 
+#ifdef MODULE_TRUSTY_GUEST
 void trusty_gcpu0_setup(evmm_desc_t *desc)
 {
 #if TRUSTY_64BIT_ENTRY
@@ -56,3 +51,4 @@ void trusty_gcpu0_setup(evmm_desc_t *desc)
 	setup_32bit_env(&(evmm_desc->trusty_desc.gcpu0_state));
 #endif
 }
+#endif

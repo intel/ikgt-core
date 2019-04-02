@@ -25,6 +25,17 @@ typedef enum {
 	GRUB_MODULE_COUNT
 } grub_module_index_t;
 
+/*
+ * We support launch Linux kernel only and launch Trusty with Linux kernel
+ * If Linux kernel is launched along with Trusty, test-runner would be
+ * replaced by Linux kernel image.
+ */
+#ifdef MODULE_TRUSTY_GUEST
+#define LINUXIMG TESTRUNNER
+#else
+#define LINUXIMG MFIRST_MODULE
+#endif
+
 evmm_desc_t *boot_params_parse(multiboot_info_t *mbi);
 void init_memory_manager(uint64_t heap_base_address, uint32_t heap_size);
 void *allocate_memory(uint32_t size_request);

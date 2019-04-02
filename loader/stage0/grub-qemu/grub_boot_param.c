@@ -97,10 +97,12 @@ static evmm_desc_t *init_evmm_desc(void)
 	/* Use dummy info(Seed) for Grub */
 	make_dummy_trusty_info(&(loader_mem->dev_sec_info));
 
+#ifdef MODULE_TRUSTY_GUEST
 	/*fill trusty boot params*/
 	evmm_desc->trusty_desc.lk_file.runtime_addr = 0;
 	evmm_desc->trusty_desc.lk_file.runtime_total_size = LK_RUNTIME_SIZE;
 	evmm_desc->trusty_desc.dev_sec_info = &(loader_mem->dev_sec_info);
+#endif
 
 	return evmm_desc;
 }

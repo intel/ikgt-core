@@ -11,7 +11,7 @@
 
 #include "evmm_desc.h"
 
-boolean_t g0_gcpu_setup(evmm_desc_t *desc, uint64_t entry);
+boolean_t g0_gcpu_setup(uint64_t rsi, evmm_desc_t *desc, uint64_t rip);
 void trusty_gcpu0_setup(evmm_desc_t *desc);
 
 #endif
