@@ -57,12 +57,13 @@ static boolean_t fill_device_sec_info(device_sec_info_v0_t *dev_sec_info, tos_st
 
 	/* copy serial info from startup_info to  dev_sec_info*/
 	memcpy(dev_sec_info->serial, p_startup_info->serial, MMC_PROD_NAME_WITH_PSN_LEN);
-
+printf("duanhonghui efi copy key src=%p dest=%p seed=%p p_startup_info=%p----------------------\n",
+	       p_startup_info->rpmb_key, dev_sec_info->rpmb_key, p_startup_info->seed_list, p_startup_info);
 	/* copy RPMB keys from startup_info to  dev_sec_info*/
 	memcpy(dev_sec_info->rpmb_key, p_startup_info->rpmb_key, RPMB_MAX_PARTITION_NUMBER*64);
 
 	/* clear the seed */
-	memset(p_startup_info->seed_list, 0, sizeof(p_startup_info->seed_list));
+	memset(p_startup_info->seed_list, 6, sizeof(p_startup_info->seed_list));
 	return TRUE;
 }
 
@@ -113,5 +114,6 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 	evmm_desc->trusty_desc.lk_file.runtime_total_size = ((uint64_t)(p_startup_info->trusty_mem_size));
 	evmm_desc->trusty_desc.dev_sec_info = dev_sec_info;
 
+	printf("------------evmm_desc = %p------------", evmm_desc);
 	return evmm_desc;
 }
