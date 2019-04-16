@@ -13,6 +13,7 @@
 #include "evmm_desc.h"
 #include "grub_boot_param.h"
 #include "ldr_dbg.h"
+#include "lib/util.h"
 #include "guest_setup.h"
 #include "stage0_lib.h"
 
