@@ -532,8 +532,8 @@ typedef void (*func_main_continue_t) (void *params);
 static inline void hw_set_stack_pointer(uint64_t new_rsp, func_main_continue_t func, void *params)
 {
 	__asm__ __volatile__(
-		"mov %0, %%rsp;"
 		"mov %2, %%rdi;"
+		"mov %0, %%rsp;"
 		"call *%1;"
 		"jmp ."
 		::"r"(new_rsp), "r"((uint64_t)func), "r"((uint64_t)params)
