@@ -150,6 +150,10 @@
 #include "modules/virtual_apic.h"
 #endif
 
+#ifdef MODULE_NESTED_VT
+#include "modules/nested_vt.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -407,6 +411,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 
 #ifdef MODULE_VIRTUAL_APIC
 		virtual_apic_init();
+#endif
+
+#ifdef MODULE_NESTED_VT
+		nested_vt_init();
 #endif
 
 #ifdef MODULE_VMEXIT_INIT
