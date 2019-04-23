@@ -206,9 +206,11 @@ static void key_derive(device_sec_info_v0_t *sec_info)
 /* Set up trusty device security info and trusty startup info */
 static void setup_trusty_mem(void)
 {
-	trusty_startup_info_t *trusty_para;
-	uint32_t dev_sec_info_size;
 	uint64_t upper_start;
+#ifndef QEMU_LK
+	uint32_t dev_sec_info_size;
+	trusty_startup_info_t *trusty_para;
+#endif
 #ifdef DERIVE_KEY
 	device_sec_info_v0_t *sec_info;
 #endif
@@ -236,16 +238,19 @@ static void setup_trusty_mem(void)
 			trusty_desc->lk_file.runtime_addr,
 			trusty_desc->lk_file.runtime_total_size);
 
+#ifndef QEMU_LK
 	/* Setup trusty boot info */
 	dev_sec_info_size = *((uint32_t *)trusty_desc->dev_sec_info);
 	memcpy((void *)trusty_desc->lk_file.runtime_addr, trusty_desc->dev_sec_info, dev_sec_info_size);
 	memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
+#endif
 
 #ifdef DERIVE_KEY
 	sec_info = (device_sec_info_v0_t *)trusty_desc->lk_file.runtime_addr;
 	key_derive(sec_info);
 #endif
 
+#ifndef QEMU_LK
 	/* Setup trusty startup info */
 	trusty_para = (trusty_startup_info_t *)ALIGN_F(trusty_desc->lk_file.runtime_addr + dev_sec_info_size, 8);
 	VMM_ASSERT_EX(((uint64_t)trusty_para + sizeof(trusty_startup_info_t)) <
@@ -259,6 +264,7 @@ static void setup_trusty_mem(void)
 	/* Set RDI and RSP */
 	trusty_desc->gcpu0_state.gp_reg[REG_RDI] = (uint64_t)trusty_para;
 	trusty_desc->gcpu0_state.gp_reg[REG_RSP] = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
+#endif
 
 	/* TODO: refine it later */
 #ifdef ENABLE_SGUEST_SMP
@@ -497,6 +503,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	setup_trusty_mem();
 #elif QEMU_LK
 	relocate_trusty_image(0);
+	setup_trusty_mem();
 #else
 	/* Copy dev_sec_info from loader to VMM's memory */
 	dev_sec_info = mem_alloc(dev_sec_info_size);

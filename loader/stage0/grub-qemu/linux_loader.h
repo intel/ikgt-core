@@ -98,5 +98,8 @@ typedef struct  {
 boolean_t linux_kernel_parse(multiboot_info_t *mbi,
 		uint64_t *boot_param_addr, uint64_t *entry_point);
 
+void reserve_region_from_mmap(boot_params_t *boot_params,
+		uint64_t start, uint64_t size);
+
 #endif
 

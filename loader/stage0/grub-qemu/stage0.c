@@ -106,6 +106,21 @@ void stage0_main(const init_register_t *init_reg,
 	linux_kernel_parse(mbi, &boot_param_addr, &entry);
 #endif
 
+#ifdef MODULE_TRUSTY_GUEST
+	/*
+	 * Hardcode Trusty runtime address in QEMU project.
+	 * In general iKGT design, Trusty runtime address is specified by bootloader,
+	 * however, this information would not be provided by bootloader in QEMU project.
+	 */
+	evmm_desc->trusty_desc.lk_file.runtime_addr = TRUSTY_RUNTIME_BASE;
+	reserve_region_from_mmap((boot_params_t *)boot_param_addr,
+			evmm_desc->trusty_desc.lk_file.runtime_addr,
+			evmm_desc->trusty_desc.lk_file.runtime_total_size);
+#endif
+
+	reserve_region_from_mmap((boot_params_t *)boot_param_addr,
+		evmm_desc->evmm_file.runtime_addr,
+		evmm_desc->evmm_file.runtime_total_size);
 
 	if (0 == entry) {
 		print_panic("Entry address invalid\n");

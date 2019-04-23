@@ -101,6 +101,81 @@ static boolean_t loader_setup_boot_params(multiboot_info_t *mbi,
 	return TRUE;
 }
 
+void reserve_region_from_mmap(boot_params_t *boot_params,
+		uint64_t start,
+		uint64_t size)
+{
+	e820entry_t *mmap = boot_params->e820_map;
+	e820entry_t mmap_bak[E820MAX];
+	uint32_t org = 0;
+	uint32_t new = 0;
+	uint64_t end = start + size;
+
+	for (org = 0; org < boot_params->e820_entries; org++) {
+		mmap_bak[org].addr = mmap[org].addr;
+		mmap_bak[org].size = mmap[org].size;
+		mmap_bak[org].type = mmap[org].type;
+	}
+
+	/*
+	 * Assumption:
+	 * Trusty and evmm always reside in available memory region, so we can skip
+	 * type check.
+	 */
+	for (org = 0; org < boot_params->e820_entries; org++) {
+		if ((mmap_bak[org].addr <= start) &&
+			((mmap_bak[org].addr + mmap_bak[org].size) > start)) {
+
+			mmap[new].addr = mmap_bak[org].addr;
+
+			if (mmap[new].addr == start) {
+				mmap[new].type = MULTIBOOT_MEMORY_RESERVED;
+				mmap[new].size = size;
+
+			} else {
+				mmap[new].size = start - mmap[new].addr;
+
+				/* Next entry should be reserved */
+				new++;
+				mmap[new].addr = start;
+				mmap[new].size = size;
+				mmap[new].type = MULTIBOOT_MEMORY_RESERVED;
+			}
+
+			while (org < boot_params->e820_entries)  {
+				if ((mmap_bak[org].addr <= end) &&
+					(mmap_bak[org].addr + mmap_bak[org].size > end)) {
+
+					break;
+				}
+				org++;
+			}
+
+			/* When we reach here, either find an index, or at the end of E820 table */
+			if (org == boot_params->e820_entries) {
+				mmap[new].size = mmap_bak[org-1].addr + mmap_bak[org-1].size - start;
+				boot_params->e820_entries = new;
+				return;
+			} else {
+				if (mmap_bak[org].type == MULTIBOOT_MEMORY_RESERVED) {
+					mmap[new].size = mmap_bak[org].addr + mmap_bak[org].size - start;
+				} else {
+					new++;
+					mmap[new].addr = end;
+				mmap[new].size = mmap_bak[org].addr + mmap_bak[org].size - end;
+				mmap[new].type = MULTIBOOT_MEMORY_AVAILABLE;
+				}
+			}
+		} else {
+			mmap[new].addr = mmap_bak[org].addr;
+			mmap[new].size = mmap_bak[org].size;
+		}
+		new++;
+	}
+
+	boot_params->e820_entries = new;
+}
+
 static linux_kernel_header_t *check_linux_header(void *image,
 								uint32_t size,
 								uint64_t *boot_param,
