@@ -154,6 +154,10 @@
 #include "modules/nested_vt.h"
 #endif
 
+#ifdef MODULE_BLOCK_NPK
+#include "modules/block_npk.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -484,6 +488,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		 * since BSP needs to wait for AP before gcpu_resume(), put vtd_done()
 		 * here will take BSP more time and reduce the wait time for AP. */
 		vtd_activate();
+#endif
+
+#ifdef MODULE_BLOCK_NPK
+		block_npk();
 #endif
 	}
 
