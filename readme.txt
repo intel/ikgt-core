@@ -226,4 +226,13 @@ Config files
 	- MODULE_APS_STATE
 		Description: set Guest APs to init state
 
+	- MODULE_BLOCK_NPK
+		Description: Disable NPK device
+		Dependency:
+			MODULE_DEV_BLK
+		SubFlags:
+			- NPK_PCI_BUS
+			- NPK_PCI_DEV
+			- NPK_PCI_FUN
+
 End of file
