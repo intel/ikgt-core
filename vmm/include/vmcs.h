@@ -168,6 +168,9 @@ typedef enum {
 
 #define VMCS_ERRO_MASK 0x41 //check RFLAGS bit 0 :cf ,bit6:zf
 
+#define ENC_HIGH_TYPE_BIT     0x1
+#define IS_ENCODING_HIGH_TYPE(enc)   ((enc) & (ENC_HIGH_TYPE_BIT))
+
 typedef struct vmcs_object_t *vmcs_obj_t;
 
 /*
@@ -190,6 +193,7 @@ uint32_t vmcs_dump_all(vmcs_obj_t vmcs, char *buffer, uint32_t size);
 void vmcs_set_ptr(vmcs_obj_t vmcs);
 void vmcs_clr_ptr(vmcs_obj_t vmcs);
 void vmx_on(uint64_t *addr);
+vmcs_field_t enc2id(uint32_t vmcs_encoding);
 #define vmx_off()                  asm_vmxoff()
 #endif
 

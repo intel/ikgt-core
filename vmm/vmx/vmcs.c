@@ -460,3 +460,38 @@ uint32_t vmcs_dump_all(vmcs_obj_t vmcs, char *buffer, uint32_t size)
 	}
 	return length;
 }
+
+#define ENC_M_BITS      0x6000
+#define ENC_64_WIDTH    0x2000
+#define IS_ENCODING_64BIT(enc)   ((enc & (ENC_M_BITS)) == (ENC_64_WIDTH))
+vmcs_field_t enc2id(uint32_t vmcs_encoding)
+{
+	uint32_t        encoding;
+	vmcs_field_t    cur_field;
+
+	encoding = vmcs_encoding;
+
+	if (IS_ENCODING_HIGH_TYPE(encoding))
+	{
+		if (!IS_ENCODING_64BIT(encoding))
+		{
+			print_panic("VMCS Encoding %P does not map to a known HIGH type encoding\n", encoding);
+			return -1;
+		}
+
+		encoding = encoding & (~ENC_HIGH_TYPE_BIT); // remove high type bit
+	}
+
+	/* search though all supported fields */
+	for (cur_field = (vmcs_field_t)0; cur_field < VMCS_FIELD_COUNT; ++cur_field)
+	{
+		if (encoding == g_field_data[cur_field].encoding)
+		{
+			return cur_field;
+		}
+	}
+
+	print_panic("VMCS Encoding %P is unknown\n", vmcs_encoding);
+	return -1;
+
+}
