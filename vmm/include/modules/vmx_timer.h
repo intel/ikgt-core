@@ -13,6 +13,7 @@
 #error "MODULE_VMX_TIMER is required "
 #endif
 
+#include "lib/util.h"
 #include "vmx_cap.h"
 
 typedef enum {
@@ -28,28 +29,28 @@ void vmx_timer_set_mode(guest_cpu_handle_t gcpu, uint32_t mode, uint64_t periodi
 uint32_t vmx_timer_get_mode(guest_cpu_handle_t gcpu);
 void vmx_timer_copy(guest_cpu_handle_t gcpu_from, guest_cpu_handle_t gcpu_to);
 
-uint64_t inline vmx_timer_tick_to_tsc(uint64_t tick)
+inline uint64_t vmx_timer_tick_to_tsc(uint64_t tick)
 {
 	msr_misc_data_t misc_data;
 	misc_data.uint64 = get_misc_data_cap();
 	return tick << (misc_data.bits.vmx_timer_scale);
 }
 
-uint64_t inline vmx_timer_tick_to_ms(uint64_t tick)
+inline uint64_t vmx_timer_tick_to_ms(uint64_t tick)
 {
-	return vmx_timer_tick_to_tsc(tick) /(get_tsc_per_ms());
+	return vmx_timer_tick_to_tsc(tick) / tsc_per_ms;
 }
 
-uint64_t inline vmx_timer_tsc_to_tick(uint64_t tsc)
+inline uint64_t vmx_timer_tsc_to_tick(uint64_t tsc)
 {
 	msr_misc_data_t misc_data;
 	misc_data.uint64 = get_misc_data_cap();
 	return tsc >> (misc_data.bits.vmx_timer_scale);
 }
 
-uint64_t inline vmx_timer_ms_to_tick(uint64_t ms)
+inline uint64_t vmx_timer_ms_to_tick(uint64_t ms)
 {
-	return vmx_timer_tsc_to_tick(ms * (get_tsc_per_ms()));
+	return vmx_timer_tsc_to_tick(ms * tsc_per_ms);
 }
 
 #endif                          /* _MODULE_VMX_TIMER_H_ */

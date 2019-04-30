@@ -13,6 +13,7 @@
 #include "guest.h"
 #include "event.h"
 #include "host_cpu.h"
+#include "heap.h"
 #include "vmm_base.h"
 
 #include "modules/vmx_timer.h"
@@ -55,18 +56,13 @@ static vmx_timer_t * create_vmx_timer(guest_cpu_handle_t gcpu)
 static vmx_timer_t * find_vmx_timer(guest_cpu_handle_t gcpu, boolean_t create_if_not_found)
 {
 	vmx_timer_t* vmx_timer;
-	uint16_t guest_id;
 
-	guest_id = gcpu->guest->id;
-	for (vmx_timer = g_vmx_timer[host_cpu_id()]; vmx_timer!=NULL; vmx_timer=vmx_timer->next)
+	for (vmx_timer = g_vmx_timer[host_cpu_id()]; vmx_timer != NULL; vmx_timer = vmx_timer->next)
 	{
 		if (vmx_timer->gcpu == gcpu)
 		{
 			break;
 		}
-		if ((guest_id != INVALID_GUEST_ID) &&
-			(vmx_timer->gcpu->guest->id == guest_id))
-			guest_id = INVALID_GUEST_ID;
 	}
 	if (vmx_timer)
 		return vmx_timer;
