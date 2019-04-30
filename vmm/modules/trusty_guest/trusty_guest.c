@@ -54,9 +54,16 @@
 #include "modules/virtual_apic.h"
 #endif
 
+#ifdef MODULE_VMX_TIMER
+#include "modules/vmx_timer.h"
+#endif
+
 typedef enum {
 	TRUSTY_VMCALL_SMC             = 0x74727500,
 	TRUSTY_VMCALL_DUMP_INIT       = 0x74727507,
+#ifdef MODULE_VMX_TIMER
+	TRUSTY_VMCALL_VMX_TIMER       = 0x74727508,
+#endif
 } vmcall_id_t;
 
 enum {
@@ -338,6 +345,10 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 	vmcs_read(gcpu->vmcs, VMCS_GUEST_RIP);// update cache
 	vmcs_read(gcpu->vmcs, VMCS_EXIT_INSTR_LEN);// update cache
 
+#ifdef MODULE_VMX_TIMER
+	vmcs_read(gcpu->vmcs, VMCS_PREEMPTION_TIMER);// update vmx timer
+#endif
+
 #ifdef MODULE_VIRTUAL_APIC
 	/* get virr for current gcpu before gcpu switch */
 	vapic_get_virr(gcpu, &virr);
@@ -355,6 +366,11 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 		gcpu_clear_pending_intr(gcpu, vector);
 	}
 #endif
+
+#ifdef MODULE_VMX_TIMER
+	vmx_timer_copy(gcpu, next_gcpu);
+#endif
+
 
 	switch (smc_stage)
 	{
@@ -413,11 +429,41 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 	gcpu_set_gp_reg(gcpu, REG_RAX, 0);
 }
 
+#ifdef MODULE_VMX_TIMER
+static void trusty_vmcall_vmx_timer(guest_cpu_handle_t gcpu)
+{
+	uint64_t timer_interval;
+	uint64_t tsc;
+
+	D(VMM_ASSERT(gcpu));
+
+	/* RDI stored the timer interval to be set */
+	timer_interval = gcpu_get_gp_reg(gcpu, REG_RDI);
+	tsc = vmx_timer_ms_to_tick(timer_interval);
+
+	if (0 == timer_interval) {
+		vmx_timer_set_mode(gcpu, TIMER_MODE_STOPPED, 0);
+	} else {
+		vmx_timer_set_mode(gcpu, TIMER_MODE_ONESHOT, tsc);
+	}
+}
+
+static void vmx_timer_event_handler(guest_cpu_handle_t gcpu, UNUSED void *pv)
+{
+	D(VMM_ASSERT(gcpu));
+
+	gcpu_set_pending_intr(gcpu, TRUSTY_TIMER_INTR);
+}
+#endif
+
 static void guest_register_vmcall_services()
 {
 	vmcall_register(GUEST_ANDROID, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
 	vmcall_register(GUEST_ANDROID, TRUSTY_VMCALL_DUMP_INIT, trusty_vmcall_dump_init);
 	vmcall_register(GUEST_TRUSTY, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
+#ifdef MODULE_VMX_TIMER
+	vmcall_register(GUEST_TRUSTY, TRUSTY_VMCALL_VMX_TIMER, trusty_vmcall_vmx_timer);
+#endif
 }
 
 #ifdef AP_START_IN_HLT
@@ -491,6 +537,10 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 
 #ifdef AP_START_IN_HLT
 	event_register(EVENT_GCPU_MODULE_INIT, set_guest0_aps_to_hlt_state);
+#endif
+
+#ifdef MODULE_VMX_TIMER
+	event_register(EVENT_VMX_TIMER, vmx_timer_event_handler);
 #endif
 
 #ifdef PACK_LK
