@@ -98,6 +98,9 @@ static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gc
 static void relocate_optee_image(void)
 {
 	boolean_t ret = FALSE;
+	/* op-tee region: first page is op-tee info, last page is stack. */
+	optee_desc->optee_file.runtime_addr += PAGE_4K_SIZE;
+	optee_desc->optee_file.runtime_total_size -= PAGE_4K_SIZE;
 
 	ret = relocate_elf_image(&optee_desc->optee_file, &optee_desc->gcpu0_state.rip);
 
@@ -109,10 +112,17 @@ static void relocate_optee_image(void)
 				&optee_desc->gcpu0_state.rip);
 	}
 	VMM_ASSERT_EX(ret, "Failed to relocate OP-TEE image!\n");
+
+	/* restore op-tee runtime address and total size */
+	optee_desc->optee_file.runtime_addr -= PAGE_4K_SIZE;
+	optee_desc->optee_file.runtime_total_size += PAGE_4K_SIZE;
 }
 
+/* Set up op-tee device security info and op-tee startup info */
 static void setup_optee_mem(void)
 {
+	optee_startup_info_t *optee_para;
+	uint32_t dev_sec_info_size;
 	uint64_t upper_start;
 
 	/* Set op-tee memory mapping with RW(0x3) attribute except op-tee itself */
@@ -139,7 +149,23 @@ static void setup_optee_mem(void)
 			optee_desc->optee_file.runtime_addr,
 			optee_desc->optee_file.runtime_total_size);
 
-	/* Set RSP */
+	/* Setup op-tee boot info */
+	dev_sec_info_size = *((uint32_t *)optee_desc->dev_sec_info);
+	memcpy((void *)optee_desc->optee_file.runtime_addr, optee_desc->dev_sec_info, dev_sec_info_size);
+	memset(optee_desc->dev_sec_info, 0, dev_sec_info_size);
+
+	/* Setup op-tee startup info */
+	optee_para = (optee_startup_info_t *)ALIGN_F(optee_desc->optee_file.runtime_addr + dev_sec_info_size, 8);
+	VMM_ASSERT_EX(((uint64_t)optee_para + sizeof(optee_startup_info_t)) <
+			(optee_desc->optee_file.runtime_addr + PAGE_4K_SIZE),
+			"size of (dev_sec_info+optee_startup_info) exceeds the reserved 4K size!\n");
+	optee_para->size_of_this_struct    = sizeof(optee_startup_info_t);
+	optee_para->mem_size               = optee_desc->optee_file.runtime_total_size;
+	optee_para->calibrate_tsc_per_ms   = tsc_per_ms;
+	optee_para->optee_mem_base        = optee_desc->optee_file.runtime_addr;
+
+	/* Set RDI and RSP */
+	optee_desc->gcpu0_state.gp_reg[REG_RDI] = (uint64_t)optee_para;
 	optee_desc->gcpu0_state.gp_reg[REG_RSP] = optee_desc->optee_file.runtime_addr +
         optee_desc->optee_file.runtime_total_size;
 

@@ -9,6 +9,22 @@
 #ifndef _OPTEE_INFO_H_
 #define _OPTEE_INFO_H_
 
+typedef struct {
+	/* Used to double check structures match */
+	uint32_t size_of_this_struct;
+
+	/* total memory size for OP-TEE */
+	uint32_t mem_size;
+
+	/* Used to calibrate TSC in OP-TEE */
+	uint64_t calibrate_tsc_per_ms;
+
+	uint64_t optee_mem_base;
+
+	uint32_t sipi_ap_wkup_addr;
+	uint8_t  padding[4];
+} optee_startup_info_t;
+
 /* Different vmcall parameters structure from OSloader */
 typedef struct {
 	/* Size of this structure */
