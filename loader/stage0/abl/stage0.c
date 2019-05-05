@@ -168,6 +168,10 @@ void stage0_main(
 #endif
 
 #if defined (MODULE_OPTEE_GUEST)
+#if defined (PACK_OPTEE)
+	evmm_desc->optee_desc.optee_file.loadtime_addr = packed_file[OPTEE_BIN_INDEX].load_addr;
+	evmm_desc->optee_desc.optee_file.loadtime_size = packed_file[OPTEE_BIN_INDEX].size;
+#endif
 	evmm_desc->optee_desc.optee_file.runtime_addr = (uint64_t)trusty_boot->TrustyMemBase;
 	evmm_desc->optee_desc.optee_file.runtime_total_size = ((uint64_t)(trusty_boot->TrustyMemSize)) << 10;
 	evmm_desc->optee_desc.dev_sec_info = dev_sec_info;
