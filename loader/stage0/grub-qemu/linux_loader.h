@@ -95,6 +95,19 @@ typedef struct  {
 	uint8_t _pad2[0x1000 - sizeof(e820entry_t) * E820MAX - 0x2d0];
 } boot_params_t;
 
+typedef struct {
+	uint64_t next;
+	uint32_t type;
+	uint32_t len;
+	uint8_t  data[0];
+}setup_data_t;
+
+enum {
+	NONE = 0,
+	SETUP_E820,
+	SETUP_DTB
+};
+
 boolean_t linux_kernel_parse(multiboot_info_t *mbi,
 		uint64_t *boot_param_addr, uint64_t *entry_point);
 

@@ -22,6 +22,7 @@ typedef enum {
 	MFIRST_MODULE = 0,
 	TRUSTYIMG = MFIRST_MODULE,
 	TESTRUNNER,
+	DEVICETREE,
 	GRUB_MODULE_COUNT
 } grub_module_index_t;
 
