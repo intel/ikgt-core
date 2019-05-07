@@ -441,6 +441,19 @@ static void trusty_vmcall_vmx_timer(guest_cpu_handle_t gcpu)
 	timer_interval = gcpu_get_gp_reg(gcpu, REG_RDI);
 	tsc = vmx_timer_ms_to_tick(timer_interval);
 
+	/*
+	 * VMX preemption timer is used on QEMU platform only for current stage.
+	 *
+	 * When Trusty runs on top of QEMU with KVM nested-VT feature enabled,
+	 * QEMU would be always scheduled out by host Linux kernel when QEMU guest
+	 * runs into sleep or set timer. In this situation, TSC in QEMU guest
+	 * increase quite slow, it makes VMX preepmtion timer quite slow.
+	 *
+	 * In order to schedule in QEMU guest more frequently, add TSC acceleration
+	 * to reduce TSC elapse when guest sets VMX preepmtion timer.
+	 */
+	tsc /= 20;
+
 	if (0 == timer_interval) {
 		vmx_timer_set_mode(gcpu, TIMER_MODE_STOPPED, 0);
 	} else {
