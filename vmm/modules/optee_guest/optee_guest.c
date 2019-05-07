@@ -43,7 +43,7 @@
 #endif
 
 typedef enum {
-	OPTEE_VMCALL_SMC             = 0x74727500,
+	OPTEE_VMCALL_SMC             = 0x6F707400,
 } vmcall_id_t;
 
 enum {
