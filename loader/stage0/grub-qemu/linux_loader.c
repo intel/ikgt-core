@@ -320,6 +320,34 @@ static boolean_t expand_linux_image(multiboot_info_t *mbi,
 	return TRUE;
 }
 
+static void pass_dtb(multiboot_module_t *mod, uint64_t *para)
+{
+	boot_params_t *boot_params;
+	setup_data_t *setup_data;
+	uint64_t dtb_start;
+	uint32_t dtb_len;
+
+	dtb_start = mod->mod_start;
+	dtb_len = mod->mod_end - mod->mod_start;
+
+	/*
+	 * Locate Device Tree Blob file content almost 1 PAGE before Linux kernel
+	 * binary run time memory address.
+	 * If we locate dtb right after Linux kernel, content of dtb might be over
+	 * written by kernel accidently, this issue found in Linux kernel 4.19.
+	 */
+	setup_data = (setup_data_t*)ALIGN_F(KERNEL_RUNTIME_ADDRESS - 4096, 16);
+
+	setup_data->next = 0;
+	setup_data->type = SETUP_DTB;
+	setup_data->len  = dtb_len;
+
+	memcpy(setup_data->data, (void *)dtb_start, dtb_len);
+
+	boot_params = (boot_params_t *)*para;
+	boot_params->setup_hdr.setup_data = (uint64_t)setup_data;
+}
+
 boolean_t linux_kernel_parse(multiboot_info_t *mbi,
 			uint64_t *boot_param_addr,
 			uint64_t *entry_point)
@@ -356,6 +384,19 @@ boolean_t linux_kernel_parse(multiboot_info_t *mbi,
 			boot_param_addr, entry_point)) {
 		print_info("Linux loader: failed to expand linux image!\n");
 		return FALSE;
+	}
+
+	/*
+	 * Add device tree information.
+	 *
+	 * QEMU supports to specify Device Tree Blob file by using '-dtb' option.
+	 * However, dtb file would not be handled if kernel is multiboot format.
+	 * To pass dtb info to Linux kernel boot parameters, device tree file
+	 * is treated as third multiboot module.
+	 */
+	module = loader_get_module(mbi, DEVICETREE);
+	if (NULL != module) {
+		pass_dtb(module, boot_param_addr);
 	}
 
 	return TRUE;
