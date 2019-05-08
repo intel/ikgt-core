@@ -342,9 +342,11 @@ static void guest_msr_monitor_setup(UNUSED guest_cpu_handle_t gcpu, void *pv)
 
 	print_trace("[MSR] Setup for Guests[%d]\n", guest->id);
 
+#ifndef MODULE_NESTED_VT
 	/* Block access to VMX related MSRs */
 	for (msr_id = MSR_VMX_FIRST; msr_id <= MSR_VMX_LAST; ++msr_id)
 		block_msr_access(guest->id, msr_id);
+#endif
 
 	/* IA32 spec Volume2, Chapter6.3, GETSEC[SENTER]
 	 * IA32_FEATURE_CONTROL is only available on SMX or VMX enabled
