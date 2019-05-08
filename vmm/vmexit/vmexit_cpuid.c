@@ -31,8 +31,11 @@ void cpuid_leaf_1h_filter(UNUSED guest_cpu_handle_t gcpu, cpuid_params_t *p_cpui
 	/* hide SMX support */
 	p_cpuid->ecx &= ~CPUID_ECX_SMX;
 
+#ifndef MODULE_NESTED_VT
 	/* hide VMX support */
 	p_cpuid->ecx &= ~CPUID_ECX_VMX;
+#endif
+
 }
 
 static

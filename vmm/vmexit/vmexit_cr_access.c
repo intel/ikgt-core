@@ -207,7 +207,11 @@ void cr_write_guest_init(guest_handle_t guest)
 	if (cr0_may0 & CR0_NE)
 		cr0_write_register(guest, NULL, cr0_ne_handler, NULL, CR0_NE);
 
+#ifdef MODULE_NESTED_VT
+	cr4_write_register(guest, NULL, cr4_vmxe_handler, NULL, CR4_VMXE);
+#else
 	cr4_write_register(guest, cr4_vmxe_pre_handler, cr4_vmxe_handler, NULL, CR4_VMXE);
+#endif
 
 	if (cr4_may1 & CR4_SMXE)
 		cr4_write_register(guest, cr4_smxe_pre_handler, cr4_smxe_handler, NULL, CR4_SMXE);
