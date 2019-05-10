@@ -47,7 +47,7 @@ static vmexit_handler_t g_vmexit_handlers[] = {
 	NULL,                                     // REASON_18_VMCALL_INSTR
 	vmexit_invalid_instruction,               // REASON_19_VMCLEAR_INSTR
 	vmexit_invalid_instruction,               // REASON_20_VMLUNCH_INSTR
-	vmexit_invalid_instruction,               // REASON_21_VMPTRLD_INSTRN
+	vmexit_invalid_instruction,               // REASON_21_VMPTRLD_INSTR
 	vmexit_invalid_instruction,               // REASON_22_VMPTRST_INSTR
 	vmexit_invalid_instruction,               // REASON_23_VMREAD_INSTR
 	vmexit_invalid_instruction,               // REASON_24_VMRESUME_INSTR
@@ -106,10 +106,14 @@ void vmexit_install_handler(vmexit_handler_t handler,
 	VMM_ASSERT_EX((reason < REASON_EXIT_COUNT),
 		"CPU%d: Error: VMEXIT Reason(%d) exceeds supported limit(%d)\n",
 		host_cpu_id(), reason, REASON_EXIT_COUNT);
-	VMM_ASSERT_EX((g_vmexit_handlers[reason] == NULL),
-		"reason %d registered twice\n", reason);
 
-	g_vmexit_handlers[reason] = handler;
+	if ((g_vmexit_handlers[reason] == vmexit_invalid_instruction) ||
+	    (g_vmexit_handlers[reason] == NULL)) {
+		g_vmexit_handlers[reason] = handler;
+	} else {
+		print_panic("%s: vmexit reason[%d] register twice\n", __func__, reason)
+		VMM_DEADLOOP();
+	}
 }
 
 /*--------------------------------------------------------------------------*

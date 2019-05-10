@@ -214,22 +214,6 @@ typedef union {
 	} dbg_exception;
 
 	struct {
-		uint64_t scale:2;        /* Memory access index scale 0=1, 1=2, 2=4, 3=8 */
-		uint64_t resv_2:1;   /* cleared to 0 */
-		uint64_t reg1:4;         /* Memory access reg1 0=RAX, 1=RCX, 2=RDX, 3=RBX, 4=RSP, 5=RBP, 6=RSI, 7=RDI, 8-15=R8=R15 */
-		uint64_t address_size:3; /* Memory access address size 0=16bit, 1=32bit, 2=64bit */
-		uint64_t mem_reg:1;      /* 0=memory access 1=register access */
-		uint64_t resv_11_14:4;   /* cleared to 0 */
-		uint64_t seg_reg:3;      /* Memory access segment register 0=ES, 1=CS, 2=SS, 3=DS, 4=FS, 5=GS */
-		uint64_t index_reg:4;    /* Memory access index register. Encoded like reg1 */
-		uint64_t index_reg_invalid:1;  /* Memory access - index_reg is invalid (0=valid, 1=invalid) */
-		uint64_t base_reg:4;     /* Memory access base register. Encoded like reg1 */
-		uint64_t base_reg_invalid:1;   /* Memory access - base_reg is invalid (0=valid, 1=invalid) */
-		uint64_t reg2:4;         /* Encoded like reg1. Undef on VMCLEAR, VMPTRLD, VMPTRST, and VMXON. */
-		uint64_t resv_32_63:32;
-	} vmx_instruction;
-
-	struct {
 		uint64_t offset:12; /* Offset of access within the APIC page */
 		/* 0 = data read during instruction execution
 		 * 1 = data write during instruction execution
@@ -322,6 +306,35 @@ typedef union {
 		uint32_t seg_reg:3;      /* 0=ES, 1=CS, 2=SS, 3=DS, 4=FS, 5=GS, other invalid. Undef for INS */
 		uint32_t resv_18_31:14;  /* Undefined */
 	} ins_outs_instr;
+
+	struct {
+		uint32_t scaling:2;         /* 0=no scale, 1=scale by 2, 2=scale by 4, 3=scale by 8 */
+		uint32_t undef_2_6:5;       /* undefined */
+		uint32_t addr_size:3;       /* 0=16-bit, 1=32-bit, 2=64-bit */
+		uint32_t resv_10:1;         /* reserved as 0 */
+		uint32_t undef_11_14:4;     /* undefined */
+		uint32_t seg_reg:3;         /* 0=ES, 1=CS, 2=SS, 3=DS, 4=FS, 5=GS, other invalid. */
+		uint32_t index_reg:4;       /* 0=RAX, 1=RCX, 2=RDX, 3=RBX, 4=RSP, 5=RBP, 6=RSI, 7=RDI, 8~15=R8~R15 */
+		uint32_t index_reg_valid:1; /* 0=valid, 1=invalid */
+		uint32_t base_reg:4;        /* same encoded as index_reg */
+		uint32_t base_reg_valid:1;  /* 0=valid, 1=invalid */
+		uint32_t undef_28_31:4;     /* undefined */
+	} vmptrld_instr, vmptrst_instr;
+
+	struct {
+		uint32_t scaling:2;         /* 0=no scale, 1=scale by 2, 2=scale by 4, 3=scale by 8 */
+		uint32_t undef_2:1;         /* undefined */
+		uint32_t reg1:4;            /* 0=RAX, 1=RCX, 2=RDX, 3=RBX, 4=RSP, 5=RBP, 6=RSI, 7=RDI, 8~15=R8~R15 */
+		uint32_t addr_size:3;       /* 0=16-bit, 1=32-bit, 2=64-bit */
+		uint32_t mem_reg:1;         /* 0=memory, 1=register */
+		uint32_t undef_11_14:4;     /* undefined */
+		uint32_t seg_reg:3;         /* 0=ES, 1=CS, 2=SS, 3=DS, 4=FS, 5=GS, other invalid. */
+		uint32_t index_reg:4;       /* same encoded as reg1 */
+		uint32_t index_reg_valid:1; /* 0=valid, 1=invalid */
+		uint32_t base_reg:4;        /* same encoded as reg1 */
+		uint32_t base_reg_valid:1;  /* 0=valid, 1=invalid */
+		uint32_t reg2:4;            /* same encoded as reg1 */
+	} vmread_instr, vmwrite_instr;
 
 	uint32_t uint32;
 } vmx_exit_instr_info_t;
