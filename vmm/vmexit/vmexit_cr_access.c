@@ -149,6 +149,9 @@ static void cr0_ne_handler(UNUSED uint64_t write_value, uint64_t* cr_value)
 	*cr_value |= CR0_NE;
 }
 
+#ifdef MODULE_NESTED_VT
+static cr_pre_handler cr4_vmxe_pre_handler = NULL;
+#else
 static boolean_t cr4_vmxe_pre_handler(uint64_t write_value)
 {
 	if (write_value & CR4_VMXE) // nested VT is not supported by eVmm
@@ -159,6 +162,7 @@ static boolean_t cr4_vmxe_pre_handler(uint64_t write_value)
 
 	return FALSE;
 }
+#endif
 
 static void cr4_vmxe_handler(UNUSED uint64_t write_value, uint64_t* cr_value)
 {
@@ -207,11 +211,7 @@ void cr_write_guest_init(guest_handle_t guest)
 	if (cr0_may0 & CR0_NE)
 		cr0_write_register(guest, NULL, cr0_ne_handler, NULL, CR0_NE);
 
-#ifdef MODULE_NESTED_VT
-	cr4_write_register(guest, NULL, cr4_vmxe_handler, NULL, CR4_VMXE);
-#else
 	cr4_write_register(guest, cr4_vmxe_pre_handler, cr4_vmxe_handler, NULL, CR4_VMXE);
-#endif
 
 	if (cr4_may1 & CR4_SMXE)
 		cr4_write_register(guest, cr4_smxe_pre_handler, cr4_smxe_handler, NULL, CR4_SMXE);
