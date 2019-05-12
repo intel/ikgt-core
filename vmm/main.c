@@ -467,7 +467,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		/* Initialize GPM */
 		gpm_init();
 
-		create_guest(host_cpu_num, &(evmm_desc->evmm_file));
+		guest_save_evmm_range(evmm_desc->evmm_file.runtime_addr, evmm_desc->evmm_file.runtime_total_size);
+
+		/* Create guest with RWX(0x7) attribute */
+		create_guest(host_cpu_num, 0x7);
 #ifdef MODULE_TRUSTY_GUEST
 		/* Dependency:
 		 *  LIB_IPC,

@@ -21,6 +21,8 @@
 #include "lib/util.h"
 
 static struct guest_descriptor_t *guests;
+static uint64_t g_evmm_rt_base;
+static uint64_t g_evmm_rt_size;
 
 guest_handle_t guest_handle(uint16_t guest_id)
 {
@@ -74,13 +76,19 @@ static void add_cpu_to_guest(guest_cpu_handle_t gcpu, guest_handle_t guest)
 	guest->gcpu_list = gcpu;
 }
 
+void guest_save_evmm_range(uint64_t evmm_rt_base, uint64_t evmm_rt_size)
+{
+	g_evmm_rt_base = evmm_rt_base;
+	g_evmm_rt_size = evmm_rt_size;
+}
+
 /* there're many settings for a guest, such as number of gcpu, which gcpu register to which host cpu, ept policy, guest physical mapping.
 ** for this create_guest(), only number of gcpu is specified, other settings are:
 ** 1. gcpu register to the host cpu with same cpu id
 ** 2. guest physical mapping is 1:1 mapping for top_of_memory, and remove evmm's range
 ** 3. ept policy is EPT_POLICY, defined in .cfg
 ** In future, if there's new request to change these settings, please implement other versions of create_guest() api */
-guest_handle_t create_guest(uint32_t gcpu_count, const module_file_info_t *evmm_file)
+guest_handle_t create_guest(uint32_t gcpu_count, uint32_t attr)
 {
 	guest_handle_t guest;
 	guest_cpu_handle_t gcpu;
@@ -88,15 +96,14 @@ guest_handle_t create_guest(uint32_t gcpu_count, const module_file_info_t *evmm_
 
 	VMM_ASSERT_EX((gcpu_count <= host_cpu_num),
 		"gcpu_count=%d is invalid\n", gcpu_count);
-	VMM_ASSERT_EX((evmm_file), "evmm_file is NULL\n");
 
 	/* create guest */
 	guest = guest_register();
 
-	gpm_set_mapping(guest, 0, 0, top_of_memory, 0x7);
+	gpm_set_mapping(guest, 0, 0, top_of_memory, attr);
 
 	/* remove eVMM area from guest */
-	gpm_remove_mapping(guest, evmm_file->runtime_addr, evmm_file->runtime_total_size);
+	gpm_remove_mapping(guest, g_evmm_rt_base, g_evmm_rt_size);
 
 	cr_write_guest_init(guest);
 
@@ -104,7 +111,6 @@ guest_handle_t create_guest(uint32_t gcpu_count, const module_file_info_t *evmm_
 
 	event_raise(NULL, EVENT_GUEST_MODULE_INIT, (void *)guest);
 
-	/* special case - run on all existing CPUs */
 	for (i = 0; i < gcpu_count; i++) {
 		gcpu = gcpu_allocate();
 		add_cpu_to_guest(gcpu, guest);

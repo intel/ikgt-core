@@ -206,7 +206,9 @@ static void key_derive(device_sec_info_v0_t *sec_info)
 /* Set up trusty device security info and trusty startup info */
 static void setup_trusty_mem(void)
 {
+#ifdef MODULE_EPT_UPDATE
 	uint64_t upper_start;
+#endif
 #ifndef QEMU_LK
 	uint32_t dev_sec_info_size;
 	trusty_startup_info_t *trusty_para;
@@ -215,20 +217,12 @@ static void setup_trusty_mem(void)
 	device_sec_info_v0_t *sec_info;
 #endif
 
-	/* Set trusty memory mapping with RW(0x3) attribute except lk itself */
-	/* Set lower */
+	/* Set trusty memory mapping with RWX(0x7) attribute */
 	gpm_set_mapping(guest_handle(GUEST_TRUSTY),
-			0,
-			0,
 			trusty_desc->lk_file.runtime_addr,
-			0x3);
-	/* Set upper */
-	upper_start = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
-	gpm_set_mapping(guest_handle(GUEST_TRUSTY),
-			upper_start,
-			upper_start,
-			top_of_memory - upper_start,
-			0x3);
+			trusty_desc->lk_file.runtime_addr,
+			trusty_desc->lk_file.runtime_total_size,
+			0x7);
 
 	gpm_remove_mapping(guest_handle(GUEST_ANDROID),
 				trusty_desc->lk_file.runtime_addr,
@@ -491,7 +485,8 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	sipi_ap_wkup_addr = evmm_desc->sipi_ap_wkup_addr;
 	cpu_num = evmm_desc->num_of_cpu;
 #endif
-	create_guest(cpu_num, &(evmm_desc->evmm_file));
+	/* Tee should not have X permission in REE memory. Set it to RW(0x3) */
+	create_guest(cpu_num, 0x3);
 	event_register(EVENT_GCPU_INIT, trusty_set_gcpu_state);
 
 #ifdef AP_START_IN_HLT
