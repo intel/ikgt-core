@@ -24,6 +24,11 @@ void register_gcpu(guest_cpu_handle_t gcpu_handle, uint16_t host_cpu_id);
 guest_cpu_handle_t get_current_gcpu(void);
 
 /*
+ * Set initial guest. Return the target gcpu on success, NULL on fail
+ */
+guest_cpu_handle_t set_initial_guest(guest_handle_t guest);
+
+/*
  * Makes selected gCPU "initial" on the current host CPU and returns it.
  */
 guest_cpu_handle_t schedule_initial_gcpu(void);
@@ -35,8 +40,8 @@ guest_cpu_handle_t schedule_initial_gcpu(void);
 guest_cpu_handle_t schedule_next_gcpu();
 
 /*
- * Schedule to next gcpu on same host as the initial gcpu
+ * Schedule to guest. Return the target gcpu on success, NULL on fail
  */
-void schedule_next_gcpu_as_init(uint16_t host_cpu_id);
+guest_cpu_handle_t schedule_to_guest(guest_handle_t guest);
 
 #endif                          /* _SCHEDULER_H_ */

@@ -52,6 +52,7 @@ typedef struct {
 	uint64_t cr2;
 } pf_info_t;
 
+boolean_t gcpu_in_ring0(guest_cpu_handle_t gcpu);
 void gcpu_set_cr2(const guest_cpu_handle_t gcpu, uint64_t cr2);
 
 uint64_t gcpu_get_gp_reg(const guest_cpu_handle_t gcpu, gp_reg_t reg);

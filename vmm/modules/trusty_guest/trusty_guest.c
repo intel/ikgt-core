@@ -82,23 +82,6 @@ static trusty_desc_t *trusty_desc;
 static uint32_t sipi_ap_wkup_addr;
 #endif
 
-static boolean_t guest_in_ring0(guest_cpu_handle_t gcpu)
-{
-	uint64_t  cs_sel;
-	vmcs_obj_t vmcs = gcpu->vmcs;
-
-	cs_sel = vmcs_read(vmcs, VMCS_GUEST_CS_SEL);
-	/* cs_selector[1:0] is CPL*/
-	if ((cs_sel & 0x3) == 0)
-	{
-		return TRUE;
-	}
-
-	gcpu_inject_ud(gcpu);
-
-	return FALSE;
-}
-
 static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gcpu)
 {
 	uint64_t rdi, rsi, rdx, rbx;
@@ -330,8 +313,9 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 	static uint32_t smc_stage;
 	guest_cpu_handle_t next_gcpu;
 
-	if(!guest_in_ring0(gcpu))
+	if(!gcpu_in_ring0(gcpu))
 	{
+		gcpu_inject_ud(gcpu);
 		return;
 	}
 
@@ -413,8 +397,9 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 
 	D(VMM_ASSERT(gcpu->guest->id == GUEST_ANDROID));
 
-	if(!guest_in_ring0(gcpu))
+	if(!gcpu_in_ring0(gcpu))
 	{
+		gcpu_inject_ud(gcpu);
 		return;
 	}
 
@@ -569,7 +554,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
 	trusty_desc->dev_sec_info = dev_sec_info;
 
-	schedule_next_gcpu_as_init(0);
+	set_initial_guest(guest_handle(GUEST_ANDROID));
 #endif
 
 #ifdef DMA_FROM_CSE

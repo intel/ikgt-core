@@ -49,6 +49,21 @@ const segment_2_vmcs_t g_segment_2_vmcs[SEG_COUNT] = {
 };
 
 /* ---------------------------- APIs ---------------------------------------- */
+boolean_t gcpu_in_ring0(guest_cpu_handle_t gcpu)
+{
+	uint64_t  cs_sel;
+	vmcs_obj_t vmcs = gcpu->vmcs;
+
+	cs_sel = vmcs_read(vmcs, VMCS_GUEST_CS_SEL);
+	/* cs_selector[1:0] is CPL*/
+	if ((cs_sel & 0x3) == 0)
+	{
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 guest_cpu_handle_t gcpu_allocate(void)
 {
 	guest_cpu_handle_t gcpu = NULL;
