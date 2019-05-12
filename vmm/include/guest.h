@@ -39,6 +39,7 @@ guest_handle_t guest_handle(uint16_t guest_id);
 ** 2. guest physical mapping is 1:1 mapping for top_of_memory, and remove evmm's range
 ** 3. ept policy is EPT_POLICY, defined in .cfg
 ** In future, if there's new request to change these settings, please implement other versions of create_guest() api */
-guest_handle_t create_guest(uint32_t gcpu_count, const module_file_info_t *evmm_file);
+guest_handle_t create_guest(uint32_t gcpu_count, uint32_t attr);
+void guest_save_evmm_range(uint64_t evmm_rt_base, uint64_t evmm_rt_size);
 
 #endif                          /* _GUEST_H_ */
