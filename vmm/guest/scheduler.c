@@ -11,6 +11,7 @@
 #include "gcpu.h"
 #include "gcpu_switch.h"
 #include "heap.h"
+#include "guest.h"
 
 #include "lib/util.h"
 
@@ -49,6 +50,56 @@ guest_cpu_handle_t get_current_gcpu()
 	return g_current_gcpu[host_cpu];
 }
 
+static guest_cpu_handle_t get_gcpu_from_guest(guest_handle_t guest, uint32_t host_cpu)
+{
+	guest_cpu_handle_t gcpu = g_current_gcpu[host_cpu];
+
+	do {
+		if (gcpu->guest == guest)
+			return gcpu;
+		gcpu = gcpu->next_same_host_cpu;
+	} while (gcpu != g_current_gcpu[host_cpu]);
+
+	return NULL;
+}
+
+/*
+ * Set initial guest. Return the target gcpu on success, NULL on fail
+ */
+guest_cpu_handle_t set_initial_guest(guest_handle_t guest)
+{
+	uint16_t host_cpu = host_cpu_id();
+	guest_cpu_handle_t gcpu;
+
+	D(VMM_ASSERT(guest));
+	D(VMM_ASSERT_EX((host_cpu < host_cpu_num),
+		"host_cpu_id=%d is invalid \n", host_cpu_id));
+
+	gcpu = get_gcpu_from_guest(guest, host_cpu);
+	if (gcpu == NULL) {
+		print_panic("failed to get gcpu from guest!\n");
+		return NULL;
+	}
+
+	g_current_gcpu[host_cpu] = gcpu;
+
+	return gcpu;
+}
+
+/*
+ * Schedule to initial guest cpu on current host cpu
+ */
+guest_cpu_handle_t schedule_initial_gcpu()
+{
+	uint16_t host_cpu = host_cpu_id();
+
+	VMM_ASSERT_EX(g_current_gcpu[host_cpu], "%s: no gcpu registered on host[%d]!\n", __func__, host_cpu);
+
+	gcpu_swap_in(g_current_gcpu[host_cpu]);
+
+	return g_current_gcpu[host_cpu];
+}
+
 /*
  * Schedule to next guest cpu on current host cpu
  */
@@ -74,27 +125,32 @@ guest_cpu_handle_t schedule_next_gcpu()
 }
 
 /*
- * Schedule to initial guest cpu on current host cpu
+ * Schedule to guest. Return the target gcpu on success, NULL on fail
  */
-guest_cpu_handle_t schedule_initial_gcpu()
+guest_cpu_handle_t schedule_to_guest(guest_handle_t guest)
 {
 	uint16_t host_cpu = host_cpu_id();
+	guest_cpu_handle_t next_gcpu;
 
-	VMM_ASSERT_EX(g_current_gcpu[host_cpu], "%s: no gcpu registered on host[%d]!\n", __func__, host_cpu);
+	D(VMM_ASSERT(guest));
+	D(VMM_ASSERT_EX((host_cpu < host_cpu_num),
+		"host_cpu_id=%d is invalid \n", host_cpu_id));
 
-	gcpu_swap_in(g_current_gcpu[host_cpu]);
+	next_gcpu = get_gcpu_from_guest(guest, host_cpu);
+	if (next_gcpu == NULL) {
+		print_panic("failed to get gcpu from guest!\n");
+		return NULL;
+	}
 
-	return g_current_gcpu[host_cpu];
-}
+	if (next_gcpu == g_current_gcpu[host_cpu])
+		return g_current_gcpu[host_cpu];
 
-/*
- * Schedule to next gcpu on same host as the initial gcpu
- */
-void schedule_next_gcpu_as_init(uint16_t host_cpu_id)
-{
-	VMM_ASSERT_EX(host_cpu_id < host_cpu_num, "%s: Wrong host_cpu_id(%d), host_cpu_num=%d\n",
-					__func__, host_cpu_id, host_cpu_num);
+	host_cpu_clear_pending_nmi();
+	gcpu_swap_out(g_current_gcpu[host_cpu]);
 
-	g_current_gcpu[host_cpu_id] =
-		g_current_gcpu[host_cpu_id]->next_same_host_cpu;
+	g_current_gcpu[host_cpu] = next_gcpu;
+
+	gcpu_swap_in(next_gcpu);
+
+	return next_gcpu;
 }
