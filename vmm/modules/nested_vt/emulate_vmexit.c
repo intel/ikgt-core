@@ -1,0 +1,205 @@
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
+
+#include "gcpu.h"
+#include "vmcs.h"
+#include "nested_vt_internal.h"
+
+#define VMEXIT_COPY_FROM_HVMCS 0
+#define VMEXIT_NO_CHANGE       1
+#define VMEXIT_OTHERS          2
+
+typedef struct {
+	uint32_t handle_type:       2;
+	uint32_t copy_to_gvmcs:     1;
+	uint32_t rsvd:             29;
+} vmexit_vmcs_handle_t;
+
+static vmexit_vmcs_handle_t vmexit_vmcs_handle_array[] = {
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_VPID
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_IO_BITMAP_A
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_IO_BITMAP_B
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_MSR_BITMAP
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_TSC_OFFSET
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_VIRTUAL_APIC_ADDR
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_APIC_ACCESS_ADDR
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_POST_INTR_NOTI_VECTOR
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_POST_INTR_DESC_ADDR
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_EOI_EXIT_BITMAP0
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_EOI_EXIT_BITMAP1
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_EOI_EXIT_BITMAP2
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_EOI_EXIT_BITMAP3
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_TPR_THRESHOLD
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_EPTP_ADDRESS
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_XSS_EXIT_BITMAP
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_PIN_CTRL
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_PROC_CTRL1
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_PROC_CTRL2
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_EXIT_CTRL
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_CR0_MASK
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_CR4_MASK
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_CR0_SHADOW
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_CR4_SHADOW
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_CR3_TARGET0
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_CR3_TARGET1
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_CR3_TARGET2
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_CR3_TARGET3
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_LINK_PTR
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_CR0
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_CR3
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_CR4
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_ES_SEL
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_CS_SEL
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_SS_SEL
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_DS_SEL
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_FS_SEL
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_FS_BASE
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_GS_SEL
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_GS_BASE
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_TR_SEL
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_TR_BASE
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_GDTR_BASE
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_IDTR_BASE
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_RSP
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_RIP
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_PAT
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_EFER
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_PERF_G_CTRL
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_EXIT_MSR_STORE_COUNT
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_EXIT_MSR_STORE_ADDR
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_EXIT_MSR_LOAD_COUNT
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_EXIT_MSR_LOAD_ADDR
+	{ VMEXIT_OTHERS,          FALSE, 0 }, //VMCS_ENTRY_MSR_LOAD_COUNT
+	{ VMEXIT_OTHERS,          FALSE, 0 }, //VMCS_ENTRY_MSR_LOAD_ADDR
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_EXCEPTION_BITMAP
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_SYSENTER_CS
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_SYSENTER_ESP
+	{ VMEXIT_NO_CHANGE,       FALSE, 0 }, //VMCS_HOST_SYSENTER_EIP
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_CR3_TARGET_COUNT
+	{ VMEXIT_OTHERS,          FALSE, 0 }, //VMCS_ENTRY_INTR_INFO
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_DBGCTL
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_INTERRUPTIBILITY
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_INTERRUPT_STATUS
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_PEND_DBG_EXCEPTION
+	{ VMEXIT_OTHERS,          FALSE, 0 }, //VMCS_ENTRY_ERR_CODE
+	{ VMEXIT_COPY_FROM_HVMCS, FALSE, 0 }, //VMCS_ENTRY_CTRL
+	{ VMEXIT_OTHERS,          FALSE, 0 }, //VMCS_ENTRY_INSTR_LEN
+	{ VMEXIT_COPY_FROM_HVMCS, TRUE,  0 }, //VMCS_PREEMPTION_TIMER
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_PAT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_EFER
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_PERF_G_CTRL
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_PDPTR0
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_PDPTR1
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_PDPTR2
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_PDPTR3
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_CR0
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_CR3
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_CR4
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_DR7
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_GDTR_BASE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_GDTR_LIMIT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_IDTR_BASE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_IDTR_LIMIT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_ACTIVITY_STATE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_SYSENTER_CS
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_SYSENTER_ESP
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_SYSENTER_EIP
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_ES_SEL
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_ES_BASE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_ES_LIMIT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_ES_AR
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_CS_SEL
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_CS_BASE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_CS_LIMIT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_CS_AR
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_SS_SEL
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_SS_BASE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_SS_LIMIT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_SS_AR
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_DS_SEL
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_DS_BASE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_DS_LIMIT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_DS_AR
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_FS_SEL
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_FS_BASE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_FS_LIMIT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_FS_AR
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_GS_SEL
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_GS_BASE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_GS_LIMIT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_GS_AR
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_LDTR_SEL
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_LDTR_BASE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_LDTR_LIMIT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_LDTR_AR
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_TR_SEL
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_TR_BASE
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_TR_LIMIT
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_TR_AR
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_RSP
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_RIP
+	{ VMEXIT_OTHERS,          TRUE,  0 }, //VMCS_GUEST_RFLAGS
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_GUEST_PHY_ADDR
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_GUEST_LINEAR_ADDR
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_INSTR_ERROR
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_EXIT_REASON
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_EXIT_INT_INFO
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_EXIT_INT_ERR_CODE
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_IDT_VECTOR_INFO
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_IDT_VECTOR_ERR_CODE
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_EXIT_INSTR_LEN
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_EXIT_INSTR_INFO
+	{ VMEXIT_NO_CHANGE,       TRUE,  0 }, //VMCS_EXIT_QUAL
+};
+
+_Static_assert(sizeof(vmexit_vmcs_handle_array)/sizeof(vmexit_vmcs_handle_t) == VMCS_FIELD_COUNT,
+			"Nested VT: vmexit vmcs handle count not aligned with VMCS fields count!");
+
+void emulate_vmexit(guest_cpu_handle_t gcpu)
+{
+	vmcs_obj_t vmcs;
+	nestedvt_data_t *data;
+	uint64_t *gvmcs;
+	uint64_t *hvmcs;
+	uint32_t i;
+
+	vmcs = gcpu->vmcs;
+	data = get_nestedvt_data(gcpu);
+	gvmcs = data->gvmcs;
+	hvmcs = data->hvmcs;
+
+	/* Copy VMCS fields for Layer-1 */
+	for (i = 0; i < VMCS_FIELD_COUNT; i++) {
+		if (vmexit_vmcs_handle_array[i].copy_to_gvmcs) {
+			gvmcs[i] = vmcs_read(vmcs, i);
+		}
+	}
+
+	/*
+	 * Set VMCS fields according to handle type:
+	 *     1. Copy from Layer-0's VMCS;
+	 *     2. No change;
+	 *     3. Others: will be handled specifically.
+	 */
+	for (i = 0; i < VMCS_FIELD_COUNT; i++) {
+		switch (vmexit_vmcs_handle_array[i].handle_type) {
+		case VMEXIT_COPY_FROM_HVMCS:
+			vmcs_write(vmcs, i, hvmcs[i]);
+			break;
+		case VMEXIT_NO_CHANGE:
+		case VMEXIT_OTHERS:
+			break;
+		default:
+			print_panic("%s: Unknown handle type!\n", __func__);
+			VMM_DEADLOOP();
+			break;
+		}
+	}
+
+	/* TODO: add functions to handle VMEXIT_OTHERS */
+}

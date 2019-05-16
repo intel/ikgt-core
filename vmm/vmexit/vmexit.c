@@ -46,7 +46,7 @@ static vmexit_handler_t g_vmexit_handlers[] = {
 	NULL,                                     // REASON_17_RSM_INSTR
 	NULL,                                     // REASON_18_VMCALL_INSTR
 	vmexit_invalid_instruction,               // REASON_19_VMCLEAR_INSTR
-	vmexit_invalid_instruction,               // REASON_20_VMLUNCH_INSTR
+	vmexit_invalid_instruction,               // REASON_20_VMLAUNCH_INSTR
 	vmexit_invalid_instruction,               // REASON_21_VMPTRLD_INSTR
 	vmexit_invalid_instruction,               // REASON_22_VMPTRST_INSTR
 	vmexit_invalid_instruction,               // REASON_23_VMREAD_INSTR
