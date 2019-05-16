@@ -22,6 +22,7 @@ typedef struct nestedvt_data {
 	uint8_t guest_layer;
 	uint8_t vmx_on_status;
 	uint8_t pad[6];
+	uint64_t hvmcs[VMCS_FIELD_COUNT];
 	struct nestedvt_data *next;
 } nestedvt_data_t;
 
@@ -47,5 +48,13 @@ void vmptrst_vmexit(guest_cpu_handle_t gcpu);
 /* API of vmread_vmwrite_vmexit.c */
 void vmread_vmexit(guest_cpu_handle_t gcpu);
 void vmwrite_vmexit(guest_cpu_handle_t gcpu);
+
+
+/* API of emulate_vmentry.c */
+void emulate_vmentry(guest_cpu_handle_t gcpu);
+
+
+/* API of emulate_vmexit.c */
+void emulate_vmexit(guest_cpu_handle_t gcpu);
 
 #endif /* _NESTED_VT_INTERNAL_H_ */
