@@ -29,48 +29,28 @@ typedef struct {
 
 /* setup header according to the linux boot protocol */
 typedef struct {
-	uint8_t setup_sects;                    /* The size of the setup in sectors */
-
-	uint16_t root_flags;                    /* If set, the root is mounted readonly */
-	uint32_t syssize;                       /* The size of the 32-bit code in 16-byte paras */
-	uint16_t ram_size;                      /* DO NOT USE - for bootsect.S use only */
-	uint16_t vid_mode;                      /* Video mode control */
-	uint16_t root_dev;                      /* Default root device number */
-	uint16_t boot_flag;                     /* 0xAA55 magic number */
-	uint16_t jump;                          /* Jump instruction */
-
-	uint32_t header;                        /* Magic signature "HdrS" */
-
-	uint16_t version;                       /* Boot protocol version supported */
-	uint32_t realmode_swtch;                /* Boot loader hook */
-	uint16_t start_sys;                     /* The load-low segment (0x1000) (obsolete) */
-	uint16_t kernel_version;                /* Points to kernel version string */
-
-	uint8_t type_of_loader;                 /* Boot loader identifier */
-
-	uint8_t loadflags;                      /* Boot protocol option flags */
-
-	uint16_t setup_move_size;               /* Move to high memory size (used with hooks) */
-	uint32_t code32_start;                  /* Boot loader hook */
-	uint32_t ramdisk_image;                 /* initrd load address (set by boot loader) */
-	uint32_t ramdisk_size;                  /* initrd size (set by boot loader) */
-	uint32_t bootsect_kludge;               /* DO NOT USE - for bootsect.S use only */
-	uint16_t heap_end_ptr;                  /* Free memory after setup end */
-	uint16_t pad1;                          /* Unused */
-	uint32_t cmd_line_ptr;                  /* 32-bit pointer to the kernel command line */
-	uint32_t initrd_addr_max;               /* Highest legal initrd address */
-	uint32_t kernel_alignment;              /* Physical addr alignment required for kernel */
-	uint8_t relocatable_kernel;             /* Whether kernel is relocatable or not */
-	uint8_t min_alignment;
-	uint16_t xloadflags;                    /* 2.12+ has this flag */
-	uint32_t cmdline_size;                  /* Maximum size of the kernel command line */
-	uint32_t hardware_subarch;              /* Hardware subarchitecture */
-	uint64_t hardware_subarch_data;         /* Subarchitecture-specific data */
-	uint32_t payload_offset;
-	uint32_t payload_length;
+	uint8_t  setup_sects;
+	uint8_t  unused0[8];
+	uint16_t vid_mode;
+	uint8_t  unused1[6];
+	uint32_t header;
+	uint16_t version;
+	uint8_t  unused2[8];
+	uint8_t  type_of_loader;
+	uint8_t  loadflags;
+	uint8_t  unused3[2];
+	uint32_t code32_start;
+	uint32_t ramdisk_image;
+	uint32_t ramdisk_size;
+	uint8_t  unused4[8];
+	uint32_t cmd_line_ptr;
+	uint8_t  unused5[8];
+	uint8_t  relocatable_kernel;
+	uint8_t  unused6[3];
+	uint32_t cmdline_size;
+	uint8_t  unused7[20];
 	uint64_t setup_data;
-	uint64_t pref_address;
-	uint32_t init_size;
+	uint8_t  unused8[12];
 } __attribute__((packed)) setup_header_t;
 
 
