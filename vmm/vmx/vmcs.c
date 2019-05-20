@@ -30,14 +30,11 @@
 #endif
 
 #define VMCS_BITMAP_SIZE ((VMCS_FIELD_COUNT+63)/64)
-#define DIRTY_CACHE_SIZE 10
 
 struct vmcs_object_t {
 	uint64_t hpa;
-	uint8_t pad[6];
+	uint8_t pad[7];
 	uint8_t is_launched;
-	uint8_t dirty_count;
-	uint32_t dirty_fields[DIRTY_CACHE_SIZE];
 	uint64_t valid_bitmap[VMCS_BITMAP_SIZE];
 	uint64_t dirty_bitmap[VMCS_BITMAP_SIZE];
 	uint64_t cache[VMCS_FIELD_COUNT];
@@ -202,7 +199,6 @@ vmcs_obj_t vmcs_create()
 
 	p_vmcs->hpa = vmcs_alloc();
 	vmcs_clr_ptr(p_vmcs);
-	p_vmcs->dirty_count = VMCS_FIELD_COUNT;
 	for (i=0; i<VMCS_BITMAP_SIZE; i++)
 		p_vmcs->valid_bitmap[i] = (uint64_t)-1; // all valid
 
@@ -280,11 +276,6 @@ void vmcs_write(vmcs_obj_t vmcs, vmcs_field_t field_id, uint64_t value)
 
 	vmcs->cache[field_id] = value;
 	cache_set_valid(vmcs, field_id); // update valid cache
-
-	if ((vmcs->dirty_count < DIRTY_CACHE_SIZE)&&(!cache_is_dirty(vmcs,field_id))) {
-		vmcs->dirty_fields[vmcs->dirty_count] = field_id;
-		vmcs->dirty_count++;
-	}
 	cache_set_dirty(vmcs, field_id);
 }
 
@@ -340,30 +331,18 @@ void vmcs_clear_all_cache(vmcs_obj_t vmcs)
 
 void vmcs_flush(vmcs_obj_t vmcs)
 {
-	uint32_t i;
 	uint32_t field_id;
 	uint32_t bitmap_idx;
 	uint32_t dirty_bit;
 
 	D(VMM_ASSERT(vmcs));
 
-	if (vmcs->dirty_count <= DIRTY_CACHE_SIZE) {
-		for (i=0; i<vmcs->dirty_count; i++) {
-			field_id = vmcs->dirty_fields[i];
+	for (bitmap_idx=0; bitmap_idx < VMCS_BITMAP_SIZE; bitmap_idx++) {
+		while (vmcs->dirty_bitmap[bitmap_idx]) {
+			dirty_bit = asm_bsf64(vmcs->dirty_bitmap[bitmap_idx]);
+			field_id = dirty_bit + bitmap_idx * 64;
 			vmx_vmwrite(g_field_data[field_id].encoding, vmcs->cache[field_id]);
-		}
-		// clear dirty cache/bitmap
-		vmcs->dirty_count = 0;
-		for (bitmap_idx=0; bitmap_idx<VMCS_BITMAP_SIZE; bitmap_idx++)
-			vmcs->dirty_bitmap[bitmap_idx] = 0;
-	} else {
-		for (bitmap_idx=0; bitmap_idx<VMCS_BITMAP_SIZE; bitmap_idx++) {
-			while (vmcs->dirty_bitmap[bitmap_idx]) {
-				dirty_bit = asm_bsf64(vmcs->dirty_bitmap[bitmap_idx]);
-				field_id = dirty_bit+bitmap_idx*64;
-				vmx_vmwrite(g_field_data[field_id].encoding, vmcs->cache[field_id]);
-				BITARRAY_CLR((uint64_t *)&(vmcs->dirty_bitmap[bitmap_idx]),(uint64_t)dirty_bit);
-			}
+			BITARRAY_CLR((uint64_t *)&(vmcs->dirty_bitmap[bitmap_idx]),(uint64_t)dirty_bit);
 		}
 	}
 }
