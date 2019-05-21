@@ -319,7 +319,7 @@ typedef union {
 		uint32_t base_reg:4;        /* same encoded as index_reg */
 		uint32_t base_reg_valid:1;  /* 0=valid, 1=invalid */
 		uint32_t undef_28_31:4;     /* undefined */
-	} vmptrld_instr, vmptrst_instr;
+	} vmptrld_instr, vmptrst_instr, vmclear_instr;
 
 	struct {
 		uint32_t scaling:2;         /* 0=no scale, 1=scale by 2, 2=scale by 4, 3=scale by 8 */

@@ -58,6 +58,10 @@ void invept_vmexit(guest_cpu_handle_t gcpu);
 void invvpid_vmexit(guest_cpu_handle_t gcpu);
 
 
+/* API of vmclear_vmexit.c */
+void vmclear_vmexit(guest_cpu_handle_t gcpu);
+
+
 /* API of emulate_vmentry.c */
 void emulate_vmentry(guest_cpu_handle_t gcpu);
 
