@@ -50,6 +50,14 @@ void vmread_vmexit(guest_cpu_handle_t gcpu);
 void vmwrite_vmexit(guest_cpu_handle_t gcpu);
 
 
+/* API of invept_vmexit.c */
+void invept_vmexit(guest_cpu_handle_t gcpu);
+
+
+/* API of invvpid_vmexit.c */
+void invvpid_vmexit(guest_cpu_handle_t gcpu);
+
+
 /* API of emulate_vmentry.c */
 void emulate_vmentry(guest_cpu_handle_t gcpu);
 
