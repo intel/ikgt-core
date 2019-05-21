@@ -56,6 +56,7 @@ void nested_vt_init(void)
 {
 	lock_init(&nestedvt_lock, "nestedvt_lock");
 
+	vmexit_install_handler(vmclear_vmexit, REASON_19_VMCLEAR_INSTR);
 	vmexit_install_handler(vmptrld_vmexit, REASON_21_VMPTRLD_INSTR);
 	vmexit_install_handler(vmptrst_vmexit, REASON_22_VMPTRST_INSTR);
 	vmexit_install_handler(vmread_vmexit,  REASON_23_VMREAD_INSTR);
