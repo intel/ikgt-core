@@ -110,7 +110,7 @@ static uint32_t ept_leaf_get_attr(uint64_t leaf_entry, UNUSED uint32_t level)
 
 void invalidate_gpm(guest_handle_t guest)
 {
-	asm_invept(guest->eptp);
+	asm_invept(guest->eptp, INVEPT_TYPE_SINGLE_CONTEXT);
 	event_raise(NULL, EVENT_GPM_INVALIDATE, guest);
 }
 

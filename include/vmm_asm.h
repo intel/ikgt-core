@@ -832,16 +832,36 @@ static inline uint64_t asm_xgetbv(uint32_t idx)
 	return MAKE64(high,low);
 }
 
-static inline void asm_invept(uint64_t eptp)
+#define INVEPT_TYPE_SINGLE_CONTEXT 1
+#define INVEPT_TYPE_ALL_CONTEXT    2
+static inline void asm_invept(uint64_t eptp, uint64_t invept_type)
 {
 	struct {
-		uint64_t eptp, gpa;
+		uint64_t eptp, rsvd;
 	} operand = {eptp, 0};
 
 	__asm__ __volatile__ (
 		"invept (%%rax), %%rcx"
-		: :"a" (&operand), "c" (1) //the "1" means single-context invalidation
-		);
+		: :"a" (&operand), "c" (invept_type)
+	);
+}
+
+#define INVVPID_TYPE_INDIVIDUAL_ADDR               0
+#define INVVPID_TYPE_SINGLE_CONTEXT                1
+#define INVVPID_TYPE_ALL_CONTEXT                   2
+#define INVVPID_TYPE_SINGLE_CONTEXT_RETAIN_GLOBAL  3
+static inline void asm_invvpid(uint16_t vpid, uint64_t linear_addr, uint64_t invvpid_type)
+{
+	struct {
+		uint16_t vpid;
+		uint16_t rsvd[3];
+		uint64_t linear_addr;
+	} operand = {vpid, {0}, linear_addr};
+
+	__asm__ __volatile__ (
+		"invvpid (%%rax), %%rcx"
+		: :"a" (&operand), "c" (invvpid_type)
+	);
 }
 
 static inline uint32_t asm_get_pkru(void)

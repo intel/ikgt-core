@@ -62,4 +62,6 @@ void nested_vt_init(void)
 	vmexit_install_handler(vmwrite_vmexit, REASON_25_VMWRITE_INSTR);
 	vmexit_install_handler(vmxoff_vmexit,  REASON_26_VMXOFF_INSTR);
 	vmexit_install_handler(vmxon_vmexit,   REASON_27_VMXON_INSTR);
+	vmexit_install_handler(invept_vmexit,  REASON_50_INVEPT_INSTR);
+	vmexit_install_handler(invvpid_vmexit, REASON_53_INVVPID_INSTR);
 }

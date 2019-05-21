@@ -336,6 +336,20 @@ typedef union {
 		uint32_t reg2:4;            /* same encoded as reg1 */
 	} vmread_instr, vmwrite_instr;
 
+	struct {
+		uint32_t scaling:2;         /* 0=no scale, 1=scale by 2, 2=scale by 4, 3=scale by 8 */
+		uint32_t undef_2:5;         /* undefined */
+		uint32_t addr_size:3;       /* 0=16-bit, 1=32-bit, 2=64-bit */
+		uint32_t resv_10:1;         /* Cleared to 0 */
+		uint32_t undef_11_14:4;     /* undefined */
+		uint32_t seg_reg:3;         /* 0=ES, 1=CS, 2=SS, 3=DS, 4=FS, 5=GS, other invalid. */
+		uint32_t index_reg:4;       /* same encoded as reg1 */
+		uint32_t index_reg_valid:1; /* 0=valid, 1=invalid */
+		uint32_t base_reg:4;        /* same encoded as reg1 */
+		uint32_t base_reg_valid:1;  /* 0=valid, 1=invalid */
+		uint32_t reg2:4;            /* same encoded as reg1 */
+	} invept_instr, invvpid_instr;
+
 	uint32_t uint32;
 } vmx_exit_instr_info_t;
 

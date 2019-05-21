@@ -42,7 +42,7 @@ static void flush_ept(UNUSED guest_cpu_handle_t gcpu, void *arg)
 {
 	uint64_t eptp = (uint64_t)arg;
 
-	asm_invept(eptp);
+	asm_invept(eptp, INVEPT_TYPE_SINGLE_CONTEXT);
 }
 #endif
 
@@ -92,7 +92,7 @@ static void trusty_vmcall_ept_update(guest_cpu_handle_t gcpu)
 		gpm_remove_mapping(gcpu->guest, start, size);
 
 		/* first flush ept TLB on local cpu */
-		asm_invept(gcpu->guest->eptp);
+		asm_invept(gcpu->guest->eptp, INVEPT_TYPE_SINGLE_CONTEXT);
 
 		/* if with smp, flush ept TLB on remote cpus */
 #if MAX_CPU_NUM > 1
