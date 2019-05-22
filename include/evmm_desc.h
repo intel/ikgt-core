@@ -96,6 +96,10 @@ typedef struct {
 	gcpu_state_t guest0_aps_state[MAX_CPU_NUM - 1]; /* filled in stage1 */
 #endif
 
+#ifdef MODULE_TEMPLATE_TEE
+	uint64_t x64_cr3;
+#endif
+
 #ifdef MODULE_TRUSTY_GUEST
 	/* trusty related info */
 	trusty_desc_t trusty_desc; /* filled in stage0 */

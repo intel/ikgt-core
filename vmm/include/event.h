@@ -40,6 +40,7 @@ typedef enum {
 				if you are not familiar with Spectre module. */
 	EVENT_SWITCH_TO_SECURE,
 	EVENT_SWITCH_TO_NONSECURE,
+	EVENT_SCHEDULE_INITIAL_GCPU,
 	EVENTS_COUNT
 } vmm_event_t;
 

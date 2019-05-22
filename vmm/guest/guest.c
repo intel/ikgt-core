@@ -100,10 +100,12 @@ guest_handle_t create_guest(uint32_t gcpu_count, uint32_t attr)
 	/* create guest */
 	guest = guest_register();
 
-	gpm_set_mapping(guest, 0, 0, top_of_memory, attr);
+	if (attr) {
+		gpm_set_mapping(guest, 0, 0, top_of_memory, attr);
 
-	/* remove eVMM area from guest */
-	gpm_remove_mapping(guest, g_evmm_rt_base, g_evmm_rt_size);
+		/* remove eVMM area from guest */
+		gpm_remove_mapping(guest, g_evmm_rt_base, g_evmm_rt_size);
+	}
 
 	cr_write_guest_init(guest);
 
