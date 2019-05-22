@@ -158,6 +158,10 @@
 #include "modules/block_npk.h"
 #endif
 
+#ifdef MODULE_TEMPLATE_TEE
+#include "modules/template_tee.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -436,6 +440,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		interrupt_ipi_init();
 #endif
 
+#ifdef MODULE_TEMPLATE_TEE
+		template_tee_init(evmm_desc->x64_cr3);
+#endif
+
 		/* Prepare guest0 gcpu initial state */
 		prepare_g0gcpu_init_state(&evmm_desc->guest0_gcpu0_state);
 #ifdef MODULE_APS_STATE
@@ -470,6 +478,7 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 
 		/* Create guest with RWX(0x7) attribute */
 		create_guest(host_cpu_num, 0x7);
+
 #ifdef MODULE_TRUSTY_GUEST
 		/* Dependency:
 		 *  LIB_IPC,
@@ -515,6 +524,7 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		gcpu = gcpu->next_same_host_cpu;
 	} while (gcpu != get_current_gcpu());
 
+	event_raise(NULL, EVENT_SCHEDULE_INITIAL_GCPU, NULL);
 	initial_gcpu = schedule_initial_gcpu();
 	print_trace(
 		"initial guest selected: uint16_t: %d GUEST_CPU_ID: %d\n",

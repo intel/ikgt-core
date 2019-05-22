@@ -140,6 +140,9 @@ Config files
 	- MODULE_MSR_MONITOR
 		Description: Provide api to monitor MSR access.
 
+	- MODULE_TEMPLATE_TEE
+		Description: Provide Tee guest framework
+
 	- MODULE_TRUSTY_GUEST
 		Description: Enable Trusty.
 		Dependency:

@@ -15,6 +15,8 @@
 
 #include "vmm_objects.h"
 
+#define get_vmcall_id(gcpu) (gcpu_get_gp_reg(gcpu, REG_RAX))
+
 typedef void (*vmcall_handler_t) (guest_cpu_handle_t gcpu);
 
 void vmcall_register(uint16_t guest_id, uint32_t vmcall_id,
