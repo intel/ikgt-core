@@ -8,6 +8,7 @@
 
 #include "gcpu.h"
 #include "vmcs.h"
+#include "gpm.h"
 #include "nested_vt_internal.h"
 
 #define VMENTRY_COPY_FROM_GVMCS 0
@@ -160,6 +161,112 @@ static vmentry_vmcs_handle_t vmentry_vmcs_handle_array[] = {
 _Static_assert(sizeof(vmentry_vmcs_handle_array)/sizeof(vmentry_vmcs_handle_t) == VMCS_FIELD_COUNT,
 			"Nested VT: vmentry vmcs handle count not aligned with VMCS fields count!");
 
+static void handle_vmcs_io_bitmap_a(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_IO_BITMAP_A, gvmcs[VMCS_IO_BITMAP_A]);
+}
+
+static void handle_vmcs_io_bitmap_b(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_IO_BITMAP_B, gvmcs[VMCS_IO_BITMAP_B]);
+}
+
+static void handle_vmcs_msr_bitmap(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_MSR_BITMAP, gvmcs[VMCS_MSR_BITMAP]);
+}
+
+static void handle_vmcs_tsc_offset(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	vmcs_write(gcpu->vmcs, VMCS_TSC_OFFSET, gvmcs[VMCS_TSC_OFFSET] + vmcs_read(gcpu->vmcs, VMCS_TSC_OFFSET));
+}
+
+static void handle_vmcs_virtual_apic_addr(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	uint64_t hpa;
+
+	VMM_ASSERT(gpm_gpa_to_hpa(gcpu->guest, gvmcs[VMCS_VIRTUAL_APIC_ADDR], &hpa, NULL));
+
+	vmcs_write(gcpu->vmcs, VMCS_VIRTUAL_APIC_ADDR, hpa);
+}
+
+static void handle_vmcs_post_intr_desc_addr(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	uint64_t hpa;
+
+	VMM_ASSERT(gpm_gpa_to_hpa(gcpu->guest, gvmcs[VMCS_POST_INTR_DESC_ADDR], &hpa, NULL));
+
+	vmcs_write(gcpu->vmcs, VMCS_POST_INTR_DESC_ADDR, hpa);
+}
+
+static void handle_vmcs_eptp_addr(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	uint64_t hpa;
+
+	VMM_ASSERT(gpm_gpa_to_hpa(gcpu->guest, gvmcs[VMCS_EPTP_ADDRESS], &hpa, NULL));
+
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_EPTP_ADDRESS, hpa);
+}
+
+static void handle_vmcs_pin_ctrl(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_PIN_CTRL, gvmcs[VMCS_PIN_CTRL]);
+}
+
+static void handle_vmcs_proc_ctrl1(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_PROC_CTRL1, gvmcs[VMCS_PROC_CTRL1]);
+}
+
+static void handle_vmcs_proc_ctrl2(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_PROC_CTRL2, gvmcs[VMCS_PROC_CTRL2]);
+}
+
+static void handle_vmcs_link_ptr(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	uint64_t hpa;
+
+	VMM_ASSERT(gpm_gpa_to_hpa(gcpu->guest, gvmcs[VMCS_LINK_PTR], &hpa, NULL));
+
+	vmcs_write(gcpu->vmcs, VMCS_LINK_PTR, hpa);
+}
+
+static void handle_vmcs_entry_msr_load_count(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_ENTRY_MSR_LOAD_COUNT, gvmcs[VMCS_ENTRY_MSR_LOAD_COUNT]);
+}
+
+static void handle_vmcs_entry_msr_load_addr(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	uint64_t hpa;
+
+	VMM_ASSERT(gpm_gpa_to_hpa(gcpu->guest, gvmcs[VMCS_ENTRY_MSR_LOAD_ADDR], &hpa, NULL));
+
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_ENTRY_MSR_LOAD_ADDR, hpa);
+}
+
+static void handle_vmcs_entry_ctrl(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_ENTRY_CTRL, gvmcs[VMCS_ENTRY_CTRL]);
+}
+
+static void handle_vmcs_preemption_timer(guest_cpu_handle_t gcpu, uint64_t *gvmcs)
+{
+	/* TODO: merge with hvmcs */
+	vmcs_write(gcpu->vmcs, VMCS_PREEMPTION_TIMER, gvmcs[VMCS_PREEMPTION_TIMER]);
+}
+
 void emulate_vmentry(guest_cpu_handle_t gcpu)
 {
 	vmcs_obj_t vmcs;
@@ -201,5 +308,20 @@ void emulate_vmentry(guest_cpu_handle_t gcpu)
 		}
 	}
 
-	/* TODO: add functions to handle VMENTRY_OTHERS */
+	/* handle VMENTRY_OTHERS */
+	handle_vmcs_io_bitmap_a(gcpu, gvmcs);
+	handle_vmcs_io_bitmap_b(gcpu, gvmcs);
+	handle_vmcs_msr_bitmap(gcpu, gvmcs);
+	handle_vmcs_tsc_offset(gcpu, gvmcs);
+	handle_vmcs_virtual_apic_addr(gcpu, gvmcs);
+	handle_vmcs_post_intr_desc_addr(gcpu, gvmcs);
+	handle_vmcs_eptp_addr(gcpu, gvmcs);
+	handle_vmcs_pin_ctrl(gcpu, gvmcs);
+	handle_vmcs_proc_ctrl1(gcpu, gvmcs);
+	handle_vmcs_proc_ctrl2(gcpu, gvmcs);
+	handle_vmcs_link_ptr(gcpu, gvmcs);
+	handle_vmcs_entry_msr_load_count(gcpu, gvmcs);
+	handle_vmcs_entry_msr_load_addr(gcpu, gvmcs);
+	handle_vmcs_entry_ctrl(gcpu, gvmcs);
+	handle_vmcs_preemption_timer(gcpu, gvmcs);
 }
