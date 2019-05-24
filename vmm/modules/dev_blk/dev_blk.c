@@ -516,7 +516,7 @@ void device_block_init() {
 	hva = page_alloc(1);
 	memset(hva, 0xff, PAGE_4K_SIZE);
 	VMM_ASSERT_EX(hmm_hva_to_hpa((uint64_t)hva, &g_mmio_dummy_page_hpa, NULL),
-			"hva(0x%llX) to hpa conversion failed in %s\n", hva, __FUNCTION__);
+			"hva(0x%p) to hpa conversion failed in %s\n", hva, __FUNCTION__);
 	D(hmm_unmap_hpa(g_mmio_dummy_page_hpa, PAGE_4K_SIZE));
 
 	event_register(EVENT_EPT_VIOLATION, device_block_event);
