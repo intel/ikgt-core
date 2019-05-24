@@ -16,7 +16,7 @@ static void copy_from_gvmcs(guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field
 	vmcs_write(gcpu->vmcs, vmcs_field, gvmcs[vmcs_field]);
 }
 
-static void handle_io_bitmap_a(guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field_t vmcs_field UNUSED UNUSED)
+static void handle_io_bitmap_a(guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field_t vmcs_field UNUSED)
 {
 	/* TODO: merge with hvmcs */
 	vmcs_write(gcpu->vmcs, VMCS_IO_BITMAP_A, gvmcs[VMCS_IO_BITMAP_A]);
