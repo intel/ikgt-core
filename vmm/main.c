@@ -247,12 +247,6 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		vmm_heap_initialize(heap_address, heap_size);
 		vmm_pool_initialize();
 
-		/* Prepare guest0 gcpu initial state */
-		prepare_g0gcpu_init_state(&evmm_desc->guest0_gcpu0_state);
-#ifdef MODULE_APS_STATE
-		prepare_g0ap_init_state(&evmm_desc->guest0_aps_state[0]);
-#endif
-
 		/* Initialize GDT for all cpus */
 		gdt_setup();
 		print_trace("\nGDT setup is finished.\n");
@@ -442,6 +436,11 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		interrupt_ipi_init();
 #endif
 
+		/* Prepare guest0 gcpu initial state */
+		prepare_g0gcpu_init_state(&evmm_desc->guest0_gcpu0_state);
+#ifdef MODULE_APS_STATE
+		prepare_g0ap_init_state(&evmm_desc->guest0_aps_state[0]);
+#endif
 	} else {
 
 #ifdef MODULE_SUSPEND
