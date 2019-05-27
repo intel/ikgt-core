@@ -114,6 +114,12 @@ void invalidate_gpm(guest_handle_t guest)
 	event_raise(NULL, EVENT_GPM_INVALIDATE, guest);
 }
 
+void invalidate_gpm_all(void)
+{
+	asm_invept(0, INVEPT_TYPE_ALL_CONTEXT);
+	event_raise(NULL, EVENT_GPM_INVALIDATE, NULL);
+}
+
 void gpm_create_mapping(guest_handle_t guest)
 {
 	D(VMM_ASSERT(guest));
