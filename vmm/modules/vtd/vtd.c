@@ -338,7 +338,10 @@ static void vtd_invalidate_cache(UNUSED guest_cpu_handle_t gcpu, void *pv)
 
 	for (i=0; i<DMAR_MAX_ENGINE; i++) {
 		if (engine_list[i].reg_base_hva) {
-			vtd_invalidate_iotlb(&engine_list[i], IOTLB_IIRG_DOMAIN, gid2did(guest->id));
+			if (guest)
+				vtd_invalidate_iotlb(&engine_list[i], IOTLB_IIRG_DOMAIN, gid2did(guest->id));
+			else
+				vtd_invalidate_iotlb(&engine_list[i], IOTLB_IIRG_GLOBAL, 0);
 		}
 	}
 }
