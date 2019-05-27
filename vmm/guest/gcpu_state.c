@@ -310,3 +310,112 @@ void prepare_g0gcpu_init_state(const gcpu_state_t *gcpu_state)
 
 	event_register(EVENT_GCPU_INIT, g0gcpu_set_guest_state);
 }
+
+void gcpu_set_32bit_state(guest_cpu_handle_t gcpu)
+{
+	uint32_t idx;
+	vmcs_obj_t vmcs;
+
+	D(VMM_ASSERT(gcpu));
+
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_TR, 0x00, 0, 0xffffffff, 0x808b);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_CS, 0x08, 0, 0xffffffff, 0xc09b);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_DS, 0x10, 0, 0xffffffff, 0xc093);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_ES, 0x10, 0, 0xffffffff, 0xc093);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_FS, 0x10, 0, 0xffffffff, 0xc093);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_GS, 0x10, 0, 0xffffffff, 0xc093);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_SS, 0x10, 0, 0xffffffff, 0xc093);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_LDTR, 0, 0, 0x10000, 0);
+
+	/* init gp registers */
+	for (idx = REG_RAX; idx < REG_GP_COUNT; ++idx)
+		gcpu_set_gp_reg(gcpu, (gp_reg_t)idx, 0);
+
+	vmcs = gcpu->vmcs;
+
+	vmcs_write(vmcs, VMCS_GUEST_DR7, 0x00000400);
+
+	/* init RFLAGS */
+	vmcs_write(vmcs, VMCS_GUEST_RFLAGS, RFLAGS_RSVD1);
+
+	vmcs_write(vmcs, VMCS_GUEST_CR0, CR0_ET|CR0_PE);
+	vmcs_write(vmcs, VMCS_GUEST_CR4, 0);
+
+	vmcs_write(vmcs, VMCS_GUEST_GDTR_BASE, 0);
+	vmcs_write(vmcs, VMCS_GUEST_GDTR_LIMIT, 0x17);
+
+	vmcs_write(vmcs, VMCS_GUEST_IDTR_BASE, 0);
+	vmcs_write(vmcs, VMCS_GUEST_IDTR_LIMIT, 0);
+
+	/* init selected model-specific registers */
+	vmcs_write(vmcs, VMCS_GUEST_EFER, 0);
+	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_CS, 0);
+	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_ESP, 0);
+	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_EIP, 0);
+	vmcs_write(vmcs, VMCS_GUEST_PAT, asm_rdmsr(MSR_PAT));
+
+	/* set cached value to the same in order not to trigger events */
+	vmcs_write(vmcs, VMCS_GUEST_ACTIVITY_STATE,
+			ACTIVITY_STATE_ACTIVE);
+
+	/* set state in vmenter control fields */
+	cr0_guest_write(gcpu, CR0_ET|CR0_PE);
+	cr4_guest_write(gcpu, 0);
+	gcpu_update_guest_mode(gcpu);
+}
+
+/* x86_cr3 value is get from stage0, caller should ensure it is still available before use it */
+void gcpu_set_64bit_state(guest_cpu_handle_t gcpu, uint64_t x86_cr3)
+{
+	uint32_t idx;
+	vmcs_obj_t vmcs;
+
+	D(VMM_ASSERT(gcpu));
+	D(VMM_ASSERT(x86_cr3));
+
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_TR, 0x00, 0, 0xffffffff, 0x808b);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_CS, 0x08, 0, 0xffffffff, 0xa09b);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_DS, 0x10, 0, 0xffffffff, 0xc093);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_ES, 0x10, 0, 0xffffffff, 0xc093);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_FS, 0x10, 0, 0xffffffff, 0xc093);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_GS, 0x10, 0, 0xffffffff, 0xc093);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_SS, 0x10, 0, 0xffffffff, 0xc093);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_LDTR, 0, 0, 0x10000, 0);
+
+	/* init gp registers */
+	for (idx = REG_RAX; idx < REG_GP_COUNT; ++idx)
+		gcpu_set_gp_reg(gcpu, (gp_reg_t)idx, 0);
+
+	vmcs = gcpu->vmcs;
+
+	vmcs_write(vmcs, VMCS_GUEST_DR7, 0x00000400);
+
+	/* init RFLAGS */
+	vmcs_write(vmcs, VMCS_GUEST_RFLAGS, RFLAGS_RSVD1);
+
+	vmcs_write(vmcs, VMCS_GUEST_CR0, CR0_PE|CR0_ET|CR0_NE|CR0_PG);
+	vmcs_write(vmcs, VMCS_GUEST_CR3, x86_cr3);
+	vmcs_write(vmcs, VMCS_GUEST_CR4, CR4_PAE|CR4_VMXE);
+
+	vmcs_write(vmcs, VMCS_GUEST_GDTR_BASE, 0);
+	vmcs_write(vmcs, VMCS_GUEST_GDTR_LIMIT, 0x17);
+
+	vmcs_write(vmcs, VMCS_GUEST_IDTR_BASE, 0);
+	vmcs_write(vmcs, VMCS_GUEST_IDTR_LIMIT, 0);
+
+	/* init selected model-specific registers */
+	vmcs_write(vmcs, VMCS_GUEST_EFER, asm_rdmsr(MSR_EFER));
+	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_CS, 0);
+	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_ESP, 0);
+	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_EIP, 0);
+	vmcs_write(vmcs, VMCS_GUEST_PAT, asm_rdmsr(MSR_PAT));
+
+	/* set cached value to the same in order not to trigger events */
+	vmcs_write(vmcs, VMCS_GUEST_ACTIVITY_STATE,
+			ACTIVITY_STATE_ACTIVE);
+
+	/* set state in vmenter control fields */
+	cr0_guest_write(gcpu, CR0_PE|CR0_ET|CR0_NE|CR0_PG);
+	cr4_guest_write(gcpu, CR4_PAE|CR4_VMXE);
+	gcpu_update_guest_mode(gcpu);
+}
