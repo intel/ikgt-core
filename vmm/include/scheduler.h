@@ -24,6 +24,11 @@ void register_gcpu(guest_cpu_handle_t gcpu_handle, uint16_t host_cpu_id);
 guest_cpu_handle_t get_current_gcpu(void);
 
 /*
+ * get gcpu from guest. Return the target gcpu on success, NULL on fail
+ */
+guest_cpu_handle_t get_gcpu_from_guest(guest_handle_t guest, uint32_t host_cpu);
+
+/*
  * Set initial guest. Return the target gcpu on success, NULL on fail
  */
 guest_cpu_handle_t set_initial_guest(guest_handle_t guest);

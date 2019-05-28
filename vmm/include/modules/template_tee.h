@@ -17,6 +17,8 @@
 #include "gcpu.h"
 #include "guest.h"
 
+#define GUEST_REE 0 /* OSloader or Android/Linux/Fuchsia */
+
 /* TEE BSP/AP status */
 enum {
 	MODE_32BIT = 0,
