@@ -50,9 +50,13 @@ guest_cpu_handle_t get_current_gcpu()
 	return g_current_gcpu[host_cpu];
 }
 
-static guest_cpu_handle_t get_gcpu_from_guest(guest_handle_t guest, uint32_t host_cpu)
+guest_cpu_handle_t get_gcpu_from_guest(guest_handle_t guest, uint32_t host_cpu)
 {
 	guest_cpu_handle_t gcpu = g_current_gcpu[host_cpu];
+
+	D(VMM_ASSERT(guest));
+	D(VMM_ASSERT_EX((host_cpu < host_cpu_num),
+		"host_cpu_id=%d is invalid \n", host_cpu_id));
 
 	do {
 		if (gcpu->guest == guest)

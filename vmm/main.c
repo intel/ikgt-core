@@ -546,7 +546,11 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 #endif
 
 	/* stage 6: launch guest */
+
+	/* Add ifndef here to avoid duplication of print because template tee also outputs the similar log */
+#ifndef MODULE_TEMPLATE_TEE
 	print_info("CPU%d Launch first Guest\n", cpuid);
+#endif
 	gcpu_resume(initial_gcpu);
 
 	//print_panic("CPU%d Resume initial guest cpu failed\n", cpuid);
