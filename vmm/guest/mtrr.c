@@ -335,7 +335,7 @@ static void print_mtrr()
 	mtrrcap_reg = asm_rdmsr(MSR_MTRRCAP);
 	mtrr_def_type = asm_rdmsr(MSR_MTRR_DEF_TYPE);
 
-	if (mtrr_def_type & MTRR_ENABLE) {
+	if (!(mtrr_def_type & MTRR_ENABLE)) {
 		print_info("MTRR disabled\n");
 		return;
 	}

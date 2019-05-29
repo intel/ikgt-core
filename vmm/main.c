@@ -272,19 +272,25 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 #endif
 	}
 
-	if (cpuid == 0) {
-		BSP_SET_STAGE(STAGE_SETUP_HOST);
-	}
-
 	gdt_load(cpuid);
 	print_trace("GDT is loaded.\n");
 	idt_load();
 	print_trace("IDT is loaded.\n");
-	hmm_enable();
 
 #ifdef DEBUG
+	/*
+	 * The mtrr_check() is designed to check the consistency of MTRR values between BSP and AP.
+	 * The logic is to record MTRR values of BSP first and then compare values of AP. So this
+	 * point is the right place to execute mtrr_check() which will run BSP before APs.
+	 */
 	mtrr_check();
 #endif
+
+	if (cpuid == 0) {
+		BSP_SET_STAGE(STAGE_SETUP_HOST);
+	}
+
+	hmm_enable();
 
 	/* stage 2: setup vmx */
 	if (cpuid != 0) {
