@@ -57,6 +57,8 @@ enum {
 	GUEST_OPTEE        /* OP-TEE */
 };
 
+#define OPTEE_SHM_SIZE 0x200000
+
 static optee_desc_t *optee_desc;
 #ifdef ENABLE_SGUEST_SMP
 static uint32_t sipi_ap_wkup_addr;
@@ -322,6 +324,9 @@ void init_optee_guest(evmm_desc_t *evmm_desc)
 
 	dev_sec_info_size = *((uint32_t *)optee_desc->dev_sec_info);
 	VMM_ASSERT_EX(!(dev_sec_info_size & 0x3ULL), "size of optee boot info is not 32bit aligned!\n");
+
+	/* reserve shared memory for OP-TEE */
+	optee_desc->optee_file.runtime_total_size -= OPTEE_SHM_SIZE;
 
 	print_trace("Init op-tee guest\n");
 
