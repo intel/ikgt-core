@@ -49,6 +49,7 @@
 /*eax = 0x80000001*/
 #define CPUID_EDX_1G_PAGE    (1U << 26)
 /* eax = 7, ecx = 0 */
+#define CPUID_EDX_MD_CLEAR   (1U << 10)
 #define CPUID_EDX_IBRS_IBPB  (1U << 26)
 #define CPUID_EDX_L1D_FLUSH  (1U << 28)
 #define CPUID_EDX_ARCH_CAP   (1U << 29)
@@ -500,6 +501,7 @@ typedef uint8_t cache_type_t;
 /* IA-32 MSR Register ARCH_CAPABILITIES(0x10A) */
 #define RDCL_NO                    (1ull << 0)
 #define SKIP_L1DFL_VMENTRY         (1ull << 3)
+#define MDS_NO                     (1ull << 5)
 
 /* IA-32 MSR Register FLUSH_CMD(0x10B) */
 #define L1D_FLUSH                  (1ull << 0)

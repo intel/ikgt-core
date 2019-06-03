@@ -158,6 +158,8 @@ static void deschedule_cpus(UNUSED guest_cpu_handle_t gcpu, UNUSED void *arg)
 
 	hcpu_id = host_cpu_id();
 
+	/* TODO: consider multiple pre-launched TEE in future */
+
 	/* Wait until all target CPUs handled last event */
 	while (g_cpu_info[hcpu_id].locked_cpu_num != 0U) {
 		asm_pause();
@@ -187,6 +189,16 @@ static void reschedule_cpus(UNUSED guest_cpu_handle_t gcpu, UNUSED void *arg)
 	g_cpu_info[host_cpu_id()].switch_to_secure = FALSE;
 }
 
+static void mds_buff_overwrite(UNUSED guest_cpu_handle_t gcpu, UNUSED void *arg)
+{
+	__asm__ __volatile__ (
+		"sub $8, %rsp     \n\t"
+		"mov %ds, (%rsp)  \n\t"
+		"verw (%rsp)      \n\t"
+		"add $8, %rsp     \n\t"
+	);
+}
+
 static void init_cpu_info(uint16_t hcpu_id)
 {
 	uint32_t apic_id;
@@ -204,10 +216,15 @@ static void init_cpu_info(uint16_t hcpu_id)
 	g_cpu_info[hcpu_id].package_id = apic_id & package_mask;
 }
 
-static boolean_t need_mitigate_l1tf = TRUE;
+/*
+ * Since eVMM does not store any secrets, so the mitigation event only triggered when
+ * do guest switch between TEE(SECURE) and NON-TEE(NON-SECURE).
+ */
 static void register_mitigation_event(void)
 {
 	uint64_t arch_cap_msr;
+	boolean_t need_mitigate_l1tf;
+	boolean_t need_mitigate_mds;
 	cpuid_params_t cpuid_param = {7, 0, 0, 0}; //eax=7, ecx=0
 
 	asm_cpuid(&cpuid_param);
@@ -215,14 +232,30 @@ static void register_mitigation_event(void)
 	if (cpuid_param.edx & CPUID_EDX_ARCH_CAP) {
 		arch_cap_msr = asm_rdmsr(MSR_ARCH_CAP);
 		need_mitigate_l1tf = !(arch_cap_msr & RDCL_NO);
+		need_mitigate_mds = !(arch_cap_msr & MDS_NO);
+
 		if (need_mitigate_l1tf) {
-			if (cpuid_param.edx & L1D_FLUSH) {
+			if (cpuid_param.edx & CPUID_EDX_L1D_FLUSH) {
 				event_register(EVENT_SWITCH_TO_NONSECURE, flush_l1d);
 			} else {
 				event_register(EVENT_SWITCH_TO_NONSECURE, flush_all_cache);
 			}
-			event_register(EVENT_SWITCH_TO_SECURE, deschedule_cpus);
-			event_register(EVENT_SWITCH_TO_NONSECURE, reschedule_cpus);
+		}
+
+		if (need_mitigate_mds) {
+			if (cpuid_param.edx & CPUID_EDX_MD_CLEAR) {
+				event_register(EVENT_SWITCH_TO_NONSECURE, mds_buff_overwrite);
+			} else {
+				print_warn("MD_CLEAR is not enumerated! Please update microcode!\n");
+			}
+		}
+
+		if (need_mitigate_l1tf || need_mitigate_mds) {
+			if (hw_mt_support()) {
+				derive_cpu_masks();
+				event_register(EVENT_SWITCH_TO_SECURE, deschedule_cpus);
+				event_register(EVENT_SWITCH_TO_NONSECURE, reschedule_cpus);
+			}
 		}
 	} else {
 		print_warn("IA32_ARCH_CAPABILITIES is not supported!");
@@ -236,11 +269,6 @@ void l1tf_init(void)
 	if (hcpu_id == 0U)
 		register_mitigation_event();
 
-	if (!hw_mt_support() || !need_mitigate_l1tf)
-		return;
-
-	if (hcpu_id == 0U)
-		derive_cpu_masks();
-
-	init_cpu_info(hcpu_id);
+	if (hw_mt_support())
+		init_cpu_info(hcpu_id);
 }
