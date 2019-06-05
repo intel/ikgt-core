@@ -1,0 +1,15 @@
+TARGET = stage0.elf
+
+LDFLAGS = -T linker.lds -z max-page-size=4096 -z common-page-size=4096
+
+ifeq (, $(findstring -DDEBUG, $(EVMM_CMPL_FLAGS)))
+LDFLAGS += -s
+endif
+
+all: $(TARGET) stage0.bin
+
+$(TARGET):
+	$(LD) $(LDFLAGS) -o $(OUTDIR)/$@ $(OBJS) $(wildcard $(BUILD_DIR)common/*.o)
+
+stage0.bin: $(TARGET)
+	objcopy -j .text -O binary -S $(OUTDIR)/$(TARGET) $(BUILD_DIR)stage0.bin
