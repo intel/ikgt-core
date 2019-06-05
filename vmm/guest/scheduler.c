@@ -142,7 +142,7 @@ guest_cpu_handle_t schedule_to_guest(guest_handle_t guest)
 
 	next_gcpu = get_gcpu_from_guest(guest, host_cpu);
 	if (next_gcpu == NULL) {
-		print_panic("failed to get gcpu from guest!\n");
+		print_panic("%s(): failed to get gcpu from guest on cpu_id[%u]!\n", __func__, host_cpu);
 		return NULL;
 	}
 

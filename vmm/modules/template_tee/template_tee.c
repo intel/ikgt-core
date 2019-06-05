@@ -19,6 +19,7 @@
 #include "gcpu_inject_event.h"
 #include "modules/vmcall.h"
 #include "modules/template_tee.h"
+#include "modules/ipc.h"
 
 #ifdef MODULE_MSR_ISOLATION
 #include "modules/msr_isolation.h"
@@ -117,6 +118,7 @@ static void tee_schedule_init_gcpu(UNUSED guest_cpu_handle_t gcpu, UNUSED void *
 {
 	uint16_t host_cpu = host_cpu_id();
 	tee_config_ex_t *tee_ex = g_tee_cfg_ex;
+	guest_cpu_handle_t init_gcpu;
 
 	while (tee_ex) {
 		/* Find the Tee which needs early boot and meets one of following conditions
@@ -129,8 +131,8 @@ static void tee_schedule_init_gcpu(UNUSED guest_cpu_handle_t gcpu, UNUSED void *
 	}
 
 	if (tee_ex) {
-		set_initial_guest(tee_ex->tee_guest);
-		tee_ex->tee_config.before_launching_tee(gcpu);
+		init_gcpu = set_initial_guest(tee_ex->tee_guest);
+		tee_ex->tee_config.before_launching_tee(init_gcpu);
 		print_info("VMM: Launch TEE %s on cpu_id[%u]\n", tee_ex->tee_config.tee_name, host_cpu);
 	} else {
 		set_initial_guest(guest_handle(GUEST_REE));
@@ -179,6 +181,11 @@ static tee_config_ex_t *find_launchable_tee(void)
 	return NULL;
 }
 
+static void ipc_invalidate_gpm(UNUSED guest_cpu_handle_t gcpu, UNUSED void *pv)
+{
+	invalidate_gpm_all();
+}
+
 /* World Switch */
 static void simple_smc_call(guest_cpu_handle_t gcpu, tee_config_ex_t *tee_ex, boolean_t smc_copy)
 {
@@ -195,10 +202,17 @@ static void simple_smc_call(guest_cpu_handle_t gcpu, tee_config_ex_t *tee_ex, bo
 	}
 
 	next_gcpu = schedule_to_guest(guest);
-	VMM_ASSERT_EX(next_gcpu, "Failed to schedule guest\n");
 
-	if (smc_copy)
+	if (smc_copy) {
 		smc_copy_gp_regs(gcpu, next_gcpu, &tee_ex->tee_config);
+
+		/* Raise event to mitigate L1TF */
+		if (GUEST_REE == gcpu->guest->id) {
+			event_raise(next_gcpu, EVENT_SWITCH_TO_SECURE, NULL);
+		} else {
+			event_raise(next_gcpu, EVENT_SWITCH_TO_NONSECURE, NULL);
+		}
+	}
 
 	if (tee_ex->tee_config.post_world_switch)
 		tee_ex->tee_config.post_world_switch(next_gcpu, gcpu);
@@ -220,9 +234,8 @@ static void try_launch_other_tee(guest_cpu_handle_t gcpu, tee_config_ex_t *tee_e
 	if (next_tee) {
 		guest = next_tee->tee_guest;
 		next_gcpu = schedule_to_guest(guest);
-		VMM_ASSERT_EX(next_gcpu, "Failed to schedule guest\n");
 
-		next_tee->tee_config.before_launching_tee(gcpu);
+		next_tee->tee_config.before_launching_tee(next_gcpu);
 
 		/* post_world_switch is not called here since it is TEE to TEE switch.
 		   All post_world_switch will be called later when switching to REE */
@@ -239,7 +252,7 @@ static void try_launch_other_tee(guest_cpu_handle_t gcpu, tee_config_ex_t *tee_e
 					(tee_ex_tmp->tee_status[host_cpu] == TEE_LAUNCHED) &&
 					tee_ex_tmp->tee_config.post_world_switch) {
 				prev_gcpu = get_gcpu_from_guest(tee_ex_tmp->tee_guest, host_cpu);
-				VMM_ASSERT_EX(prev_gcpu, "Failed to schedule guest\n");
+				VMM_ASSERT_EX(prev_gcpu, "%s(): Failed to get gcpu on cpu_id[%u]\n", __func__, host_cpu);
 				tee_ex_tmp->tee_config.post_world_switch(next_gcpu, prev_gcpu);
 			}
 			tee_ex_tmp = tee_ex_tmp->next;
@@ -264,18 +277,11 @@ static void smc_handler(guest_cpu_handle_t gcpu)
 	vmcall_id = (uint32_t)get_vmcall_id(gcpu);
 
 	tee_ex = get_tee_cfg_by_vmcall_id(vmcall_id);
-	D(VMM_ASSERT_EX(tee_ex, "Get tee ex failed\n"));
+	D(VMM_ASSERT_EX(tee_ex, "%s(): Get tee ex failed\n", __func__));
 
 	if (tee_ex->tee_config.single_gcpu && (host_cpu != 0)) {
 		gcpu_inject_ud(gcpu);
 		return;
-	}
-
-	/* Raise event to mitigate L1TF */
-	if (GUEST_REE == gcpu->guest->id) {
-		event_raise(NULL, EVENT_SWITCH_TO_SECURE, NULL);
-	} else {
-		event_raise(NULL, EVENT_SWITCH_TO_NONSECURE, NULL);
 	}
 
 	vmcs_read(gcpu->vmcs, VMCS_GUEST_RIP); // update cache
@@ -302,7 +308,7 @@ static void smc_handler(guest_cpu_handle_t gcpu)
 			}
 		}
 	} else {
-		/* World Switch */
+		/* tee_status is TEE_LAUNCHED */
 		simple_smc_call(gcpu, tee_ex, TRUE);
 	}
 }
@@ -313,21 +319,24 @@ guest_handle_t create_tee(tee_config_t *cfg)
 	guest_handle_t guest;
 	tee_config_ex_t *tee_ex, *new_tee_ex;
 
-	VMM_ASSERT_EX(cfg, "No configure for tee\n");
-	VMM_ASSERT_EX(cfg->tee_name, "No tee name\n");
-	VMM_ASSERT_EX(cfg->tee_bsp_status <= MODE_64BIT, "Tee bsp status is incorrect\n");
-	VMM_ASSERT_EX(cfg->tee_ap_status <= HLT, "Tee ap status is incorrect\n");
-	VMM_ASSERT_EX((cfg->launch_tee_first || cfg->first_smc_to_tee), "first_smc_to_tee should not be NULL if launch ree first\n");
-	VMM_ASSERT_EX(!cfg->launch_tee_first || cfg->before_launching_tee, "before_launching_tee should not be NULL if launch tee first\n");
-	VMM_ASSERT_EX(!cfg->launch_tee_first || (cfg->tee_runtime_addr && cfg->tee_runtime_size), "tee runtime addr/size should not be NULL if launch tee first\n");
+	VMM_ASSERT_EX(cfg, "%s(): No configure for tee\n", __func__);
+	VMM_ASSERT_EX(cfg->tee_name, "%s(): No tee name\n", __func__);
+	VMM_ASSERT_EX(cfg->tee_bsp_status <= MODE_64BIT, "%s(): Tee bsp status is incorrect\n", __func__);
+	VMM_ASSERT_EX(cfg->tee_ap_status <= HLT, "%s(): Tee ap status is incorrect\n", __func__);
+	VMM_ASSERT_EX((cfg->launch_tee_first || cfg->first_smc_to_tee),
+			"%s(): first_smc_to_tee should not be NULL if launch ree first\n", __func__);
+	VMM_ASSERT_EX(!cfg->launch_tee_first || cfg->before_launching_tee,
+			"%s(): before_launching_tee should not be NULL if launch tee first\n", __func__);
+	VMM_ASSERT_EX(!cfg->launch_tee_first || (cfg->tee_runtime_addr && cfg->tee_runtime_size),
+			"%s(): tee runtime addr/size should not be NULL if launch tee first\n", __func__);
 
-	VMM_ASSERT_EX((cfg->smc_param_to_tee_nr <= 8), "smc num to Tee exceed max\n");
+	VMM_ASSERT_EX((cfg->smc_param_to_tee_nr <= 8), "%s(): smc num to Tee exceed max\n", __func__);
 	for (i=0; i<cfg->smc_param_to_tee_nr; i++)
-		VMM_ASSERT_EX(cfg->smc_param_to_tee[i] < REG_GP_COUNT, "smc param to tee exceeds reg max index\n");
+		VMM_ASSERT_EX(cfg->smc_param_to_tee[i] < REG_GP_COUNT, "%s(): smc param to tee exceeds reg max index\n", __func__);
 
-	VMM_ASSERT_EX((cfg->smc_param_to_ree_nr <= 8), "smc num to Ree exceed max\n");
+	VMM_ASSERT_EX((cfg->smc_param_to_ree_nr <= 8), "%s(): smc num to Ree exceed max\n", __func__);
 	for (i=0; i<cfg->smc_param_to_ree_nr; i++)
-		VMM_ASSERT_EX(cfg->smc_param_to_ree[i] < REG_GP_COUNT, "smc param to ree exceeds reg max index\n");
+		VMM_ASSERT_EX(cfg->smc_param_to_ree[i] < REG_GP_COUNT, "%s(): smc param to ree exceeds reg max index\n", __func__);
 
 	if (cfg->single_gcpu)
 		cpu_num = 1;
@@ -391,16 +400,16 @@ guest_cpu_handle_t launch_tee(guest_handle_t guest, uint64_t tee_rt_addr, uint64
 	guest_cpu_handle_t next_gcpu;
 	boolean_t updated = FALSE;
 
-	D(VMM_ASSERT_EX(guest, "guest is NULL\n"));
+	D(VMM_ASSERT_EX(guest, "%s(): guest is NULL\n", __func__));
 
 	tee_ex = get_tee_cfg_by_guest(guest);
-	VMM_ASSERT_EX(tee_ex, "faied to get tee cfg from guest\n");
+	VMM_ASSERT_EX(tee_ex, "%s(): faied to get tee cfg from guest\n", __func__);
 
 	VMM_ASSERT_EX(!tee_ex->tee_config.single_gcpu || (host_cpu == 0),
-		"tee is single gcpu but launched on AP!\n");
+		"%s(): tee is single gcpu but launched on AP!\n", __func__);
 
 	VMM_ASSERT_EX(tee_ex->tee_status[host_cpu] == TEE_INIT,
-		"Tee[%s] has already been launched on cpu[%u]\n", tee_ex->tee_config.tee_name, host_cpu);
+		"%s(): Tee[%s] has already been launched on cpu[%u]\n", __func__, tee_ex->tee_config.tee_name, host_cpu);
 
 	if (tee_rt_addr != 0) {
 		if (tee_ex->tee_config.tee_runtime_addr == 0) {
@@ -408,7 +417,7 @@ guest_cpu_handle_t launch_tee(guest_handle_t guest, uint64_t tee_rt_addr, uint64
 			updated = TRUE;
 		} else {
 			VMM_ASSERT_EX(tee_ex->tee_config.tee_runtime_addr == tee_rt_addr,
-				"mismatch runtime addr on cpu_id[%u]!\n", host_cpu);
+				"%s(): mismatch runtime addr on cpu_id[%u]!\n", __func__, host_cpu);
 		}
 	}
 
@@ -418,12 +427,12 @@ guest_cpu_handle_t launch_tee(guest_handle_t guest, uint64_t tee_rt_addr, uint64
 			updated = TRUE;
 		} else {
 			VMM_ASSERT_EX(tee_ex->tee_config.tee_runtime_size == tee_rt_size,
-				"mismatch runtime size on cpu_id[%u]!\n", host_cpu);
+				"%s(): mismatch runtime size on cpu_id[%u]!\n", __func__, host_cpu);
 		}
 	}
 
 	VMM_ASSERT_EX(tee_ex->tee_config.tee_runtime_addr && tee_ex->tee_config.tee_runtime_size,
-		"No avail runtime addr or size\n");
+		"%s(): No avail runtime addr or size\n", __func__);
 
 	/* Tee runtime memory or size has been updated */
 	if (updated) {
@@ -448,11 +457,16 @@ guest_cpu_handle_t launch_tee(guest_handle_t guest, uint64_t tee_rt_addr, uint64
 
 		/* Invalidate all EPT cache on all physical CPUs */
 		invalidate_gpm_all();
+		ipc_exec_on_all_other_cpus(ipc_invalidate_gpm, NULL);
 	}
 
 	/* World switch */
 	next_gcpu = schedule_to_guest(guest);
-	VMM_ASSERT_EX(next_gcpu, "Failed to schedule guest\n");
+
+	if (tee_ex->tee_config.before_launching_tee)
+		tee_ex->tee_config.before_launching_tee(next_gcpu);
+
+	print_info("VMM: Launch TEE %s on cpu_id[%u]\n", tee_ex->tee_config.tee_name, host_cpu);
 
 	return next_gcpu;
 }

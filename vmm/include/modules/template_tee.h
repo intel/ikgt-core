@@ -45,8 +45,8 @@ typedef struct {
 	/* If first SMC call is from REE, in that SMC, first_smc_to_tee() will be called.
 	   pre_world_switch()/post_world_switch() will only be called for other SMCs */
 	void (*first_smc_to_tee)(guest_cpu_handle_t gcpu);
-	void (*pre_world_switch)(guest_cpu_handle_t gcpu_from);
-	void (*post_world_switch)(guest_cpu_handle_t gcpu_from, guest_cpu_handle_t gcpu_prev);
+	void (*pre_world_switch)(guest_cpu_handle_t gcpu);
+	void (*post_world_switch)(guest_cpu_handle_t gcpu, guest_cpu_handle_t gcpu_prev);
 
 	boolean_t single_gcpu; // TRUE: gcpu number = 1; FALSE: gcpu number = physical cpu number
 
