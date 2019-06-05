@@ -35,10 +35,15 @@ AFLAGS += $(AINCLUDES)
 
 include $(PROJS)/rule.linux
 
-ifneq (, $(findstring -DDEBUG, $(EVMM_CMPL_FLAGS)))
-LDFLAGS = -e vmm_main -pie -z max-page-size=4096 -z common-page-size=4096
-else
-LDFLAGS = -e vmm_main -pie -s -z max-page-size=4096 -z common-page-size=4096
+LDFLAGS = -e vmm_main -pie -z max-page-size=4096
+
+ifeq (, $(findstring -DDEBUG, $(EVMM_CMPL_FLAGS)))
+LDFLAGS += -s
+endif
+
+# Addtional flags for GNU ld
+ifeq (GNU ld, $(findstring GNU ld, $(LD_VERSION)))
+LDFLAGS += -z common-page-size=4096
 endif
 
 all: $(TARGET)
