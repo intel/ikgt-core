@@ -7,7 +7,7 @@
  */
 
 #ifndef _CRYPTO_H_
-#define _CRYPTO_H
+#define _CRYPTO_H_
 
 #include "vmm_base.h"
 

@@ -24,7 +24,7 @@ typedef struct {
 	boolean_t switch_to_secure;
 } cpu_info_t;
 
-static cpu_info_t g_cpu_info[MAX_CPU_NUM] = {0};
+static cpu_info_t g_cpu_info[MAX_CPU_NUM];
 
 static inline uint32_t hw_mt_support(void)
 {

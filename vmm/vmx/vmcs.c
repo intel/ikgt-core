@@ -259,12 +259,7 @@ static inline void cache_set_valid(vmcs_obj_t vmcs, vmcs_field_t vmcs_field)
 	BITARRAY_SET((uint64_t *)&(vmcs->valid_bitmap[0]),(uint64_t)(vmcs_field));
 }
 
-static inline  uint64_t cache_is_dirty(vmcs_obj_t vmcs, vmcs_field_t vmcs_field)
-{
-	return BITARRAY_GET(&vmcs->dirty_bitmap[0], vmcs_field);
-}
-
-static inline  void cache_set_dirty(vmcs_obj_t vmcs, vmcs_field_t vmcs_field)
+static inline void cache_set_dirty(vmcs_obj_t vmcs, vmcs_field_t vmcs_field)
 {
 	BITARRAY_SET((uint64_t *)&(vmcs->dirty_bitmap[0]),(uint64_t)(vmcs_field));
 }

@@ -179,9 +179,6 @@ typedef enum {
 static
 volatile vmm_boot_stage_t vmm_boot_stage = STAGE_INIT_BSP;
 
-static
-volatile uint32_t launched_ap_count = 0;
-
 /*-------------------------- macros ------------------------- */
 #define AP_WAIT_FOR_STAGE(_STAGE)			\
 	{ while (vmm_boot_stage < _STAGE) { asm_pause(); } }
@@ -189,11 +186,15 @@ volatile uint32_t launched_ap_count = 0;
 #define BSP_SET_STAGE(_STAGE)				\
 	{ vmm_boot_stage = _STAGE; }
 
+#ifdef SYNC_CPU_IN_BOOT
+static volatile uint32_t launched_ap_count = 0;
+
 #define BSP_WAIT_FOR_AP(count)				\
 	{ while (launched_ap_count != (uint32_t)(count)) { asm_pause(); } }
 
 #define AP_SET_LAUNCHED()				\
 	{ asm_lock_inc32((&launched_ap_count)); }
+#endif
 
 /*------------------------- forwards ------------------------ */
 /*---------------------- implementation --------------------- */
