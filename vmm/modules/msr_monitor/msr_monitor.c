@@ -156,10 +156,10 @@ static void register_msr_monitor(uint16_t guest_id, uint32_t msr_id, boolean_t b
 
 	if (msr_offset != -1ULL) {
 		if (read_handler)
-			BITARRAY_SET((uint64_t *)(p_guest_msr_mon->msr_bitmap), msr_offset);
+			BITARRAY_SET((uint64_t *)(void *)(p_guest_msr_mon->msr_bitmap), msr_offset);
 
 		if (write_handler)
-			BITARRAY_SET((uint64_t *)(p_guest_msr_mon->msr_bitmap + 2048), msr_offset);
+			BITARRAY_SET((uint64_t *)(void *)(p_guest_msr_mon->msr_bitmap + 2048), msr_offset);
 	}
 
 	if (block_only)

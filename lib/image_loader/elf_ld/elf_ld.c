@@ -124,14 +124,14 @@ boolean_t relocate_elf_image(module_file_info_t *file_info, uint64_t *p_entry)
 		local_print("failed to read file's header\n");
 		return FALSE;
 	}
-	if (!elf_header_is_valid((elf64_ehdr_t *)p_buffer)) {
+	if (!elf_header_is_valid((elf64_ehdr_t *)(void *)p_buffer)) {
 		local_print("not an elf binary\n");
 		return FALSE;
 	}
 
-	if (is_elf64((elf64_ehdr_t *)p_buffer)) {
+	if (is_elf64((elf64_ehdr_t *)(void *)p_buffer)) {
 		return elf64_load_executable(file_info, p_entry);
-	} else if (is_elf32((elf32_ehdr_t *)p_buffer)) {
+	} else if (is_elf32((elf32_ehdr_t *)(void *)p_buffer)) {
 		return elf32_load_executable(file_info, p_entry);
 	} else {
 		local_print("not an elf32 or elf64 binary\n");

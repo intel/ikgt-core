@@ -179,7 +179,7 @@ boolean_t find_boot_params(cmdline_params_t *cmdline_params,
 
 	ImageElement = (image_element_t *)(uint64_t)image_params->ImageElementAddr;
 	for (i=0; i < image_params->NbImage; i++, ImageElement++) {
-		p_ImageID = (uint64_t *)ImageElement->ImageID;
+		p_ImageID = (uint64_t *)(void *)ImageElement->ImageID;
 
 		switch((uint64_t)(*p_ImageID)) {
 		case VMM_IMAGE_ID:

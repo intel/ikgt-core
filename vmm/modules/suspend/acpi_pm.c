@@ -144,22 +144,22 @@ static void acpi_parse_fadt_states(uint8_t *fadt)
 	VMM_ASSERT_EX((2 == acpi_fadt_data.port_size || 4 == acpi_fadt_data.port_size),
 		"fadt pm1x port size is invalid\n");
 
-	acpi_fadt_data.port_id[ACPI_PM1_CNTRL_A] = *((uint16_t *)(fadt + FADT_PM1A_CNT_BLK_OFFSET));
-	acpi_fadt_data.port_id[ACPI_PM1_CNTRL_B] = *((uint16_t *)(fadt + FADT_PM1B_CNT_BLK_OFFSET));
+	acpi_fadt_data.port_id[ACPI_PM1_CNTRL_A] = *((uint16_t *)(void *)(fadt + FADT_PM1A_CNT_BLK_OFFSET));
+	acpi_fadt_data.port_id[ACPI_PM1_CNTRL_B] = *((uint16_t *)(void *)(fadt + FADT_PM1B_CNT_BLK_OFFSET));
 
 	/*get waking vector address*/
-	facs = (uint8_t *)(uint64_t)(*((uint32_t *)(fadt + FADT_FACS_OFFSET)));
+	facs = (uint8_t *)(uint64_t)(*((uint32_t *)(void *)(fadt + FADT_FACS_OFFSET)));
 	if (!facs) {
-		facs = (uint8_t *)(*((uint64_t *)(fadt + FADT_XFACS_OFFSET)));
+		facs = (uint8_t *)(*((uint64_t *)(void *)(fadt + FADT_XFACS_OFFSET)));
 	}
 
 	VMM_ASSERT_EX(facs,
 		"[ACPI] FACS is not detected. S3 is not supported by the platform\n");
 
-	acpi_fadt_data.p_waking_vector = (uint32_t *)(facs + FACS_FW_WAKING_VECTOR_OFFSET);
+	acpi_fadt_data.p_waking_vector = (uint32_t *)(void *)(facs + FACS_FW_WAKING_VECTOR_OFFSET);
 
 	/*get s3 sleep states*/
-	VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)*(uint32_t *)(fadt + FADT_DSDT_OFFSET), (uint64_t *)&dsdt),
+	VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)*(uint32_t *)(void *)(fadt + FADT_DSDT_OFFSET), (uint64_t *)&dsdt),
 		"[ACPI] DSDT not found\n");
 
 	print_trace(
