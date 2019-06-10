@@ -152,9 +152,9 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 	for (i = 0; i < num; ++i, offset += step) {
 		/* Get the address from the pointer entry */
 		VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)((xsdt) ?
-			(*(uint64_t *)offset) : (*(uint32_t *)offset)), (uint64_t *)&tbl),
+			(*(uint64_t *)(void *)offset) : (*(uint32_t *)(void *)offset)), (uint64_t *)&tbl),
 				"fail to convert hpa 0x%llX to hva",
-				(uint64_t)((xsdt) ? (*(uint64_t *)offset): (*(uint32_t *)offset)));
+				(uint64_t)((xsdt) ? (*(uint64_t *)(void *)offset): (*(uint32_t *)(void *)offset)));
 
 		/* Make sure address is valid */
 		if (!tbl) {
@@ -192,7 +192,7 @@ static acpi_table_rsdp_t *scan_for_rsdp(void *addr, uint32_t length)
 	/* Search from given start address for the requested length */
 	for (i = begin; i < end; i += ACPI_RSDP_SCAN_STEP) {
 		/* The signature and checksum must both be correct */
-		if (*(uint64_t *)i != ACPI_SIG_RSD_PTR) {
+		if (*(uint64_t *)(void *)i != ACPI_SIG_RSD_PTR) {
 			continue;
 		}
 

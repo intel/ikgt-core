@@ -73,7 +73,7 @@ static boolean_t dmar_engine_takes_charge_of_gpu(acpi_dma_hw_unit_t *unit)
 		return FALSE;
 	}
 
-	device_scope = (acpi_device_scope_t *)unit->device_scope;
+	device_scope = (acpi_device_scope_t *)(void *)unit->device_scope;
 	num_of_devices = (device_scope->length - OFFSET_OF(acpi_device_scope_t, path))
 		/ sizeof(acpi_path_element_t);
 
@@ -112,7 +112,7 @@ void vtd_dmar_parse(vtd_engine_t *engine_list)
 
 	while (offset < (acpi_dmar->header.length - sizeof(acpi_dmar_table_t))) {
 
-		unit = (acpi_dma_hw_unit_t *)(acpi_dmar->remapping_structures + offset);
+		unit = (acpi_dma_hw_unit_t *)(void *)(acpi_dmar->remapping_structures + offset);
 
 		switch(unit->type) {
 			/* DMAR type hardware uint */

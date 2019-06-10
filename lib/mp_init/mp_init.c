@@ -98,11 +98,11 @@ void setup_sipi_page(uint64_t sipi_page, boolean_t need_wakeup_bsp, uint64_t c_e
 
 	memcpy(code_to_patch, (const void *)real_mode_code, (uint64_t)sizeof(real_mode_code));
 
-	*((uint16_t *)(code_to_patch + REAL_MODE_STARTUP)) = (uint16_t)(sipi_page>>4);
-	*((uint16_t *)(code_to_patch + GDTR_OFFSET_IN_CODE)) = (uint16_t)(GDTR_OFFSET_IN_PAGE);
-	*((uint32_t *)(code_to_patch + CPU_STARTUP_DATA)) = (uint32_t)(uint64_t)(&g_startup_data);
-	*((uint32_t *)(code_to_patch + CPU_STARTUP64)) = (uint32_t)(uint64_t)(&cpu_startup64);
-	*((uint32_t *)(code_to_patch + CPU_STARTUP32)) = (uint32_t)(uint64_t)(&cpu_startup32);
+	*((uint16_t *)(void *)(code_to_patch + REAL_MODE_STARTUP)) = (uint16_t)(sipi_page>>4);
+	*((uint16_t *)(void *)(code_to_patch + GDTR_OFFSET_IN_CODE)) = (uint16_t)(GDTR_OFFSET_IN_PAGE);
+	*((uint32_t *)(void *)(code_to_patch + CPU_STARTUP_DATA)) = (uint32_t)(uint64_t)(&g_startup_data);
+	*((uint32_t *)(void *)(code_to_patch + CPU_STARTUP64)) = (uint32_t)(uint64_t)(&cpu_startup64);
+	*((uint32_t *)(void *)(code_to_patch + CPU_STARTUP32)) = (uint32_t)(uint64_t)(&cpu_startup32);
 
 	memcpy(code_to_patch + GDT_OFFSET_IN_PAGE, (uint8_t *)(uint64_t)&gdt_32_table[0], sizeof(gdt_32_table));
 	gdtr_32 = (gdtr32_t *)(code_to_patch + GDTR_OFFSET_IN_PAGE);

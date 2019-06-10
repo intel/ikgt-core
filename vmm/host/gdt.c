@@ -74,7 +74,7 @@ uint64_t get_tss_base(uint16_t cpu_id)
 static void setup_null_seg(void)
 {
 	uint64_t *p_entry =
-		(uint64_t *)&gdt[GDT_NULL_ENTRY_OFFSET];
+		(uint64_t *)(void *)&gdt[GDT_NULL_ENTRY_OFFSET];
 
 	*p_entry = 0ULL;
 }
@@ -82,7 +82,7 @@ static void setup_null_seg(void)
 static void setup_data_seg(void)
 {
 	uint64_t *p_data =
-		(uint64_t *)&gdt[GDT_DATA_OFFSET];
+		(uint64_t *)(void *)&gdt[GDT_DATA_OFFSET];
 
 	/*
 	low 32bits data segement descriptor format
@@ -111,7 +111,7 @@ static void setup_data_seg(void)
 static void setup_code64_seg(void)
 {
 	uint64_t *p_code64 =
-		(uint64_t *)&gdt[GDT_CODE64_OFFSET];
+		(uint64_t *)(void *)&gdt[GDT_CODE64_OFFSET];
 
 	/*
 	low 32-bit word is reserved, configure only high word
@@ -136,7 +136,7 @@ static void setup_code64_seg(void)
 static void setup_tss64_seg(uint16_t cpu_id)
 {
 	tss64_descripor_t *p_tss64 =
-		(tss64_descripor_t *)&gdt[TSS_ENTRY_OFFSET(cpu_id)];
+		(tss64_descripor_t *)(void *)&gdt[TSS_ENTRY_OFFSET(cpu_id)];
 	uint64_t base_address = get_tss_base(cpu_id);
 	uint32_t segment_limit =
 		OFFSET_OF(tss64_t, io_bitmap_last_byte);

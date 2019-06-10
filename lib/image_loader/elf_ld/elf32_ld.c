@@ -24,7 +24,7 @@ elf32_get_segment_info(const elf32_ehdr_t *ehdr,
 	const elf32_phdr_t *phdr;
 	if (segment_no < ehdr->e_phnum) {
 		phdrtab = (const uint8_t *)ehdr + ehdr->e_phoff;
-		phdr = (const elf32_phdr_t *)GET_PHDR(ehdr,
+		phdr = (const elf32_phdr_t *)(const void *)GET_PHDR(ehdr,
 			phdrtab,
 			segment_no);
 
@@ -187,7 +187,7 @@ static void elf32_update_segment_table(module_file_info_t *file_info, uint32_t r
 	phdrtab = (uint8_t *)(uint64_t)(file_info->runtime_addr + ehdr->e_phoff);
 
 	for (i = 0; i < (uint16_t)ehdr->e_phnum; ++i) {
-		elf32_phdr_t *phdr = (elf32_phdr_t *)GET_PHDR(ehdr, phdrtab, i);
+		elf32_phdr_t *phdr = (elf32_phdr_t *)(void *)GET_PHDR(ehdr, phdrtab, i);
 
 		if (0 != phdr->p_memsz) {
 			phdr->p_paddr += relocation_offset;
@@ -227,7 +227,7 @@ elf32_load_executable(module_file_info_t *file_info, uint64_t *p_entry)
 	uint64_t offset_0_addr = (uint64_t)~0;
 
 	/* map ELF header to ehdr */
-	ehdr = (elf32_ehdr_t *)(uint8_t *)image_offset(file_info, 0,
+	ehdr = (elf32_ehdr_t *)(void *)image_offset(file_info, 0,
 			sizeof(elf32_ehdr_t));
 	if (!ehdr) {
 		return FALSE;
@@ -244,7 +244,7 @@ elf32_load_executable(module_file_info_t *file_info, uint64_t *p_entry)
 	/* Calculate amount of memory required. First calculate size of all
 		 * loadable segments */
 	for (i = 0; i < (uint16_t)ehdr->e_phnum; ++i) {
-		elf32_phdr_t *phdr = (elf32_phdr_t *)GET_PHDR(ehdr, phdrtab, i);
+		elf32_phdr_t *phdr = (elf32_phdr_t *)(void *)GET_PHDR(ehdr, phdrtab, i);
 
 		addr = phdr->p_paddr;
 		memsz = phdr->p_memsz;
@@ -278,7 +278,7 @@ elf32_load_executable(module_file_info_t *file_info, uint64_t *p_entry)
 
 	/* now actually copy image to its target destination */
 	for (i = 0; i < (uint16_t)ehdr->e_phnum; ++i) {
-		elf32_phdr_t *phdr = (elf32_phdr_t *)GET_PHDR(ehdr, phdrtab, i);
+		elf32_phdr_t *phdr = (elf32_phdr_t *)(void *)GET_PHDR(ehdr, phdrtab, i);
 		if (PT_DYNAMIC == phdr->p_type) {
 			phdr_dyn = phdr;
 			continue;

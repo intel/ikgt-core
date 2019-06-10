@@ -109,7 +109,7 @@ void io_monitor_register(uint16_t guest_id,
 	p_io_mon->next = p_io_mon_guest->io_list;
 	p_io_mon_guest->io_list = p_io_mon;
 
-	BITARRAY_SET((uint64_t *)p_io_mon_guest->io_bitmap, port_id);
+	BITARRAY_SET((uint64_t *)(void *)p_io_mon_guest->io_bitmap, port_id);
 	p_io_mon->io_read_handler = read_handler;
 	p_io_mon->io_write_handler = write_handler;
 }
