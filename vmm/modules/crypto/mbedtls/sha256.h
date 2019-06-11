@@ -11,7 +11,9 @@
 #define MBEDTLS_SHA256_H
 
 #include "vmm_base.h"
+
 #define MBEDTLS_ERR_SHA256_HW_ACCEL_FAILED                -0x0037  /**< SHA-256 hardware accelerator failed */
+#define MBEDTLS_ERR_SHA256_BAD_INPUT_DATA                 -0x0074  /**< SHA-256 input data was malformed. */
 
 /**
  * \brief          The SHA-256 context structure.
