@@ -32,13 +32,19 @@ SECTIONS
 
     /* merge .rodata into .text */
     *(.rodata .rodata.* .gnu.linkonce.r.*)
-  } =0x90909090
 
-/* add bss and common section into .text to support debug print in stage0.
- * .text must come before common section to make sure tos header start at 0.*/
-  .text           :
-  {
     /* merge .bss into .text */
     *(.bss .bss.* .gnu.linkonce.b.* COMMON)
   } =0x90909090
+
+  /DISCARD/ :
+  {
+    /*
+     * The .eh_frame and .eh_framehdr sections contain the exception frames.
+     * There is no need to link such sections in our stage0. Detail reference:
+     * http://refspecs.linux-foundation.org/LSB_4.0.0/LSB-Core-generic/LSB-Core-generic/ehframechpt.html
+     */
+    *(.eh_frame)
+    *(.eh_framehdr)
+  }
 }
