@@ -30,10 +30,21 @@ SECTIONS
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
 
-	/* merge .rodata into .text */
+    /* merge .rodata into .text */
     *(.rodata .rodata.* .gnu.linkonce.r.*)
 
-	/* merge .bss into .text */
-    *(.bss .bss.* .gnu.linkonce.b.*)
+    /* merge .bss into .text */
+    *(.bss .bss.* .gnu.linkonce.b.* COMMON)
   } =0x90909090
+
+  /DISCARD/ :
+  {
+    /*
+     * The .eh_frame and .eh_framehdr sections contain the exception frames.
+     * There is no need to link such sections in our stage0. Detail reference:
+     * http://refspecs.linux-foundation.org/LSB_4.0.0/LSB-Core-generic/LSB-Core-generic/ehframechpt.html
+     */
+    *(.eh_frame)
+    *(.eh_framehdr)
+  }
 }
