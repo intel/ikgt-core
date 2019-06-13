@@ -143,6 +143,12 @@ Config files
 	- MODULE_TEMPLATE_TEE
 		Description: Provide Tee guest framework
 
+	- MODULE_TRUSTY_TEE
+		Description: Enable Trusty based on template tee framework
+		Dependency:
+			MODULE_TEMPLATE_TEE
+			others refer to MODULE_TRUSTY_GUEST
+
 	- MODULE_TRUSTY_GUEST
 		Description: Enable Trusty.
 		Dependency:

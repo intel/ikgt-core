@@ -184,6 +184,17 @@ boolean_t file_parse(evmm_desc_t *evmm_desc, uint64_t base, uint32_t offset, uin
 	}
 #endif
 
+#if defined (MODULE_TRUSTY_TEE) && defined (PACK_LK)
+	if (file_hdr->file_size[LK_BIN_INDEX]) {
+		evmm_desc->trusty_tee_desc.tee_file.loadtime_addr = evmm_desc->evmm_file.loadtime_addr +
+			evmm_desc->evmm_file.loadtime_size;
+		evmm_desc->trusty_tee_desc.tee_file.loadtime_size = file_hdr->file_size[LK_BIN_INDEX];
+	} else {
+		print_panic("lk file size is zero\n");
+		return FALSE;
+	}
+#endif
+
 #if defined (MODULE_OPTEE_GUEST) && defined (PACK_OPTEE)
     if (file_hdr->file_size[OPTEE_BIN_INDEX]) {
 		evmm_desc->optee_desc.optee_file.loadtime_addr = evmm_desc->evmm_file.loadtime_addr +
