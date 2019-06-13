@@ -22,7 +22,7 @@ enum {
 	STAGE1_BIN_INDEX,
 	EVMM_BIN_INDEX,
 
-#if defined (MODULE_TRUSTY_GUEST) && defined (PACK_LK)
+#if (defined (MODULE_TRUSTY_GUEST) || defined (MODULE_TRUSTY_TEE)) && defined (PACK_LK)
 	LK_BIN_INDEX,
 #endif
 

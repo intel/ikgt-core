@@ -83,6 +83,11 @@ typedef struct {
 } optee_desc_t;
 
 typedef struct {
+	module_file_info_t tee_file;
+	void* dev_sec_info;
+} tee_desc_t;
+
+typedef struct {
 	uint8_t num_of_cpu; /* filled in stage0/1 */
 	uint8_t pad[3];
 	uint32_t sipi_ap_wkup_addr; /* filled in stage0 */
@@ -98,6 +103,10 @@ typedef struct {
 
 #ifdef MODULE_TEMPLATE_TEE
 	uint64_t x64_cr3;
+#endif
+
+#ifdef MODULE_TRUSTY_TEE
+	tee_desc_t trusty_tee_desc;
 #endif
 
 #ifdef MODULE_TRUSTY_GUEST

@@ -146,6 +146,9 @@ void stage0_main(
 	evmm_desc->sipi_ap_wkup_addr = (uint64_t)vmm_boot->VMMSipiApWkupAddr;
 	evmm_desc->top_of_mem = tom;
 	evmm_desc->tsc_per_ms = 0; //The TSC frequency will be set in Stage1
+#ifdef MODULE_TEMPLATE_TEE
+       evmm_desc->x64_cr3 = asm_get_cr3();
+#endif
 
 	evmm_desc->stage1_file.loadtime_addr = packed_file[STAGE1_BIN_INDEX].load_addr;
 	evmm_desc->stage1_file.loadtime_size = packed_file[STAGE1_BIN_INDEX].size;
@@ -158,6 +161,11 @@ void stage0_main(
 	evmm_desc->evmm_file.runtime_total_size = ((uint64_t)(vmm_boot->VMMMemSize)) << 10;
 
 	fill_g0gcpu0(&evmm_desc->guest0_gcpu0_state, &and_boot->CpuState);
+
+#ifdef MODULE_TRUSTY_TEE
+	/* For trusty, tos.img will be relocated by osloader */
+	evmm_desc->trusty_tee_desc.dev_sec_info = dev_sec_info;
+#endif
 
 #if defined (MODULE_TRUSTY_GUEST)
 	/* tos.img will be relocated by osloader */

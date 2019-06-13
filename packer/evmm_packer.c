@@ -16,7 +16,7 @@
 #include "file_pack.h"
 #include "vmm_base.h"
 
-#if defined (MODULE_TRUSTY_GUEST) && defined (PACK_LK)
+#if (defined (MODULE_TRUSTY_GUEST) || defined (MODULE_TRUSTY_TEE)) && defined (PACK_LK)
 #define EVMM_PKG_BIN_NAME    "evmm_lk_pkg.bin"
 #elif defined (MODULE_OPTEE_GUEST) && defined (PACK_OPTEE)
 #define EVMM_PKG_BIN_NAME    "evmm_optee_pkg.bin"
@@ -32,7 +32,7 @@ static char* file_list[] = {
 	"stage0.bin",
 	"stage1.bin",
 	"evmm.elf",
-#if defined (MODULE_TRUSTY_GUEST) && defined (PACK_LK)
+#if (defined (MODULE_TRUSTY_GUEST) || defined (MODULE_TRUSTY_TEE)) && defined (PACK_LK)
 	"lk.elf",
 #endif
 
