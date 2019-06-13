@@ -325,7 +325,7 @@ void gcpu_set_32bit_state(guest_cpu_handle_t gcpu)
 	gcpu_set_seg(gcpu, (seg_id_t)SEG_FS, 0x10, 0, 0xffffffff, 0xc093);
 	gcpu_set_seg(gcpu, (seg_id_t)SEG_GS, 0x10, 0, 0xffffffff, 0xc093);
 	gcpu_set_seg(gcpu, (seg_id_t)SEG_SS, 0x10, 0, 0xffffffff, 0xc093);
-	gcpu_set_seg(gcpu, (seg_id_t)SEG_LDTR, 0, 0, 0x10000, 0);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_LDTR, 0, 0, 0, 0x10000);
 
 	/* init gp registers */
 	for (idx = REG_RAX; idx < REG_GP_COUNT; ++idx)
@@ -380,7 +380,7 @@ void gcpu_set_64bit_state(guest_cpu_handle_t gcpu, uint64_t x86_cr3)
 	gcpu_set_seg(gcpu, (seg_id_t)SEG_FS, 0x10, 0, 0xffffffff, 0xc093);
 	gcpu_set_seg(gcpu, (seg_id_t)SEG_GS, 0x10, 0, 0xffffffff, 0xc093);
 	gcpu_set_seg(gcpu, (seg_id_t)SEG_SS, 0x10, 0, 0xffffffff, 0xc093);
-	gcpu_set_seg(gcpu, (seg_id_t)SEG_LDTR, 0, 0, 0x10000, 0);
+	gcpu_set_seg(gcpu, (seg_id_t)SEG_LDTR, 0, 0, 0, 0x10000);
 
 	/* init gp registers */
 	for (idx = REG_RAX; idx < REG_GP_COUNT; ++idx)
