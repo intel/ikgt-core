@@ -28,7 +28,7 @@ enum {
 };
 
 typedef struct {
-	char* tee_name; // cannot be NULL.
+	const char* tee_name; // cannot be NULL.
 
 	/* Tee runtime info. If this info is unknown during evmm booting
 	   set 0 to them */
