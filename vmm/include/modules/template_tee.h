@@ -57,6 +57,21 @@ typedef struct {
 	uint32_t tee_ap_status; // WAIT-FOR-SIPI, HLT, 32 bit, 64 bit
 } tee_config_t;
 
+#define fill_smc_param_to_tee(cfg, array)				  \
+	{ 								  \
+		uint32_t i;						  \
+		cfg.smc_param_to_tee_nr = sizeof(array)/sizeof(array[0]); \
+		for (i=0; i<cfg.smc_param_to_tee_nr; i++)		  \
+			cfg.smc_param_to_tee[i] = array[i];		  \
+	}
+
+#define fill_smc_param_from_tee(cfg, array)				  \
+	{								  \
+		uint32_t i;						  \
+		cfg.smc_param_to_ree_nr = sizeof(array)/sizeof(array[0]); \
+		for (i=0; i<cfg.smc_param_to_ree_nr; i++)		  \
+			cfg.smc_param_to_ree[i] = array[i];		  \
+	}
 
 guest_handle_t create_tee(tee_config_t* cfg);
 /* If tee_rt_addr or tee_rt_size equals to 0, values set in create_tee() will be used */
