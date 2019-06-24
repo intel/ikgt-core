@@ -1,6 +1,6 @@
 TARGET = stage0.elf
 
-LDFLAGS = -T linker.lds -z max-page-size=4096
+LDFLAGS = -T linker.lds -z max-page-size=4096 -z noexecstack
 
 ifeq (, $(findstring -DDEBUG, $(EVMM_CMPL_FLAGS)))
 LDFLAGS += -s
