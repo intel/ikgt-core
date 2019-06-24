@@ -17,7 +17,7 @@ ASOURCES = $(wildcard *.S)
 
 include $(PROJS)/rule.linux
 
-LDFLAGS = -e stage1_main -m elf_x86_64 -pie -z max-page-size=4096
+LDFLAGS = -e stage1_main -m elf_x86_64 -pie -z max-page-size=4096 -z noexecstack
 
 ifeq (, $(findstring -DDEBUG, $(EVMM_CMPL_FLAGS)))
 LDFLAGS += -s

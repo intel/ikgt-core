@@ -59,6 +59,12 @@ CFLAGS += -static -nostdinc
 # Disable implicit builtin knowledge of functions
 CFLAGS += -fno-builtin
 
+# Do not assume null pointer deference does not exist
+CFLAGS += -fno-delete-null-pointer-checks
+
+# Treat signed integer overflow as two’s complement
+CFLAGS += -fwrapv
+
 # add warning checks as much as possible.
 # -Wconversion option will cause a warning like i += 1, so we strip this
 # warning option
@@ -82,6 +88,9 @@ CFLAGS += -fno-hosted -Wtrampolines -Wlogical-op
 # without this flag, the highest bit will be treated as sign bit
 # e.g. int a:2 = 3, but it's printf("%d", a) is -1.
 CFLAGS += -funsigned-bitfields
+
+# Do not assume that signed overflow does not occur
+CFLAGS += -fno-strict-overflow
 endif
 
 AFLAGS = -c -m64 $(EVMM_CMPL_FLAGS) -fPIC -static -nostdinc

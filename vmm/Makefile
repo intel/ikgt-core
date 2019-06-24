@@ -35,7 +35,7 @@ AFLAGS += $(AINCLUDES)
 
 include $(PROJS)/rule.linux
 
-LDFLAGS = -e vmm_main -pie -z max-page-size=4096
+LDFLAGS = -e vmm_main -pie -z max-page-size=4096 -z noexecstack
 
 ifeq (, $(findstring -DDEBUG, $(EVMM_CMPL_FLAGS)))
 LDFLAGS += -s
