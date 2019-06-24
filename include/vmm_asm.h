@@ -908,4 +908,7 @@ static inline void asm_perform_iret(void)
 		::: "rax", "rbx", "rcx", "rdx"
 	);
 }
+
+#define barrier() __asm__ __volatile__("" ::: "memory")
+
 #endif

@@ -112,6 +112,7 @@ static boolean_t fill_device_sec_info(device_sec_info_v0_t *dev_sec_info, uint64
 
 	/* clear original seed */
 	memset(svnseed, 0, sizeof(abl_svnseed_t));
+	barrier();
 
 	if (rpmb_key) {
 		/* RPMB key provisioned by ABL */
@@ -120,6 +121,7 @@ static boolean_t fill_device_sec_info(device_sec_info_v0_t *dev_sec_info, uint64
 
 		/* clear original rpmb key */
 		memset(rpmb_key, 0, ABL_RPMB_KEY_LEN);
+		barrier();
 	} else {
 		/* RPMB key is not provisioned, set a pre-defined key */
 		memset(dev_sec_info->rpmb_key, 0x00, sizeof(dev_sec_info->rpmb_key));

@@ -26,6 +26,7 @@ void cleanup_sensetive_data(uint64_t tos_startup_info)
 {
 	tos_startup_info_t *p_startup_info = (tos_startup_info_t *)tos_startup_info;
 	memset(p_startup_info->seed_list, 0, sizeof(p_startup_info->seed_list));
+	barrier();
 }
 
 /* Function: stage0_main
