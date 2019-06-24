@@ -38,6 +38,7 @@ static boolean_t fill_dseed(device_sec_info_v0_t *dev_sec_info, seed_entry_t *en
 
 	/* erase original seed in seed entry */
 	memset(entry->seed, 0, sizeof(seed_info_t));
+	barrier();
 
 	return TRUE;
 }

@@ -227,6 +227,7 @@ static void setup_trusty_mem(void)
 	dev_sec_info_size = *((uint32_t *)trusty_desc->dev_sec_info);
 	memcpy((void *)trusty_desc->lk_file.runtime_addr, trusty_desc->dev_sec_info, dev_sec_info_size);
 	memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
+	barrier();
 #endif
 
 #ifdef DERIVE_KEY
@@ -552,6 +553,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	dev_sec_info = mem_alloc(dev_sec_info_size);
 	memcpy(dev_sec_info, trusty_desc->dev_sec_info, dev_sec_info_size);
 	memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
+	barrier();
 	trusty_desc->dev_sec_info = dev_sec_info;
 
 	set_initial_guest(guest_handle(GUEST_ANDROID));
