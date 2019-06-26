@@ -1,48 +1,11 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-* Copyright (C) 2000 - 2007, R. Byron Moore
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions
-* are met:
-* 1. Redistributions of source code must retain the above copyright
-*    notice, this list of conditions, and the following disclaimer,
-*    without modification.
-* 2. Redistributions in binary form must reproduce at minimum a disclaimer
-*    substantially similar to the "NO WARRANTY" disclaimer below
-*    ("Disclaimer") and any redistribution must be conditioned upon
-*    including a substantially similar Disclaimer requirement for further
-*    binary redistribution.
-* 3. Neither the names of the above-listed copyright holders nor the names
-*    of any contributors may be used to endorse or promote products derived
-*    from this software without specific prior written permission.
-*
-* NO WARRANTY
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-* HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-* OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-* STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-* IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-* POSSIBILITY OF SUCH DAMAGES.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * Copyright (c) 2000-2007 R. Byron Moore.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+ *
+ */
 
 #include "hmm.h"
 #include "guest.h"
@@ -181,22 +144,22 @@ static void acpi_parse_fadt_states(uint8_t *fadt)
 	VMM_ASSERT_EX((2 == acpi_fadt_data.port_size || 4 == acpi_fadt_data.port_size),
 		"fadt pm1x port size is invalid\n");
 
-	acpi_fadt_data.port_id[ACPI_PM1_CNTRL_A] = *((uint16_t *)(fadt + FADT_PM1A_CNT_BLK_OFFSET));
-	acpi_fadt_data.port_id[ACPI_PM1_CNTRL_B] = *((uint16_t *)(fadt + FADT_PM1B_CNT_BLK_OFFSET));
+	acpi_fadt_data.port_id[ACPI_PM1_CNTRL_A] = *((uint16_t *)(void *)(fadt + FADT_PM1A_CNT_BLK_OFFSET));
+	acpi_fadt_data.port_id[ACPI_PM1_CNTRL_B] = *((uint16_t *)(void *)(fadt + FADT_PM1B_CNT_BLK_OFFSET));
 
 	/*get waking vector address*/
-	facs = (uint8_t *)(uint64_t)(*((uint32_t *)(fadt + FADT_FACS_OFFSET)));
+	facs = (uint8_t *)(uint64_t)(*((uint32_t *)(void *)(fadt + FADT_FACS_OFFSET)));
 	if (!facs) {
-		facs = (uint8_t *)(*((uint64_t *)(fadt + FADT_XFACS_OFFSET)));
+		facs = (uint8_t *)(*((uint64_t *)(void *)(fadt + FADT_XFACS_OFFSET)));
 	}
 
 	VMM_ASSERT_EX(facs,
 		"[ACPI] FACS is not detected. S3 is not supported by the platform\n");
 
-	acpi_fadt_data.p_waking_vector = (uint32_t *)(facs + FACS_FW_WAKING_VECTOR_OFFSET);
+	acpi_fadt_data.p_waking_vector = (uint32_t *)(void *)(facs + FACS_FW_WAKING_VECTOR_OFFSET);
 
 	/*get s3 sleep states*/
-	VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)*(uint32_t *)(fadt + FADT_DSDT_OFFSET), (uint64_t *)&dsdt),
+	VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)*(uint32_t *)(void *)(fadt + FADT_DSDT_OFFSET), (uint64_t *)&dsdt),
 		"[ACPI] DSDT not found\n");
 
 	print_trace(

@@ -1,17 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-* * Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "dbg.h"
 #include "vmm_asm.h"
@@ -523,7 +516,7 @@ void device_block_init() {
 	hva = page_alloc(1);
 	memset(hva, 0xff, PAGE_4K_SIZE);
 	VMM_ASSERT_EX(hmm_hva_to_hpa((uint64_t)hva, &g_mmio_dummy_page_hpa, NULL),
-			"hva(0x%llX) to hpa conversion failed in %s\n", hva, __FUNCTION__);
+			"hva(0x%p) to hpa conversion failed in %s\n", hva, __FUNCTION__);
 	D(hmm_unmap_hpa(g_mmio_dummy_page_hpa, PAGE_4K_SIZE));
 
 	event_register(EVENT_EPT_VIOLATION, device_block_event);

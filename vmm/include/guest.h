@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #ifndef _GUEST_H_
 #define _GUEST_H_
@@ -47,6 +39,7 @@ guest_handle_t guest_handle(uint16_t guest_id);
 ** 2. guest physical mapping is 1:1 mapping for top_of_memory, and remove evmm's range
 ** 3. ept policy is EPT_POLICY, defined in .cfg
 ** In future, if there's new request to change these settings, please implement other versions of create_guest() api */
-guest_handle_t create_guest(uint32_t gcpu_count, const module_file_info_t *evmm_file);
+guest_handle_t create_guest(uint32_t gcpu_count, uint32_t attr);
+void guest_save_evmm_range(uint64_t evmm_rt_base, uint64_t evmm_rt_size);
 
 #endif                          /* _GUEST_H_ */

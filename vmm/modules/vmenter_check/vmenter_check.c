@@ -1,18 +1,11 @@
-/*******************************************************************************
- * Copyright (c) 2017 Intel Corporation
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * SPDX-License-Identifier: Apache-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *******************************************************************************/
+ */
+
 #include "dbg.h"
 #include "vmm_objects.h"
 #include "gcpu.h"
@@ -24,7 +17,6 @@
 #include "gpm.h"
 #include "hmm.h"
 #include "event.h"
-#include "vmm_util.h"
 
 #include "modules/vmenter_check.h"
 
@@ -2026,14 +2018,14 @@ static void check_vmx_tpr_shadow(vmcs_obj_t vmcs)
 		// TODO: The virtual -APIC address will not be used, so we do not check it here.
 	}
 
-	if ((proc_ctrl & PROC_TPR_SHADOW) && ((proc_ctrl2 & PROC2_INT_DELIVERY) == 0))
+	if ((proc_ctrl & PROC_TPR_SHADOW) && ((proc_ctrl2 & PROC2_VINT_DELIVERY) == 0))
 	{
 		// TODO: The TPR threshold will not be used, so we do not check it here.
 	}
 
 	if ((proc_ctrl & PROC_TPR_SHADOW)
-		&& ((proc_ctrl2 & PROC2_APIC_ACCESSES) == 0)
-		&& ((proc_ctrl2 & PROC2_INT_DELIVERY) == 0)){
+		&& ((proc_ctrl2 & PROC2_VAPIC_ACCESSES) == 0)
+		&& ((proc_ctrl2 & PROC2_VINT_DELIVERY) == 0)){
 		// TODO: The TPR threshold will not be used, so we do not check it here.
 	}
 }
@@ -2096,7 +2088,7 @@ static void check_vmx_apic_access(vmcs_obj_t vmcs)
 	proc_ctrl = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL1);
 	proc_ctrl2 = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL2);
 
-	if (proc_ctrl2 & PROC2_APIC_ACCESSES)
+	if (proc_ctrl2 & PROC2_VAPIC_ACCESSES)
 	{
 		// TODO: The virtual -APIC address will not be used, so we do not check it here.
 	}
@@ -2120,16 +2112,16 @@ static void check_vmx_2xpaic_mode(vmcs_obj_t vmcs)
 	proc_ctrl2 = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL2);
 	if ((proc_ctrl & PROC_TPR_SHADOW) == 0)
 	{
-		if ((proc_ctrl2 & PROC2_X2APIC_MODE)
-			|| (proc_ctrl2 & PROC2_APIC_REGISTER)
-			|| (proc_ctrl2 & PROC2_INT_DELIVERY)){
+		if ((proc_ctrl2 & PROC2_VX2APIC_MODE)
+			|| (proc_ctrl2 & PROC2_APIC_REG_VIRTUALIZE)
+			|| (proc_ctrl2 & PROC2_VINT_DELIVERY)){
 				print_info("If TPR_SHADOW is 0, X2APIC, APIC_REGISTER, INT_DELIVERY must also be 0\n");
 			}
 	}
 
-	if (proc_ctrl2 & PROC2_X2APIC_MODE)
+	if (proc_ctrl2 & PROC2_VX2APIC_MODE)
 	{
-		if (proc_ctrl2 & PROC2_APIC_ACCESSES)
+		if (proc_ctrl2 & PROC2_VAPIC_ACCESSES)
 		{
 			print_info(" If X2APIC_MODE is 1, the virtualize APIC accesses VM-execution control must be 0.\n");
 		}
@@ -2149,7 +2141,7 @@ static void check_vmx_virtual_intr_delivery(vmcs_obj_t vmcs)
 
 	proc_ctrl2 = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL2);
 	pin_ctrl = (uint32_t)vmcs_read(vmcs, VMCS_PIN_CTRL);
-	if (proc_ctrl2 & PROC2_INT_DELIVERY)
+	if (proc_ctrl2 & PROC2_VINT_DELIVERY)
 	{
 		if ((pin_ctrl & PIN_EXINT_EXIT) == 0)
 		{
@@ -2178,7 +2170,7 @@ static void check_vmx_process_post_intr(vmcs_obj_t vmcs)
 	pin_ctrl = (uint32_t)vmcs_read(vmcs, VMCS_PIN_CTRL);
 	if (pin_ctrl & PIN_PROC_POSTED_INT)
 	{
-		if ((proc_ctrl2 & PROC2_INT_DELIVERY) == 0)
+		if ((proc_ctrl2 & PROC2_VINT_DELIVERY) == 0)
 		{
 			print_info("If the process posted interrupts VM-execution control is 1.\n");
 			print_info("The virtual-interrupt delivery VM-execution control is 1.\n");

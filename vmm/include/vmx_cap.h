@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #ifndef _VMX_CAP_H_
 #define _VMX_CAP_H_
@@ -69,16 +61,16 @@ uint32_t get_proctl1_cap(uint32_t* p_may0);
  * proc2 control define
  *
  *------------------------------------------------------------------------- */
-#define PROC2_APIC_ACCESSES       (1u << 0)
+#define PROC2_VAPIC_ACCESSES      (1u << 0)
 #define PRO2C_ENABLE_EPT          (1u << 1)
 #define PROC2_DESCRIPTOR_EXIT     (1u << 2)
 #define PROC2_ENABLE_RDTSCP       (1u << 3)
-#define PROC2_X2APIC_MODE         (1u << 4)
+#define PROC2_VX2APIC_MODE        (1u << 4)
 #define PROC2_ENABLEC_VPID        (1u << 5)
 #define PROC2_WBINVD_EXIT         (1u << 6)
 #define PROC2_UNRESTRICTED_GUEST  (1u << 7)
-#define PROC2_APIC_REGISTER       (1u << 8)
-#define PROC2_INT_DELIVERY        (1u << 9)
+#define PROC2_APIC_REG_VIRTUALIZE (1u << 8)
+#define PROC2_VINT_DELIVERY       (1u << 9)
 #define PROC2_PAUSE_LOOP_EXIT     (1u << 10)
 #define PROC2_RDRAND_EXIT         (1u << 11)
 #define PROC2_ENABLE_INVPCID      (1u << 12)

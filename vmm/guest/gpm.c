@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include <vmm_base.h>
 #include <hmm.h>
@@ -111,15 +103,21 @@ static uint32_t ept_leaf_get_attr(uint64_t leaf_entry, UNUSED uint32_t level)
 	{
 		ept_attr.uint32 = leaf_entry & EPT_ATTR_MASK; // get r,w,x,emt
 	}
-	if ((leaf_entry & EPT_VE) == 1)
+	if (leaf_entry & EPT_VE)
 		ept_attr.bits.ve = 1;
 	return ept_attr.uint32;
 }
 
 void invalidate_gpm(guest_handle_t guest)
 {
-	asm_invept(guest->eptp);
+	asm_invept(guest->eptp, INVEPT_TYPE_SINGLE_CONTEXT);
 	event_raise(NULL, EVENT_GPM_INVALIDATE, guest);
+}
+
+void invalidate_gpm_all(void)
+{
+	asm_invept(0, INVEPT_TYPE_ALL_CONTEXT);
+	event_raise(NULL, EVENT_GPM_INVALIDATE, NULL);
 }
 
 void gpm_create_mapping(guest_handle_t guest)

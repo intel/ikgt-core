@@ -1,20 +1,12 @@
-/*******************************************************************************
- * Copyright (c) 2018 Intel Corporation
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * SPDX-License-Identifier: Apache-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *******************************************************************************/
+ */
+
 #include "dbg.h"
-#include "vmm_util.h"
 #include "hmm.h"
 #include "vtd_acpi.h"
 #include "lib/util.h"
@@ -81,7 +73,7 @@ static boolean_t dmar_engine_takes_charge_of_gpu(acpi_dma_hw_unit_t *unit)
 		return FALSE;
 	}
 
-	device_scope = (acpi_device_scope_t *)unit->device_scope;
+	device_scope = (acpi_device_scope_t *)(void *)unit->device_scope;
 	num_of_devices = (device_scope->length - OFFSET_OF(acpi_device_scope_t, path))
 		/ sizeof(acpi_path_element_t);
 
@@ -120,7 +112,7 @@ void vtd_dmar_parse(vtd_engine_t *engine_list)
 
 	while (offset < (acpi_dmar->header.length - sizeof(acpi_dmar_table_t))) {
 
-		unit = (acpi_dma_hw_unit_t *)(acpi_dmar->remapping_structures + offset);
+		unit = (acpi_dma_hw_unit_t *)(void *)(acpi_dmar->remapping_structures + offset);
 
 		switch(unit->type) {
 			/* DMAR type hardware uint */

@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "elf64_ld.h"
 #include "elf_ld.h"
@@ -32,7 +24,7 @@ elf64_get_segment_info(const elf64_ehdr_t *ehdr,
 	const elf64_phdr_t *phdr;
 	if (segment_no < ehdr->e_phnum) {
 		phdrtab = (const uint8_t *)ehdr + ehdr->e_phoff;
-		phdr = (const elf64_phdr_t *)GET_PHDR(ehdr,
+		phdr = (const elf64_phdr_t *)(const void *)GET_PHDR(ehdr,
 			phdrtab,
 			segment_no);
 
@@ -143,7 +135,7 @@ static void elf64_update_segment_table(module_file_info_t *file_info, uint64_t r
 	phdrtab = (uint8_t *)(uint64_t)(file_info->runtime_addr + ehdr->e_phoff);
 
 	for (i = 0; i < (uint16_t)ehdr->e_phnum; ++i) {
-		elf64_phdr_t *phdr = (elf64_phdr_t *)GET_PHDR(ehdr, phdrtab, i);
+		elf64_phdr_t *phdr = (elf64_phdr_t *)(void *)GET_PHDR(ehdr, phdrtab, i);
 
 		if (0 != phdr->p_memsz) {
 			phdr->p_paddr += relocation_offset;
@@ -181,7 +173,7 @@ elf64_load_executable(module_file_info_t *file_info, uint64_t *p_entry)
 	uint64_t offset_0_addr = (uint64_t)~0;
 
 	/* map ELF header to ehdr */
-	ehdr = (elf64_ehdr_t *)(uint8_t *)image_offset(file_info, 0,
+	ehdr = (elf64_ehdr_t *)(void *)image_offset(file_info, 0,
 			sizeof(elf64_ehdr_t));
 	if (!ehdr){
 		return FALSE;
@@ -198,7 +190,7 @@ elf64_load_executable(module_file_info_t *file_info, uint64_t *p_entry)
 	/* Calculate amount of memory required. First calculate size of all
 	 * loadable segments */
 	for (i = 0; i < (uint16_t)ehdr->e_phnum; ++i) {
-		phdr = (elf64_phdr_t *)GET_PHDR(ehdr, phdrtab, i);
+		phdr = (elf64_phdr_t *)(void *)GET_PHDR(ehdr, phdrtab, i);
 
 		addr = phdr->p_paddr;
 		memsz = phdr->p_memsz;
@@ -233,7 +225,7 @@ elf64_load_executable(module_file_info_t *file_info, uint64_t *p_entry)
 
 	/* now actually copy image to its target destination */
 	for (i = 0; i < (uint16_t)ehdr->e_phnum; ++i) {
-		phdr = (elf64_phdr_t *)GET_PHDR(ehdr, phdrtab, i);
+		phdr = (elf64_phdr_t *)(void *)GET_PHDR(ehdr, phdrtab, i);
 
 		if (PT_DYNAMIC == phdr->p_type) {
 			phdr_dyn = phdr;

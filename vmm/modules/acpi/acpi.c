@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "vmm_base.h"
 #include "dbg.h"
@@ -160,9 +152,9 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 	for (i = 0; i < num; ++i, offset += step) {
 		/* Get the address from the pointer entry */
 		VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)((xsdt) ?
-			(*(uint64_t *)offset) : (*(uint32_t *)offset)), (uint64_t *)&tbl),
+			(*(uint64_t *)(void *)offset) : (*(uint32_t *)(void *)offset)), (uint64_t *)&tbl),
 				"fail to convert hpa 0x%llX to hva",
-				(uint64_t)((xsdt) ? (*(uint64_t *)offset): (*(uint32_t *)offset)));
+				(uint64_t)((xsdt) ? (*(uint64_t *)(void *)offset): (*(uint32_t *)(void *)offset)));
 
 		/* Make sure address is valid */
 		if (!tbl) {
@@ -176,8 +168,8 @@ static acpi_table_header_t *get_acpi_table_from_rsdp(acpi_table_rsdp_t *rsdp,
 		if ((tbl->signature == sig) &&
 			!checksum((unsigned char *)tbl, tbl->length)) {
 			/* Found the table with matched signature */
-			print_trace("Found the table %s address = 0x%llX length = 0x%X\n",
-				sig, tbl, tbl->length);
+			print_trace("Found the table [%c%c%c%c]: address = 0x%llX length = 0x%X\n",
+				(char)sig, (char)(sig>>8), (char)(sig>>16), (char)(sig>>24), tbl, tbl->length);
 			return tbl;
 		}
 	}
@@ -200,7 +192,7 @@ static acpi_table_rsdp_t *scan_for_rsdp(void *addr, uint32_t length)
 	/* Search from given start address for the requested length */
 	for (i = begin; i < end; i += ACPI_RSDP_SCAN_STEP) {
 		/* The signature and checksum must both be correct */
-		if (*(uint64_t *)i != ACPI_SIG_RSD_PTR) {
+		if (*(uint64_t *)(void *)i != ACPI_SIG_RSD_PTR) {
 			continue;
 		}
 

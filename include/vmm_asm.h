@@ -1,18 +1,11 @@
-/*******************************************************************************
-* Copyright (c) 2016 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
+
 #ifndef _VMM_ASM_H_
 #define _VMM_ASM_H_
 
@@ -651,6 +644,21 @@ static inline uint16_t asm_get_ss(void)
 	return value;
 }
 
+static inline void asm_set_cs(uint16_t data)
+{
+	__asm__ __volatile__ (
+		"xor %%rax, %%rax;"
+		"movw %0, %%ax;"
+		"pushq %%rax;"
+		"lea 1f(%%rip), %%rdx;"
+		"pushq %%rdx;"
+		"lretq;"
+		"1: nop;"
+		:: "r" (data)
+		: "rax", "rdx"
+	);
+}
+
 static inline void asm_set_ds(uint16_t data)
 {
 	__asm__ __volatile__ (
@@ -824,16 +832,36 @@ static inline uint64_t asm_xgetbv(uint32_t idx)
 	return MAKE64(high,low);
 }
 
-static inline void asm_invept(uint64_t eptp)
+#define INVEPT_TYPE_SINGLE_CONTEXT 1
+#define INVEPT_TYPE_ALL_CONTEXT    2
+static inline void asm_invept(uint64_t eptp, uint64_t invept_type)
 {
 	struct {
-		uint64_t eptp, gpa;
+		uint64_t eptp, rsvd;
 	} operand = {eptp, 0};
 
 	__asm__ __volatile__ (
 		"invept (%%rax), %%rcx"
-		: :"a" (&operand), "c" (1) //the "1" means single-context invalidation
-		);
+		: :"a" (&operand), "c" (invept_type)
+	);
+}
+
+#define INVVPID_TYPE_INDIVIDUAL_ADDR               0
+#define INVVPID_TYPE_SINGLE_CONTEXT                1
+#define INVVPID_TYPE_ALL_CONTEXT                   2
+#define INVVPID_TYPE_SINGLE_CONTEXT_RETAIN_GLOBAL  3
+static inline void asm_invvpid(uint16_t vpid, uint64_t linear_addr, uint64_t invvpid_type)
+{
+	struct {
+		uint16_t vpid;
+		uint16_t rsvd[3];
+		uint64_t linear_addr;
+	} operand = {vpid, {0}, linear_addr};
+
+	__asm__ __volatile__ (
+		"invvpid (%%rax), %%rcx"
+		: :"a" (&operand), "c" (invvpid_type)
+	);
 }
 
 static inline uint32_t asm_get_pkru(void)
@@ -846,5 +874,38 @@ static inline uint32_t asm_get_pkru(void)
 		::"edx", "ecx"
 		);
 	return value;
+}
+
+static inline uint32_t get_max_phy_addr(void)
+{
+	cpuid_params_t cpuid_params = {0x80000008, 0, 0, 0};
+
+	asm_cpuid(&cpuid_params);
+
+	return (cpuid_params.eax & 0xFF);
+}
+
+#define hw_flash_tlb()      asm_set_cr3(asm_get_cr3())
+
+static inline void asm_perform_iret(void)
+{
+	__asm__ __volatile__(
+		"lea     1f(%%rip), %%rax;"  // RIP -> RAX
+		"mov     %%cs,   %%rbx;"     // CS  -> RBX
+		"mov     %%rsp,  %%rcx;"     // RSP -> RCX
+		"mov     %%ss,   %%rdx;"     // SS  -> RDX
+
+		"push    %%rdx;"             // [       SS         ]
+		"push    %%rcx;"             // [       RSP        ]
+		"pushfq;"                    // [      RFLAGS      ]
+		"push    %%rbx;"             // [       CS         ]
+		"push    %%rax;"             // [       RIP        ]
+
+		"iretq;"                     // perform IRET
+
+		"1: nop"
+
+		::: "rax", "rbx", "rcx", "rdx"
+	);
 }
 #endif

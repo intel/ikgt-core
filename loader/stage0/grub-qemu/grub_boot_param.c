@@ -1,19 +1,12 @@
-/*******************************************************************************
-* Copyright (c) 2018 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
+#include "vmm_asm.h"
 #include "vmm_base.h"
 #include "vmm_arch.h"
 #include "evmm_desc.h"
@@ -33,6 +26,14 @@
 #define SIPI_AP_WKUP_ADDR           0x59000
 
 #define STAGE1_IMG_SIZE             0xC000
+
+/* The oscillator used by the PIT chip runs at 1.193182MHz */
+#define INTERNAL_FREQ   1193182UL
+
+/* Mode/Command register */
+#define I8253_CONTROL_REG   0x43
+/* Channel 0 data port */
+#define I8253_DATA_REG      0x40
 
 /* loader memory layout */
 typedef struct {
@@ -105,18 +106,70 @@ static evmm_desc_t *init_evmm_desc(void)
 	/* Use dummy info(Seed) for Grub */
 	make_dummy_trusty_info(&(loader_mem->dev_sec_info));
 
+#ifdef MODULE_TRUSTY_GUEST
 	/*fill trusty boot params*/
 	evmm_desc->trusty_desc.lk_file.runtime_addr = 0;
 	evmm_desc->trusty_desc.lk_file.runtime_total_size = LK_RUNTIME_SIZE;
 	evmm_desc->trusty_desc.dev_sec_info = &(loader_mem->dev_sec_info);
+#endif
 
 	return evmm_desc;
+}
+
+static inline void serialing_instruction(void)
+{
+	cpuid_params_t info = {0, 0, 0, 0};
+
+	asm_cpuid(&info);
+}
+
+static uint64_t calibrate_tsc_per_ms(void)
+{
+	uint64_t begin, end;
+	uint8_t status = 0;
+
+	/* Set PIT mode to count down and set OUT pin high when count reaches 0 */
+	asm_out8(I8253_DATA_REG, 0x30);
+
+	/*
+	 * According to ISDM vol3 chapter 17.17:
+	 *  The RDTSC instruction is not serializing or ordered with other
+	 *  instructions. Subsequent instructions may begin execution before
+	 *  the RDTSC instruction operation is performed.
+	 *
+	 * Insert serialing instruction before and after RDTSC to make
+	 * calibration more accurate.
+	 */
+	serialing_instruction();
+	begin = asm_rdtsc();
+	serialing_instruction();
+
+	/* Write MSB in counter 0 */
+	asm_out8(I8253_DATA_REG, (INTERNAL_FREQ / 1000) >> 8);
+
+	do {
+		/* Read-back command, count MSB, counter 0 */
+		asm_out8(I8253_CONTROL_REG, 0xE2);
+		/* Wait till OUT pin goes high and null count goes low */
+		status = asm_in8(I8253_DATA_REG);
+	} while ((status & 0xC0) != 0x80);
+
+	/* Make sure all instructions above executed and submitted */
+	serialing_instruction();
+	end = asm_rdtsc();
+	serialing_instruction();
+
+	/* Enable interrupt mode that will stop the decreasing counter of the PIT */
+	asm_out8(I8253_CONTROL_REG, 0x30);
+
+	return end - begin;
 }
 
 evmm_desc_t *boot_params_parse(multiboot_info_t *mbi)
 {
 	evmm_desc_t *evmm_desc = NULL;
 	uint64_t top_of_mem = 0;
+	uint64_t cali_tsc_per_ms = 0;
 
 	evmm_desc = init_evmm_desc();
 	if (!evmm_desc) {
@@ -130,8 +183,10 @@ evmm_desc_t *boot_params_parse(multiboot_info_t *mbi)
 		return NULL;
 	}
 
+	cali_tsc_per_ms = calibrate_tsc_per_ms();
+
 	evmm_desc->num_of_cpu = CPU_NUM;
-	evmm_desc->tsc_per_ms = TSC_PER_MS;
+	evmm_desc->tsc_per_ms = cali_tsc_per_ms;
 	evmm_desc->top_of_mem = top_of_mem;
 
 	return evmm_desc;

@@ -1,21 +1,12 @@
-################################################################################
-# Copyright (c) 2017 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-################################################################################
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 .file   "stage0_entry.s"
-
 #include "stage0_asm.h"
 #include "file_pack_asm.h"
 
@@ -46,9 +37,8 @@ tos_image_header:
 	.long  TOS_IMAGE_VERSION
 	/* entry offset */
 	.long  start_x64 - start
-	/* tos_ldr_size: EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE +
-	 *               4KB(reserved for evmm_desc_t) */
-	.long  EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE + 0x1000
+	/* tos_ldr_size: EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE + EVMM_PAYLOAD_SIZE */
+	.long  EVMM_PKG_BIN_SIZE + STAGE1_IMG_SIZE + EVMM_PAYLOAD_SIZE
 	.byte  TOS_STARTUP_VERSION
 	/* reserved */
 	.fill 3, 1, 0

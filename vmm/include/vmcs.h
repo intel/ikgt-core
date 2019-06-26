@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2017 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #ifndef _VMCS_H_
 #define _VMCS_H_
@@ -37,6 +29,15 @@ typedef enum {
 	VMCS_IO_BITMAP_B,
 	VMCS_MSR_BITMAP,
 	VMCS_TSC_OFFSET,
+	VMCS_VIRTUAL_APIC_ADDR,     // for virtual apic
+	VMCS_APIC_ACCESS_ADDR,      // for virtual apic
+	VMCS_POST_INTR_NOTI_VECTOR, // for virtual apic
+	VMCS_POST_INTR_DESC_ADDR,   // for virtual apic
+	VMCS_EOI_EXIT_BITMAP0,      // for virtual apic
+	VMCS_EOI_EXIT_BITMAP1,      // for virtual apic
+	VMCS_EOI_EXIT_BITMAP2,      // for virtual apic
+	VMCS_EOI_EXIT_BITMAP3,      // for virtual apic
+	VMCS_TPR_THRESHOLD,         // for virtual apic
 	VMCS_EPTP_ADDRESS,
 	VMCS_XSS_EXIT_BITMAP,
 	VMCS_PIN_CTRL,
@@ -89,6 +90,7 @@ typedef enum {
 	                               // = VMCS_ALWAYS_VALID_COUNT
 	VMCS_GUEST_DBGCTL,             // init as 0 (see dirty_bitmap in vmcs_create)
 	VMCS_GUEST_INTERRUPTIBILITY,   // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_GUEST_INTERRUPT_STATUS,   // for virtual apic
 	VMCS_GUEST_PEND_DBG_EXCEPTION, // init as 0 (see dirty_bitmap in vmcs_create)
 	VMCS_ENTRY_ERR_CODE,           // init as 0 (see dirty_bitmap in vmcs_create)
 	                               // = VMCS_INIT_TO_ZERO_LAST
@@ -166,6 +168,9 @@ typedef enum {
 
 #define VMCS_ERRO_MASK 0x41 //check RFLAGS bit 0 :cf ,bit6:zf
 
+#define ENC_HIGH_TYPE_BIT     0x1
+#define IS_ENCODING_HIGH_TYPE(enc)   ((enc) & (ENC_HIGH_TYPE_BIT))
+
 typedef struct vmcs_object_t *vmcs_obj_t;
 
 /*
@@ -188,6 +193,7 @@ uint32_t vmcs_dump_all(vmcs_obj_t vmcs, char *buffer, uint32_t size);
 void vmcs_set_ptr(vmcs_obj_t vmcs);
 void vmcs_clr_ptr(vmcs_obj_t vmcs);
 void vmx_on(uint64_t *addr);
+vmcs_field_t enc2id(uint32_t vmcs_encoding);
 #define vmx_off()                  asm_vmxoff()
 #endif
 

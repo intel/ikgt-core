@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "gcpu.h"
 #include "gcpu_state.h"
@@ -57,6 +49,21 @@ const segment_2_vmcs_t g_segment_2_vmcs[SEG_COUNT] = {
 };
 
 /* ---------------------------- APIs ---------------------------------------- */
+boolean_t gcpu_in_ring0(guest_cpu_handle_t gcpu)
+{
+	uint64_t  cs_sel;
+	vmcs_obj_t vmcs = gcpu->vmcs;
+
+	cs_sel = vmcs_read(vmcs, VMCS_GUEST_CS_SEL);
+	/* cs_selector[1:0] is CPL*/
+	if ((cs_sel & 0x3) == 0)
+	{
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 guest_cpu_handle_t gcpu_allocate(void)
 {
 	guest_cpu_handle_t gcpu = NULL;

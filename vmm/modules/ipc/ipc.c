@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "vmm_base.h"
 #include "vmm_objects.h"
@@ -25,7 +17,6 @@
 #include "vmx_cap.h"
 #include "event.h"
 #include "host_cpu.h"
-#include "vmm_util.h"
 
 #include "lib/lapic_ipi.h"
 #include "lib/util.h"
@@ -80,7 +71,7 @@ static void vmexit_nmi(guest_cpu_handle_t gcpu)
 			break;
 		case VECTOR_TYPE_NMI:
 			host_cpu_inc_pending_nmi();
-			hw_perform_asm_iret();
+			asm_perform_iret();
 			print_trace("hcpu%d, %s(): nmi=%d\n", host_cpu_id(),
 				__FUNCTION__, host_cpu_get_pending_nmi());
 			break;

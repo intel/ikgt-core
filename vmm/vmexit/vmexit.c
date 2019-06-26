@@ -1,18 +1,11 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
+
 #include "vmm_base.h"
 #include "heap.h"
 #include "scheduler.h"
@@ -53,8 +46,8 @@ static vmexit_handler_t g_vmexit_handlers[] = {
 	NULL,                                     // REASON_17_RSM_INSTR
 	NULL,                                     // REASON_18_VMCALL_INSTR
 	vmexit_invalid_instruction,               // REASON_19_VMCLEAR_INSTR
-	vmexit_invalid_instruction,               // REASON_20_VMLUNCH_INSTR
-	vmexit_invalid_instruction,               // REASON_21_VMPTRLD_INSTRN
+	vmexit_invalid_instruction,               // REASON_20_VMLAUNCH_INSTR
+	vmexit_invalid_instruction,               // REASON_21_VMPTRLD_INSTR
 	vmexit_invalid_instruction,               // REASON_22_VMPTRST_INSTR
 	vmexit_invalid_instruction,               // REASON_23_VMREAD_INSTR
 	vmexit_invalid_instruction,               // REASON_24_VMRESUME_INSTR
@@ -113,10 +106,14 @@ void vmexit_install_handler(vmexit_handler_t handler,
 	VMM_ASSERT_EX((reason < REASON_EXIT_COUNT),
 		"CPU%d: Error: VMEXIT Reason(%d) exceeds supported limit(%d)\n",
 		host_cpu_id(), reason, REASON_EXIT_COUNT);
-	VMM_ASSERT_EX((g_vmexit_handlers[reason] == NULL),
-		"reason %d registered twice\n", reason);
 
-	g_vmexit_handlers[reason] = handler;
+	if ((g_vmexit_handlers[reason] == vmexit_invalid_instruction) ||
+	    (g_vmexit_handlers[reason] == NULL)) {
+		g_vmexit_handlers[reason] = handler;
+	} else {
+		print_panic("%s: vmexit reason[%d] register twice\n", __func__, reason)
+		VMM_DEADLOOP();
+	}
 }
 
 /*--------------------------------------------------------------------------*

@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #ifndef _GCPU_H_
 #define _GCPU_H_
@@ -60,6 +52,7 @@ typedef struct {
 	uint64_t cr2;
 } pf_info_t;
 
+boolean_t gcpu_in_ring0(guest_cpu_handle_t gcpu);
 void gcpu_set_cr2(const guest_cpu_handle_t gcpu, uint64_t cr2);
 
 uint64_t gcpu_get_gp_reg(const guest_cpu_handle_t gcpu, gp_reg_t reg);

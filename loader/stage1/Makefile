@@ -1,18 +1,11 @@
-################################################################################
-# Copyright (c) 2015 Intel Corporation
+################################################
+# Copyright (c) 2015-2019 Intel Corporation.
+# All rights reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# SPDX-License-Identidfier: Apache-2.0
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-################################################################################
+################################################
+
 export OUTDIR = $(BUILD_DIR)stage1
 
 $(shell mkdir -p $(OUTDIR))
@@ -24,10 +17,15 @@ ASOURCES = $(wildcard *.S)
 
 include $(PROJS)/rule.linux
 
-ifneq (, $(findstring -DDEBUG, $(EVMM_CMPL_FLAGS)))
-LDFLAGS = -e stage1_main -m elf_x86_64 -pie -z max-page-size=4096 -z common-page-size=4096
-else
-LDFLAGS = -e stage1_main -m elf_x86_64 -pie -s -z max-page-size=4096 -z common-page-size=4096
+LDFLAGS = -e stage1_main -m elf_x86_64 -pie -z max-page-size=4096
+
+ifeq (, $(findstring -DDEBUG, $(EVMM_CMPL_FLAGS)))
+LDFLAGS += -s
+endif
+
+# Addtional flags for GNU ld
+ifeq (GNU ld, $(findstring GNU ld, $(LD_VERSION)))
+LDFLAGS += -z common-page-size=4096
 endif
 
 all: $(TARGET)

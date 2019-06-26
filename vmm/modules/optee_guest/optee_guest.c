@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015-2018 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "vmm_base.h"
 #include "vmm_arch.h"
@@ -51,7 +43,7 @@
 #endif
 
 typedef enum {
-	OPTEE_VMCALL_SMC             = 0x74727500,
+	OPTEE_VMCALL_SMC             = 0x6F707400,
 } vmcall_id_t;
 
 enum {
@@ -65,27 +57,12 @@ enum {
 	GUEST_OPTEE        /* OP-TEE */
 };
 
+#define OPTEE_SHM_SIZE 0x200000
+
 static optee_desc_t *optee_desc;
 #ifdef ENABLE_SGUEST_SMP
 static uint32_t sipi_ap_wkup_addr;
 #endif
-
-static boolean_t guest_in_ring0(guest_cpu_handle_t gcpu)
-{
-	uint64_t  cs_sel;
-	vmcs_obj_t vmcs = gcpu->vmcs;
-
-	cs_sel = vmcs_read(vmcs, VMCS_GUEST_CS_SEL);
-	/* cs_selector[1:0] is CPL*/
-	if ((cs_sel & 0x3) == 0)
-	{
-		return TRUE;
-	}
-
-	gcpu_inject_ud(gcpu);
-
-	return FALSE;
-}
 
 static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gcpu)
 {
@@ -106,6 +83,9 @@ static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gc
 static void relocate_optee_image(void)
 {
 	boolean_t ret = FALSE;
+	/* op-tee region: first page is op-tee info, last page is stack. */
+	optee_desc->optee_file.runtime_addr += PAGE_4K_SIZE;
+	optee_desc->optee_file.runtime_total_size -= PAGE_4K_SIZE;
 
 	ret = relocate_elf_image(&optee_desc->optee_file, &optee_desc->gcpu0_state.rip);
 
@@ -117,27 +97,27 @@ static void relocate_optee_image(void)
 				&optee_desc->gcpu0_state.rip);
 	}
 	VMM_ASSERT_EX(ret, "Failed to relocate OP-TEE image!\n");
+
+	/* restore op-tee runtime address and total size */
+	optee_desc->optee_file.runtime_addr -= PAGE_4K_SIZE;
+	optee_desc->optee_file.runtime_total_size += PAGE_4K_SIZE;
 }
 
+/* Set up op-tee device security info and op-tee startup info */
 static void setup_optee_mem(void)
 {
+	optee_startup_info_t *optee_para;
+	uint32_t dev_sec_info_size;
+#ifdef MODULE_EPT_UPDATE
 	uint64_t upper_start;
+#endif
 
-	/* Set op-tee memory mapping with RW(0x3) attribute except op-tee itself */
-	/* Set lower */
+	/* Set op-tee memory mapping with RWX(0x7) attribute */
 	gpm_set_mapping(guest_handle(GUEST_OPTEE),
-			0,
-			0,
 			optee_desc->optee_file.runtime_addr,
-			0x3);
-	/* Set upper */
-	upper_start = optee_desc->optee_file.runtime_addr +
-        optee_desc->optee_file.runtime_total_size;
-	gpm_set_mapping(guest_handle(GUEST_OPTEE),
-			upper_start,
-			upper_start,
-			top_of_memory - upper_start,
-			0x3);
+			optee_desc->optee_file.runtime_addr,
+			optee_desc->optee_file.runtime_total_size,
+			0x7);
 
 	gpm_remove_mapping(guest_handle(GUEST_REE),
 				optee_desc->optee_file.runtime_addr,
@@ -147,7 +127,23 @@ static void setup_optee_mem(void)
 			optee_desc->optee_file.runtime_addr,
 			optee_desc->optee_file.runtime_total_size);
 
-	/* Set RSP */
+	/* Setup op-tee boot info */
+	dev_sec_info_size = *((uint32_t *)optee_desc->dev_sec_info);
+	memcpy((void *)optee_desc->optee_file.runtime_addr, optee_desc->dev_sec_info, dev_sec_info_size);
+	memset(optee_desc->dev_sec_info, 0, dev_sec_info_size);
+
+	/* Setup op-tee startup info */
+	optee_para = (optee_startup_info_t *)ALIGN_F(optee_desc->optee_file.runtime_addr + dev_sec_info_size, 8);
+	VMM_ASSERT_EX(((uint64_t)optee_para + sizeof(optee_startup_info_t)) <
+			(optee_desc->optee_file.runtime_addr + PAGE_4K_SIZE),
+			"size of (dev_sec_info+optee_startup_info) exceeds the reserved 4K size!\n");
+	optee_para->size_of_this_struct    = sizeof(optee_startup_info_t);
+	optee_para->mem_size               = optee_desc->optee_file.runtime_total_size;
+	optee_para->calibrate_tsc_per_ms   = tsc_per_ms;
+	optee_para->optee_mem_base        = optee_desc->optee_file.runtime_addr;
+
+	/* Set RDI and RSP */
+	optee_desc->gcpu0_state.gp_reg[REG_RDI] = (uint64_t)optee_para;
 	optee_desc->gcpu0_state.gp_reg[REG_RSP] = optee_desc->optee_file.runtime_addr +
         optee_desc->optee_file.runtime_total_size;
 
@@ -214,8 +210,9 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 	static uint32_t smc_stage;
 	guest_cpu_handle_t next_gcpu;
 
-	if(!guest_in_ring0(gcpu))
+	if(!gcpu_in_ring0(gcpu))
 	{
+		gcpu_inject_ud(gcpu);
 		return;
 	}
 
@@ -312,6 +309,9 @@ void init_optee_guest(evmm_desc_t *evmm_desc)
 	dev_sec_info_size = *((uint32_t *)optee_desc->dev_sec_info);
 	VMM_ASSERT_EX(!(dev_sec_info_size & 0x3ULL), "size of optee boot info is not 32bit aligned!\n");
 
+	/* reserve shared memory for OP-TEE */
+	optee_desc->optee_file.runtime_total_size -= OPTEE_SHM_SIZE;
+
 	print_trace("Init op-tee guest\n");
 
 	/* TODO: refine it later */
@@ -319,7 +319,8 @@ void init_optee_guest(evmm_desc_t *evmm_desc)
 	sipi_ap_wkup_addr = evmm_desc->sipi_ap_wkup_addr;
 	cpu_num = evmm_desc->num_of_cpu;
 #endif
-	create_guest(cpu_num, &(evmm_desc->evmm_file));
+	/* Tee should not have X permission in REE memory. Set it to RW(0x3) */
+	create_guest(cpu_num, 0x3);
 	event_register(EVENT_GCPU_INIT, optee_set_gcpu_state);
 
 #ifdef AP_START_IN_HLT
@@ -336,7 +337,7 @@ void init_optee_guest(evmm_desc_t *evmm_desc)
 	memset(optee_desc->dev_sec_info, 0, dev_sec_info_size);
 	optee_desc->dev_sec_info = dev_sec_info;
 
-	schedule_next_gcpu_as_init(0);
+	set_initial_guest(guest_handle(GUEST_REE));
 #endif
 
 #ifdef DMA_FROM_CSE

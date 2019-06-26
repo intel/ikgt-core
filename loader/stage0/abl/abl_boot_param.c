@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015-2018 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "vmm_base.h"
 #include "vmm_arch.h"
@@ -24,8 +16,6 @@
 
 #include "lib/util.h"
 #include "lib/string.h"
-
-#define CHECK_FLAG(flag, bit)    ((flag) & (1 << (bit)))
 
 boolean_t get_emmc_serial(android_image_boot_params_t *android_boot_params, char *serial)
 {
@@ -189,7 +179,7 @@ boolean_t find_boot_params(cmdline_params_t *cmdline_params,
 
 	ImageElement = (image_element_t *)(uint64_t)image_params->ImageElementAddr;
 	for (i=0; i < image_params->NbImage; i++, ImageElement++) {
-		p_ImageID = (uint64_t *)ImageElement->ImageID;
+		p_ImageID = (uint64_t *)(void *)ImageElement->ImageID;
 
 		switch((uint64_t)(*p_ImageID)) {
 		case VMM_IMAGE_ID:

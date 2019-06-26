@@ -1,18 +1,10 @@
-################################################################################
-# Copyright (c) 2017 Intel Corporation
+################################################
+# Copyright (c) 2015-2019 Intel Corporation.
+# All rights reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# SPDX-License-Identidfier: Apache-2.0
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-################################################################################
+################################################
 
 This readme covers instructions for building and launching evmm, which is a core
 VTx layer.
@@ -148,6 +140,9 @@ Config files
 	- MODULE_MSR_MONITOR
 		Description: Provide api to monitor MSR access.
 
+	- MODULE_TEMPLATE_TEE
+		Description: Provide Tee guest framework
+
 	- MODULE_TRUSTY_GUEST
 		Description: Enable Trusty.
 		Dependency:
@@ -233,5 +228,14 @@ Config files
 
 	- MODULE_APS_STATE
 		Description: set Guest APs to init state
+
+	- MODULE_BLOCK_NPK
+		Description: Disable NPK device
+		Dependency:
+			MODULE_DEV_BLK
+		SubFlags:
+			- NPK_PCI_BUS
+			- NPK_PCI_DEV
+			- NPK_PCI_FUN
 
 End of file

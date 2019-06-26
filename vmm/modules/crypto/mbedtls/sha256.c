@@ -1,28 +1,10 @@
 /*
- *  FIPS-180-2 compliant SHA-256 implementation
+ * Copyright (c) 2006-2015 ARM Limited.
+ * Copyright (c) 2018-2019 Intel Corporation.
+ * All rights reserved.
  *
- *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
- *  Copyright (C) 2018, Intel Corporation, All Rights Reserved.
- *  SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: Apache-2.0
  *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- *  This file is part of mbed TLS (https://tls.mbed.org)
- */
-/*
- *  The SHA-256 Secure Hash Standard was published by NIST in 2002.
- *
- *  http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
  */
 
 #include "md.h"
@@ -53,6 +35,9 @@ do {                                                    \
 
 void mbedtls_sha256_init( mbedtls_sha256_context *ctx )
 {
+    if (ctx == NULL)
+	return;
+
     memset( ctx, 0, sizeof( mbedtls_sha256_context ) );
 }
 
@@ -67,6 +52,9 @@ void mbedtls_sha256_free( mbedtls_sha256_context *ctx )
 void mbedtls_sha256_clone( mbedtls_sha256_context *dst,
                            const mbedtls_sha256_context *src )
 {
+    if ((dst == NULL) || (src == NULL))
+	return;
+
     *dst = *src;
 }
 
@@ -75,6 +63,12 @@ void mbedtls_sha256_clone( mbedtls_sha256_context *dst,
  */
 int mbedtls_sha256_starts_ret( mbedtls_sha256_context *ctx, int is224 )
 {
+    if (ctx == NULL)
+	return MBEDTLS_ERR_SHA256_BAD_INPUT_DATA;
+
+    if ((is224 != 0) && (is224 != 1))
+	return MBEDTLS_ERR_SHA256_BAD_INPUT_DATA;
+
     ctx->total[0] = 0;
     ctx->total[1] = 0;
 
@@ -128,8 +122,8 @@ static const uint32_t K[] =
     0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7, 0xC67178F2,
 };
 
-#define  SHR(x,n) ((x & 0xFFFFFFFF) >> n)
-#define ROTR(x,n) (SHR(x,n) | (x << (32 - n)))
+#define  SHR(x,n) (((x) & 0xFFFFFFFF) >> (n))
+#define ROTR(x,n) (SHR(x,n) | ((x) << (32 - (n))))
 
 #define S0(x) (ROTR(x, 7) ^ ROTR(x,18) ^  SHR(x, 3))
 #define S1(x) (ROTR(x,17) ^ ROTR(x,19) ^  SHR(x,10))
@@ -137,20 +131,20 @@ static const uint32_t K[] =
 #define S2(x) (ROTR(x, 2) ^ ROTR(x,13) ^ ROTR(x,22))
 #define S3(x) (ROTR(x, 6) ^ ROTR(x,11) ^ ROTR(x,25))
 
-#define F0(x,y,z) ((x & y) | (z & (x | y)))
-#define F1(x,y,z) (z ^ (x & (y ^ z)))
+#define F0(x,y,z) (((x) & (y)) | ((z) & ((x) | (y))))
+#define F1(x,y,z) ((z) ^ ((x) & ((y) ^ (z))))
 
 #define R(t)                                    \
 (                                               \
-    W[t] = S1(W[t -  2]) + W[t -  7] +          \
-           S0(W[t - 15]) + W[t - 16]            \
+    W[t] = S1(W[(t) -  2]) + W[(t) -  7] +      \
+           S0(W[(t) - 15]) + W[(t) - 16]        \
 )
 
 #define P(a,b,c,d,e,f,g,h,x,K)                  \
 {                                               \
-    temp1 = h + S3(e) + F1(e,f,g) + K + x;      \
-    temp2 = S2(a) + F0(a,b,c);                  \
-    d += temp1; h = temp1 + temp2;              \
+    temp1 = (h) + S3(e) + F1((e),(f),(g)) + (K) + (x); \
+    temp2 = S2(a) + F0((a),(b),(c));                   \
+    (d) += temp1; (h) = temp1 + temp2;                 \
 }
 
 int mbedtls_internal_sha256_process( mbedtls_sha256_context *ctx,
@@ -159,6 +153,9 @@ int mbedtls_internal_sha256_process( mbedtls_sha256_context *ctx,
     uint32_t temp1, temp2, W[64];
     uint32_t A[8];
     unsigned int i;
+
+    if ((ctx == NULL) || ((const unsigned char *)data == NULL))
+	return MBEDTLS_ERR_SHA256_BAD_INPUT_DATA;
 
     for( i = 0; i < 8; i++ )
         A[i] = ctx->state[i];
@@ -206,6 +203,12 @@ int mbedtls_sha256_update_ret( mbedtls_sha256_context *ctx,
     int ret;
     size_t fill;
     uint32_t left;
+
+    if (ctx == NULL)
+	return MBEDTLS_ERR_SHA256_BAD_INPUT_DATA;
+
+    if ((ilen != 0) && (input == NULL))
+        return MBEDTLS_ERR_SHA256_BAD_INPUT_DATA;
 
     if( ilen == 0 )
         return( 0 );
@@ -255,6 +258,9 @@ int mbedtls_sha256_finish_ret( mbedtls_sha256_context *ctx,
     int ret;
     uint32_t used;
     uint32_t high, low;
+
+    if ((ctx == NULL) || ((unsigned char *)output == NULL))
+	return MBEDTLS_ERR_SHA256_BAD_INPUT_DATA;
 
     /*
      * Add padding: 0x80 then 0x00 until 8 bytes remain for the length
@@ -319,6 +325,15 @@ int mbedtls_sha256_ret( const unsigned char *input,
 {
     int ret;
     mbedtls_sha256_context ctx;
+
+    if ((is224 != 0) && (is224 != 1))
+	return MBEDTLS_ERR_SHA256_BAD_INPUT_DATA;
+
+    if ((ilen != 0) && (input == NULL))
+        return MBEDTLS_ERR_SHA256_BAD_INPUT_DATA;
+
+    if ((unsigned char *)output == NULL)
+	return MBEDTLS_ERR_SHA256_BAD_INPUT_DATA;
 
     mbedtls_sha256_init( &ctx );
 

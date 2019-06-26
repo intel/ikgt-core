@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "vmm_base.h"
 #include "dbg.h"
@@ -38,14 +30,11 @@
 #endif
 
 #define VMCS_BITMAP_SIZE ((VMCS_FIELD_COUNT+63)/64)
-#define DIRTY_CACHE_SIZE 10
 
 struct vmcs_object_t {
 	uint64_t hpa;
-	uint8_t pad[6];
+	uint8_t pad[7];
 	uint8_t is_launched;
-	uint8_t dirty_count;
-	uint32_t dirty_fields[DIRTY_CACHE_SIZE];
 	uint64_t valid_bitmap[VMCS_BITMAP_SIZE];
 	uint64_t dirty_bitmap[VMCS_BITMAP_SIZE];
 	uint64_t cache[VMCS_FIELD_COUNT];
@@ -67,6 +56,15 @@ static vmcs_encoding_t g_field_data[] = {
 	CONSTRUCT_VMCS_ENCODING(VMCS_IO_BITMAP_B,               0x00002002),
 	CONSTRUCT_VMCS_ENCODING(VMCS_MSR_BITMAP,                0x00002004),
 	CONSTRUCT_VMCS_ENCODING(VMCS_TSC_OFFSET,                0x00002010),
+	CONSTRUCT_VMCS_ENCODING(VMCS_VIRTUAL_APIC_ADDR,         0x00002012), // for virtual apic
+	CONSTRUCT_VMCS_ENCODING(VMCS_APIC_ACCESS_ADDR,          0x00002014), // for virtual apic
+	CONSTRUCT_VMCS_ENCODING(VMCS_POST_INTR_NOTI_VECTOR,     0x00000002), // for virtual apic
+	CONSTRUCT_VMCS_ENCODING(VMCS_POST_INTR_DESC_ADDR,       0x00002016), // for virtual apic
+	CONSTRUCT_VMCS_ENCODING(VMCS_EOI_EXIT_BITMAP0,          0x0000201C), // for virtual apic
+	CONSTRUCT_VMCS_ENCODING(VMCS_EOI_EXIT_BITMAP1,          0x0000201E), // for virtual apic
+	CONSTRUCT_VMCS_ENCODING(VMCS_EOI_EXIT_BITMAP2,          0x00002020), // for virtual apic
+	CONSTRUCT_VMCS_ENCODING(VMCS_EOI_EXIT_BITMAP3,          0x00002022), // for virtual apic
+	CONSTRUCT_VMCS_ENCODING(VMCS_TPR_THRESHOLD,             0x0000401C), // for virtual apic
 	CONSTRUCT_VMCS_ENCODING(VMCS_EPTP_ADDRESS,              0x0000201A),
 	CONSTRUCT_VMCS_ENCODING(VMCS_XSS_EXIT_BITMAP,           0x0000202C),
 	CONSTRUCT_VMCS_ENCODING(VMCS_PIN_CTRL,                  0x00004000),
@@ -116,6 +114,7 @@ static vmcs_encoding_t g_field_data[] = {
 	CONSTRUCT_VMCS_ENCODING(VMCS_ENTRY_INTR_INFO,           0x00004016),
 	CONSTRUCT_VMCS_ENCODING(VMCS_GUEST_DBGCTL,              0x00002802),
 	CONSTRUCT_VMCS_ENCODING(VMCS_GUEST_INTERRUPTIBILITY,    0x00004824),
+	CONSTRUCT_VMCS_ENCODING(VMCS_GUEST_INTERRUPT_STATUS,    0x00000810), //for virtual apic
 	CONSTRUCT_VMCS_ENCODING(VMCS_GUEST_PEND_DBG_EXCEPTION,  0x00006822),
 	CONSTRUCT_VMCS_ENCODING(VMCS_ENTRY_ERR_CODE,            0x00004018),
 	CONSTRUCT_VMCS_ENCODING(VMCS_ENTRY_CTRL,                0x00004012),
@@ -200,7 +199,6 @@ vmcs_obj_t vmcs_create()
 
 	p_vmcs->hpa = vmcs_alloc();
 	vmcs_clr_ptr(p_vmcs);
-	p_vmcs->dirty_count = VMCS_FIELD_COUNT;
 	for (i=0; i<VMCS_BITMAP_SIZE; i++)
 		p_vmcs->valid_bitmap[i] = (uint64_t)-1; // all valid
 
@@ -261,12 +259,7 @@ static inline void cache_set_valid(vmcs_obj_t vmcs, vmcs_field_t vmcs_field)
 	BITARRAY_SET((uint64_t *)&(vmcs->valid_bitmap[0]),(uint64_t)(vmcs_field));
 }
 
-static inline  uint64_t cache_is_dirty(vmcs_obj_t vmcs, vmcs_field_t vmcs_field)
-{
-	return BITARRAY_GET(&vmcs->dirty_bitmap[0], vmcs_field);
-}
-
-static inline  void cache_set_dirty(vmcs_obj_t vmcs, vmcs_field_t vmcs_field)
+static inline void cache_set_dirty(vmcs_obj_t vmcs, vmcs_field_t vmcs_field)
 {
 	BITARRAY_SET((uint64_t *)&(vmcs->dirty_bitmap[0]),(uint64_t)(vmcs_field));
 }
@@ -278,12 +271,6 @@ void vmcs_write(vmcs_obj_t vmcs, vmcs_field_t field_id, uint64_t value)
 
 	vmcs->cache[field_id] = value;
 	cache_set_valid(vmcs, field_id); // update valid cache
-
-	if((vmcs->dirty_count < DIRTY_CACHE_SIZE)&&(!cache_is_dirty(vmcs,field_id)))
-	{
-		vmcs->dirty_fields[vmcs->dirty_count] = field_id;
-		vmcs->dirty_count++;
-	}
 	cache_set_dirty(vmcs, field_id);
 }
 
@@ -294,8 +281,7 @@ uint64_t vmcs_read(vmcs_obj_t vmcs, vmcs_field_t field_id)
 	D(VMM_ASSERT(vmcs));
 	D(VMM_ASSERT(field_id < VMCS_FIELD_COUNT));
 
-	if (cache_is_valid(vmcs, field_id))
-	{
+	if (cache_is_valid(vmcs, field_id)) {
 		return vmcs->cache[field_id];
 	}
 
@@ -340,35 +326,18 @@ void vmcs_clear_all_cache(vmcs_obj_t vmcs)
 
 void vmcs_flush(vmcs_obj_t vmcs)
 {
-	uint32_t i;
 	uint32_t field_id;
 	uint32_t bitmap_idx;
 	uint32_t dirty_bit;
 
 	D(VMM_ASSERT(vmcs));
 
-	if (vmcs->dirty_count <= DIRTY_CACHE_SIZE)
-	{
-		for (i=0; i<vmcs->dirty_count; i++)
-		{
-			field_id = vmcs->dirty_fields[i];
+	for (bitmap_idx=0; bitmap_idx < VMCS_BITMAP_SIZE; bitmap_idx++) {
+		while (vmcs->dirty_bitmap[bitmap_idx]) {
+			dirty_bit = asm_bsf64(vmcs->dirty_bitmap[bitmap_idx]);
+			field_id = dirty_bit + bitmap_idx * 64;
 			vmx_vmwrite(g_field_data[field_id].encoding, vmcs->cache[field_id]);
-		}
-		// clear dirty cache/bitmap
-		vmcs->dirty_count = 0;
-		for (bitmap_idx=0; bitmap_idx<VMCS_BITMAP_SIZE; bitmap_idx++)
-			vmcs->dirty_bitmap[bitmap_idx] = 0;
-	}
-	else
-	{
-		for (bitmap_idx=0; bitmap_idx<VMCS_BITMAP_SIZE; bitmap_idx++)
-		{
-			while(vmcs->dirty_bitmap[bitmap_idx]){
-				dirty_bit = asm_bsf64(vmcs->dirty_bitmap[bitmap_idx]);
-				field_id = dirty_bit+bitmap_idx*64;
-				vmx_vmwrite(g_field_data[field_id].encoding, vmcs->cache[field_id]);
-				BITARRAY_CLR((uint64_t *)&(vmcs->dirty_bitmap[bitmap_idx]),(uint64_t)dirty_bit);
-			}
+			BITARRAY_CLR((uint64_t *)&(vmcs->dirty_bitmap[bitmap_idx]),(uint64_t)dirty_bit);
 		}
 	}
 }
@@ -401,19 +370,16 @@ void vmcs_print_all(vmcs_obj_t vmcs)
 
 	for (i = 0; i < VMCS_FIELD_COUNT; ++i) {
 		u64 = asm_vmread(g_field_data[i].encoding);
-		if((asm_get_rflags()&VMCS_ERRO_MASK) == 0)
-		{
-			if(cache_is_valid(vmcs, i))
-			{
+		if ((asm_get_rflags()&VMCS_ERRO_MASK) == 0) {
+			if (cache_is_valid(vmcs, i)) {
 				print_info("%d %40s (0x%04X) = hw_value(0x%llX),cache_value(0x%llX)\n",hcpu_id, g_field_data[i].name,g_field_data[i].encoding,u64,vmcs->cache[i]);
-			}else{
+			} else {
 				print_info("%d %40s (0x%04X) = hw_value(0x%llX),invalid cache\n",hcpu_id, g_field_data[i].name,g_field_data[i].encoding,u64);
 			}
-		}else{
-			if(cache_is_valid(vmcs, i))
-			{
+		} else {
+			if (cache_is_valid(vmcs, i)) {
 				print_info("%d %40s (0x%04X) = hw read fail,cache_value(0x%llX)\n",hcpu_id, g_field_data[i].name,g_field_data[i].encoding,vmcs->cache[i]);
-			}else{
+			} else {
 				print_info("%d %40s (0x%04X) = hw read fail,invalid cache\n",hcpu_id, g_field_data[i].name,g_field_data[i].encoding);
 			}
 		}
@@ -435,21 +401,20 @@ uint32_t vmcs_dump_all(vmcs_obj_t vmcs, char *buffer, uint32_t size)
 		cur_buf = (char *)(buffer + length);
 		left_size = size - length;
 		u64 = asm_vmread(g_field_data[i].encoding);
-		if((asm_get_rflags()&VMCS_ERRO_MASK) == 0) {
-			if(cache_is_valid(vmcs, i)) {
+		if ((asm_get_rflags()&VMCS_ERRO_MASK) == 0) {
+			if (cache_is_valid(vmcs, i)) {
 				length += vmm_sprintf_s(cur_buf, left_size, "%d %40s (0x%04X) = hw_value(0x%llX),cache_value(0x%llX)\n",
 						hcpu_id, g_field_data[i].name,g_field_data[i].encoding,u64,vmcs->cache[i]);
-			}else {
+			} else {
 				length += vmm_sprintf_s(cur_buf, left_size, "%d %40s (0x%04X) = hw_value(0x%llX),invalid cache\n",
 						hcpu_id, g_field_data[i].name,g_field_data[i].encoding,u64);
-
 			}
-		}else {
-			if(cache_is_valid(vmcs, i)) {
+		} else {
+			if (cache_is_valid(vmcs, i)) {
 				length += vmm_sprintf_s(cur_buf, left_size, "%d %40s (0x%04X) = hw read fail,cache_value(0x%llX)\n",
 						hcpu_id, g_field_data[i].name,g_field_data[i].encoding,vmcs->cache[i]);
 
-			}else {
+			} else {
 				length += vmm_sprintf_s(cur_buf, left_size, "%d %40s (0x%04X) = hw read fail,invalid cache\n",
 						hcpu_id, g_field_data[i].name,g_field_data[i].encoding);
 
@@ -457,4 +422,35 @@ uint32_t vmcs_dump_all(vmcs_obj_t vmcs, char *buffer, uint32_t size)
 		}
 	}
 	return length;
+}
+
+#define ENC_M_BITS      0x6000
+#define ENC_64_WIDTH    0x2000
+#define IS_ENCODING_64BIT(enc)   ((enc & (ENC_M_BITS)) == (ENC_64_WIDTH))
+vmcs_field_t enc2id(uint32_t vmcs_encoding)
+{
+	uint32_t        encoding;
+	vmcs_field_t    cur_field;
+
+	encoding = vmcs_encoding;
+
+	if (IS_ENCODING_HIGH_TYPE(encoding)) {
+		if (!IS_ENCODING_64BIT(encoding)) {
+			print_panic("VMCS Encoding %P does not map to a known HIGH type encoding\n", encoding);
+			return -1;
+		}
+
+		encoding = encoding & (~ENC_HIGH_TYPE_BIT); // remove high type bit
+	}
+
+	/* search though all supported fields */
+	for (cur_field = (vmcs_field_t)0; cur_field < VMCS_FIELD_COUNT; ++cur_field) {
+		if (encoding == g_field_data[cur_field].encoding) {
+			return cur_field;
+		}
+	}
+
+	print_panic("VMCS Encoding %P is unknown\n", vmcs_encoding);
+	return -1;
+
 }

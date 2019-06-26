@@ -1,18 +1,11 @@
-/*******************************************************************************
-* Copyright (c) 2018 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*	http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
+
 #include "vmm_asm.h"
 #include "vmm_base.h"
 #include "vmm_arch.h"
@@ -20,6 +13,7 @@
 #include "ldr_dbg.h"
 #include "grub_boot_param.h"
 #include "guest_setup.h"
+#include "linux_loader.h"
 #include "stage0_lib.h"
 
 #include "lib/image_loader.h"
@@ -52,10 +46,13 @@ void stage0_main(const init_register_t *init_reg,
 	evmm_desc_t *evmm_desc = NULL;
 	multiboot_info_t *mbi = (multiboot_info_t *)(uint64_t)init_reg->ebx;
 	uint64_t (*stage1_main) (evmm_desc_t *xd);
-	uint64_t testrunner_entry = 0;
+	uint64_t entry = 0;
+	uint64_t boot_param_addr = 0;
+#ifdef MODULE_TRUSTY_GUEST
 	uint64_t file_start;
 	uint64_t file_size;
 	boolean_t ret;
+#endif
 
 	if (NULL == mbi) {
 		print_panic("Invalid multiboot info\n");
@@ -77,11 +74,15 @@ void stage0_main(const init_register_t *init_reg,
 		goto fail;
 	}
 
-	if (!file_parse(evmm_desc, stage0_base, MULTIBOOT_HEADER_SIZE, TOS_MAX_IMAGE_SIZE)) {
+	if (!file_parse(evmm_desc,
+			stage0_base,
+			MULTIBOOT_HEADER_SIZE,
+			TOS_MAX_IMAGE_SIZE)) {
 		print_panic("file parse failed\n");
 		goto fail;
 	}
 
+#ifdef MODULE_TRUSTY_GUEST
 	ret = parse_multiboot_module(mbi, &file_start, &file_size, TRUSTYIMG);
 	if (FALSE == ret) {
 		print_panic("Failed to parse module(%d)\n", TRUSTYIMG);
@@ -91,28 +92,50 @@ void stage0_main(const init_register_t *init_reg,
 	evmm_desc->trusty_desc.lk_file.loadtime_addr = file_start;
 	evmm_desc->trusty_desc.lk_file.loadtime_size = file_size;
 
-	ret = parse_multiboot_module(mbi, &file_start, &file_size, TESTRUNNER);
-	if (FALSE == ret) {
-		print_panic("Failed to parse module(%d)\n", TESTRUNNER);
-		goto fail;
+	ret = linux_kernel_parse(mbi, &boot_param_addr, &entry);
+	if(!ret){
+		print_info("Try to load test-runner binary.\n");
+		ret = parse_multiboot_module(mbi, &file_start, &file_size, TESTRUNNER);
+		if (ret) {
+			ret = relocate_multiboot_image((uint64_t *)file_start,
+					file_size,
+					(uint64_t *)&entry);
+		}
 	}
+#else
+	linux_kernel_parse(mbi, &boot_param_addr, &entry);
+#endif
 
-	relocate_multiboot_image((uint64_t *)file_start,
-            file_size,
-            (uint64_t *)&testrunner_entry);
+#ifdef MODULE_TRUSTY_GUEST
+	/*
+	 * Hardcode Trusty runtime address in QEMU project.
+	 * In general iKGT design, Trusty runtime address is specified by bootloader,
+	 * however, this information would not be provided by bootloader in QEMU project.
+	 */
+	evmm_desc->trusty_desc.lk_file.runtime_addr = TRUSTY_RUNTIME_BASE;
+	reserve_region_from_mmap((boot_params_t *)boot_param_addr,
+			evmm_desc->trusty_desc.lk_file.runtime_addr,
+			evmm_desc->trusty_desc.lk_file.runtime_total_size);
+#endif
 
-	if (0 == testrunner_entry) {
+	reserve_region_from_mmap((boot_params_t *)boot_param_addr,
+		evmm_desc->evmm_file.runtime_addr,
+		evmm_desc->evmm_file.runtime_total_size);
+
+	if (0 == entry) {
 		print_panic("Entry address invalid\n");
 		goto fail;
 	}
 
 	/* Primary guest environment setup */
-	if(!g0_gcpu_setup(evmm_desc, testrunner_entry)) {
+	if(!g0_gcpu_setup(boot_param_addr, evmm_desc, entry)) {
 		print_panic("Guest[0] setup failed\n");
 		goto fail;
 	}
 
-	setup_32bit_env(&(evmm_desc->trusty_desc.gcpu0_state));
+#ifdef MODULE_TRUSTY_GUEST
+	trusty_gcpu0_setup(evmm_desc);
+#endif
 
 	if (!relocate_elf_image(&(evmm_desc->stage1_file), (uint64_t *)&stage1_main)) {
 		print_panic("relocate stage1 failed\n");

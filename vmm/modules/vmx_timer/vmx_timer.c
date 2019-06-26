@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "vmm_objects.h"
 #include "vmcs.h"
@@ -21,6 +13,7 @@
 #include "guest.h"
 #include "event.h"
 #include "host_cpu.h"
+#include "heap.h"
 #include "vmm_base.h"
 
 #include "modules/vmx_timer.h"
@@ -63,18 +56,13 @@ static vmx_timer_t * create_vmx_timer(guest_cpu_handle_t gcpu)
 static vmx_timer_t * find_vmx_timer(guest_cpu_handle_t gcpu, boolean_t create_if_not_found)
 {
 	vmx_timer_t* vmx_timer;
-	uint16_t guest_id;
 
-	guest_id = gcpu->guest->id;
-	for (vmx_timer = g_vmx_timer[host_cpu_id()]; vmx_timer!=NULL; vmx_timer=vmx_timer->next)
+	for (vmx_timer = g_vmx_timer[host_cpu_id()]; vmx_timer != NULL; vmx_timer = vmx_timer->next)
 	{
 		if (vmx_timer->gcpu == gcpu)
 		{
 			break;
 		}
-		if ((guest_id != INVALID_GUEST_ID) &&
-			(vmx_timer->gcpu->guest->id == guest_id))
-			guest_id = INVALID_GUEST_ID;
 	}
 	if (vmx_timer)
 		return vmx_timer;

@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #ifndef _EVMM_DESC_H_
 #define _EVMM_DESC_H_
@@ -102,6 +94,10 @@ typedef struct {
 	gcpu_state_t guest0_gcpu0_state; /* filled in stage0 */
 #ifdef MODULE_APS_STATE
 	gcpu_state_t guest0_aps_state[MAX_CPU_NUM - 1]; /* filled in stage1 */
+#endif
+
+#ifdef MODULE_TEMPLATE_TEE
+	uint64_t x64_cr3;
 #endif
 
 #ifdef MODULE_TRUSTY_GUEST

@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015-2018 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "vmm_base.h"
 #include "vmm_arch.h"
@@ -58,9 +50,20 @@
 #include "modules/crypto.h"
 #endif
 
+#ifdef MODULE_VIRTUAL_APIC
+#include "modules/virtual_apic.h"
+#endif
+
+#ifdef MODULE_VMX_TIMER
+#include "modules/vmx_timer.h"
+#endif
+
 typedef enum {
 	TRUSTY_VMCALL_SMC             = 0x74727500,
 	TRUSTY_VMCALL_DUMP_INIT       = 0x74727507,
+#ifdef MODULE_VMX_TIMER
+	TRUSTY_VMCALL_VMX_TIMER       = 0x74727508,
+#endif
 } vmcall_id_t;
 
 enum {
@@ -78,23 +81,6 @@ static trusty_desc_t *trusty_desc;
 #ifdef ENABLE_SGUEST_SMP
 static uint32_t sipi_ap_wkup_addr;
 #endif
-
-static boolean_t guest_in_ring0(guest_cpu_handle_t gcpu)
-{
-	uint64_t  cs_sel;
-	vmcs_obj_t vmcs = gcpu->vmcs;
-
-	cs_sel = vmcs_read(vmcs, VMCS_GUEST_CS_SEL);
-	/* cs_selector[1:0] is CPL*/
-	if ((cs_sel & 0x3) == 0)
-	{
-		return TRUE;
-	}
-
-	gcpu_inject_ud(gcpu);
-
-	return FALSE;
-}
 
 static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gcpu)
 {
@@ -139,6 +125,7 @@ static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gc
 
  */
 
+#if defined (PACK_LK) || defined (QEMU_LK)
 static void relocate_trusty_image(uint64_t offset)
 {
 	boolean_t ret = FALSE;
@@ -160,6 +147,7 @@ static void relocate_trusty_image(uint64_t offset)
 	trusty_desc->lk_file.runtime_addr -= offset;
 	trusty_desc->lk_file.runtime_total_size += PAGE_4K_SIZE;
 }
+#endif
 
 #ifdef DERIVE_KEY
 static int get_max_svn_index(device_sec_info_v0_t *sec_info)
@@ -208,27 +196,23 @@ static void key_derive(device_sec_info_v0_t *sec_info)
 /* Set up trusty device security info and trusty startup info */
 static void setup_trusty_mem(void)
 {
-	trusty_startup_info_t *trusty_para;
-	uint32_t dev_sec_info_size;
+#ifdef MODULE_EPT_UPDATE
 	uint64_t upper_start;
+#endif
+#ifndef QEMU_LK
+	uint32_t dev_sec_info_size;
+	trusty_startup_info_t *trusty_para;
+#endif
 #ifdef DERIVE_KEY
 	device_sec_info_v0_t *sec_info;
 #endif
 
-	/* Set trusty memory mapping with RW(0x3) attribute except lk itself */
-	/* Set lower */
+	/* Set trusty memory mapping with RWX(0x7) attribute */
 	gpm_set_mapping(guest_handle(GUEST_TRUSTY),
-			0,
-			0,
 			trusty_desc->lk_file.runtime_addr,
-			0x3);
-	/* Set upper */
-	upper_start = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
-	gpm_set_mapping(guest_handle(GUEST_TRUSTY),
-			upper_start,
-			upper_start,
-			top_of_memory - upper_start,
-			0x3);
+			trusty_desc->lk_file.runtime_addr,
+			trusty_desc->lk_file.runtime_total_size,
+			0x7);
 
 	gpm_remove_mapping(guest_handle(GUEST_ANDROID),
 				trusty_desc->lk_file.runtime_addr,
@@ -238,16 +222,19 @@ static void setup_trusty_mem(void)
 			trusty_desc->lk_file.runtime_addr,
 			trusty_desc->lk_file.runtime_total_size);
 
+#ifndef QEMU_LK
 	/* Setup trusty boot info */
 	dev_sec_info_size = *((uint32_t *)trusty_desc->dev_sec_info);
 	memcpy((void *)trusty_desc->lk_file.runtime_addr, trusty_desc->dev_sec_info, dev_sec_info_size);
 	memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
+#endif
 
 #ifdef DERIVE_KEY
 	sec_info = (device_sec_info_v0_t *)trusty_desc->lk_file.runtime_addr;
 	key_derive(sec_info);
 #endif
 
+#ifndef QEMU_LK
 	/* Setup trusty startup info */
 	trusty_para = (trusty_startup_info_t *)ALIGN_F(trusty_desc->lk_file.runtime_addr + dev_sec_info_size, 8);
 	VMM_ASSERT_EX(((uint64_t)trusty_para + sizeof(trusty_startup_info_t)) <
@@ -261,6 +248,7 @@ static void setup_trusty_mem(void)
 	/* Set RDI and RSP */
 	trusty_desc->gcpu0_state.gp_reg[REG_RDI] = (uint64_t)trusty_para;
 	trusty_desc->gcpu0_state.gp_reg[REG_RSP] = trusty_desc->lk_file.runtime_addr + trusty_desc->lk_file.runtime_total_size;
+#endif
 
 	/* TODO: refine it later */
 #ifdef ENABLE_SGUEST_SMP
@@ -287,26 +275,16 @@ static void setup_trusty_mem(void)
 static void parse_trusty_boot_param(guest_cpu_handle_t gcpu)
 {
 	uint64_t rdi;
-	trusty_boot_params_v0_t *trusty_boot_params_v0 = NULL;
-	trusty_boot_params_v1_t *trusty_boot_params_v1 = NULL;
+	trusty_boot_params_t *trusty_boot_params = NULL;
 
 	/* avoid warning -Wbad-function-cast */
 	rdi = gcpu_get_gp_reg(gcpu, REG_RDI);
 	VMM_ASSERT_EX(rdi, "Invalid trusty boot params\n");
 
-	/* Different structure pass from OSloader
-	 * For v0 structure, runtime_addr is filled in evmm stage0 loader
-	 * For v1 structure, runtime_addr is filled here from trusty_boot_params_v1 */
-	if (trusty_desc->lk_file.runtime_addr) {
-		trusty_boot_params_v0 = (trusty_boot_params_v0_t *)rdi;
-		trusty_desc->lk_file.loadtime_addr = trusty_boot_params_v0->load_base;
-		trusty_desc->lk_file.loadtime_size = trusty_boot_params_v0->load_size;
-		relocate_trusty_image(PAGE_4K_SIZE);
-	} else {
-		trusty_boot_params_v1 = (trusty_boot_params_v1_t *)rdi;
-		trusty_desc->gcpu0_state.rip = trusty_boot_params_v1->entry_point;
-		trusty_desc->lk_file.runtime_addr = trusty_boot_params_v1->runtime_addr;
-	}
+	/* trusty_boot_params is passed from OSloader */
+	trusty_boot_params = (trusty_boot_params_t *)rdi;
+	trusty_desc->gcpu0_state.rip = trusty_boot_params->entry_point;
+	trusty_desc->lk_file.runtime_addr = trusty_boot_params->runtime_addr;
 }
 
 static void launch_trusty(guest_cpu_handle_t gcpu_android, guest_cpu_handle_t gcpu_trusty)
@@ -327,11 +305,17 @@ static void launch_trusty(guest_cpu_handle_t gcpu_android, guest_cpu_handle_t gc
 
 static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 {
+#ifdef MODULE_VIRTUAL_APIC
+	irr_t virr;
+	uint8_t vector;
+#endif
+
 	static uint32_t smc_stage;
 	guest_cpu_handle_t next_gcpu;
 
-	if(!guest_in_ring0(gcpu))
+	if(!gcpu_in_ring0(gcpu))
 	{
+		gcpu_inject_ud(gcpu);
 		return;
 	}
 
@@ -344,7 +328,33 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 
 	vmcs_read(gcpu->vmcs, VMCS_GUEST_RIP);// update cache
 	vmcs_read(gcpu->vmcs, VMCS_EXIT_INSTR_LEN);// update cache
+
+#ifdef MODULE_VMX_TIMER
+	vmcs_read(gcpu->vmcs, VMCS_PREEMPTION_TIMER);// update vmx timer
+#endif
+
+#ifdef MODULE_VIRTUAL_APIC
+	/* get virr for current gcpu before gcpu switch */
+	vapic_get_virr(gcpu, &virr);
+	vapic_clear_virr(gcpu);
+#endif
+
 	next_gcpu = schedule_next_gcpu();
+
+#ifdef MODULE_VIRTUAL_APIC
+	vapic_merge_virr(next_gcpu, &virr);
+
+	/* migrate vector bufferred in pending_intr list */
+	for(vector=gcpu_get_pending_intr(gcpu); vector>=0x20; vector=gcpu_get_pending_intr(gcpu)) {
+		gcpu_set_pending_intr(next_gcpu, vector);
+		gcpu_clear_pending_intr(gcpu, vector);
+	}
+#endif
+
+#ifdef MODULE_VMX_TIMER
+	vmx_timer_copy(gcpu, next_gcpu);
+#endif
+
 
 	switch (smc_stage)
 	{
@@ -356,7 +366,7 @@ static void smc_vmcall_exit(guest_cpu_handle_t gcpu)
 					launch_trusty(gcpu, next_gcpu);
 				} else {
 					smc_stage = SMC_STAGE_LK_DONE;
-					print_info("VMM: Launch Android\n");
+					print_info("VMM: Launch Normal World\n");
 				}
 			}
 			break;
@@ -387,8 +397,9 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 
 	D(VMM_ASSERT(gcpu->guest->id == GUEST_ANDROID));
 
-	if(!guest_in_ring0(gcpu))
+	if(!gcpu_in_ring0(gcpu))
 	{
+		gcpu_inject_ud(gcpu);
 		return;
 	}
 
@@ -403,11 +414,54 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 	gcpu_set_gp_reg(gcpu, REG_RAX, 0);
 }
 
+#ifdef MODULE_VMX_TIMER
+static void trusty_vmcall_vmx_timer(guest_cpu_handle_t gcpu)
+{
+	uint64_t timer_interval;
+	uint64_t tsc;
+
+	D(VMM_ASSERT(gcpu));
+
+	/* RDI stored the timer interval to be set */
+	timer_interval = gcpu_get_gp_reg(gcpu, REG_RDI);
+	tsc = vmx_timer_ms_to_tick(timer_interval);
+
+	/*
+	 * VMX preemption timer is used on QEMU platform only for current stage.
+	 *
+	 * When Trusty runs on top of QEMU with KVM nested-VT feature enabled,
+	 * QEMU would be always scheduled out by host Linux kernel when QEMU guest
+	 * runs into sleep or set timer. In this situation, TSC in QEMU guest
+	 * increase quite slow, it makes VMX preepmtion timer quite slow.
+	 *
+	 * In order to schedule in QEMU guest more frequently, add TSC acceleration
+	 * to reduce TSC elapse when guest sets VMX preepmtion timer.
+	 */
+	tsc /= 20;
+
+	if (0 == timer_interval) {
+		vmx_timer_set_mode(gcpu, TIMER_MODE_STOPPED, 0);
+	} else {
+		vmx_timer_set_mode(gcpu, TIMER_MODE_ONESHOT, tsc);
+	}
+}
+
+static void vmx_timer_event_handler(guest_cpu_handle_t gcpu, UNUSED void *pv)
+{
+	D(VMM_ASSERT(gcpu));
+
+	gcpu_set_pending_intr(gcpu, TRUSTY_TIMER_INTR);
+}
+#endif
+
 static void guest_register_vmcall_services()
 {
 	vmcall_register(GUEST_ANDROID, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
 	vmcall_register(GUEST_ANDROID, TRUSTY_VMCALL_DUMP_INIT, trusty_vmcall_dump_init);
 	vmcall_register(GUEST_TRUSTY, TRUSTY_VMCALL_SMC, smc_vmcall_exit);
+#ifdef MODULE_VMX_TIMER
+	vmcall_register(GUEST_TRUSTY, TRUSTY_VMCALL_VMX_TIMER, trusty_vmcall_vmx_timer);
+#endif
 }
 
 #ifdef AP_START_IN_HLT
@@ -475,11 +529,16 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	sipi_ap_wkup_addr = evmm_desc->sipi_ap_wkup_addr;
 	cpu_num = evmm_desc->num_of_cpu;
 #endif
-	create_guest(cpu_num, &(evmm_desc->evmm_file));
+	/* Tee should not have X permission in REE memory. Set it to RW(0x3) */
+	create_guest(cpu_num, 0x3);
 	event_register(EVENT_GCPU_INIT, trusty_set_gcpu_state);
 
 #ifdef AP_START_IN_HLT
 	event_register(EVENT_GCPU_MODULE_INIT, set_guest0_aps_to_hlt_state);
+#endif
+
+#ifdef MODULE_VMX_TIMER
+	event_register(EVENT_VMX_TIMER, vmx_timer_event_handler);
 #endif
 
 #ifdef PACK_LK
@@ -487,6 +546,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	setup_trusty_mem();
 #elif QEMU_LK
 	relocate_trusty_image(0);
+	setup_trusty_mem();
 #else
 	/* Copy dev_sec_info from loader to VMM's memory */
 	dev_sec_info = mem_alloc(dev_sec_info_size);
@@ -494,7 +554,7 @@ void init_trusty_guest(evmm_desc_t *evmm_desc)
 	memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
 	trusty_desc->dev_sec_info = dev_sec_info;
 
-	schedule_next_gcpu_as_init(0);
+	set_initial_guest(guest_handle(GUEST_ANDROID));
 #endif
 
 #ifdef DMA_FROM_CSE

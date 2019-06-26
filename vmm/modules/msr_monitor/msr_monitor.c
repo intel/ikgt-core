@@ -1,23 +1,14 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "vmm_base.h"
 #include "vmm_arch.h"
 #include "heap.h"
-#include "vmm_util.h"
 #include "guest.h"
 #include "gcpu.h"
 #include "gcpu_inject_event.h"
@@ -165,10 +156,10 @@ static void register_msr_monitor(uint16_t guest_id, uint32_t msr_id, boolean_t b
 
 	if (msr_offset != -1ULL) {
 		if (read_handler)
-			BITARRAY_SET((uint64_t *)(p_guest_msr_mon->msr_bitmap), msr_offset);
+			BITARRAY_SET((uint64_t *)(void *)(p_guest_msr_mon->msr_bitmap), msr_offset);
 
 		if (write_handler)
-			BITARRAY_SET((uint64_t *)(p_guest_msr_mon->msr_bitmap + 2048), msr_offset);
+			BITARRAY_SET((uint64_t *)(void *)(p_guest_msr_mon->msr_bitmap + 2048), msr_offset);
 	}
 
 	if (block_only)
@@ -351,9 +342,11 @@ static void guest_msr_monitor_setup(UNUSED guest_cpu_handle_t gcpu, void *pv)
 
 	print_trace("[MSR] Setup for Guests[%d]\n", guest->id);
 
+#ifndef MODULE_NESTED_VT
 	/* Block access to VMX related MSRs */
 	for (msr_id = MSR_VMX_FIRST; msr_id <= MSR_VMX_LAST; ++msr_id)
 		block_msr_access(guest->id, msr_id);
+#endif
 
 	/* IA32 spec Volume2, Chapter6.3, GETSEC[SENTER]
 	 * IA32_FEATURE_CONTROL is only available on SMX or VMX enabled

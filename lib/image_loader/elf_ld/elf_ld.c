@@ -1,18 +1,10 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "elf32_ld.h"
 #include "elf64_ld.h"
@@ -132,14 +124,14 @@ boolean_t relocate_elf_image(module_file_info_t *file_info, uint64_t *p_entry)
 		local_print("failed to read file's header\n");
 		return FALSE;
 	}
-	if (!elf_header_is_valid((elf64_ehdr_t *)p_buffer)) {
+	if (!elf_header_is_valid((elf64_ehdr_t *)(void *)p_buffer)) {
 		local_print("not an elf binary\n");
 		return FALSE;
 	}
 
-	if (is_elf64((elf64_ehdr_t *)p_buffer)) {
+	if (is_elf64((elf64_ehdr_t *)(void *)p_buffer)) {
 		return elf64_load_executable(file_info, p_entry);
-	} else if (is_elf32((elf32_ehdr_t *)p_buffer)) {
+	} else if (is_elf32((elf32_ehdr_t *)(void *)p_buffer)) {
 		return elf32_load_executable(file_info, p_entry);
 	} else {
 		local_print("not an elf32 or elf64 binary\n");

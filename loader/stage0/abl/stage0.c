@@ -1,18 +1,11 @@
-/*******************************************************************************
-* Copyright (c) 2015-2018 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
+
 #include "vmm_asm.h"
 #include "vmm_base.h"
 #include "vmm_arch.h"
@@ -166,16 +159,19 @@ void stage0_main(
 
 	fill_g0gcpu0(&evmm_desc->guest0_gcpu0_state, &and_boot->CpuState);
 
-	/* loadtime_addr and loadtime_size will be filled in vmcall from osloader */
 #if defined (MODULE_TRUSTY_GUEST)
-	evmm_desc->trusty_desc.lk_file.runtime_addr = (uint64_t)trusty_boot->TrustyMemBase;
-	evmm_desc->trusty_desc.lk_file.runtime_total_size = ((uint64_t)(trusty_boot->TrustyMemSize)) << 10;
+	/* tos.img will be relocated by osloader */
+	evmm_desc->trusty_desc.lk_file.runtime_total_size = 16 MEGABYTE;
 	evmm_desc->trusty_desc.dev_sec_info = dev_sec_info;
 	/* rip and rsp will be filled in vmcall from osloader */
 	setup_32bit_env(&evmm_desc->trusty_desc.gcpu0_state);
 #endif
 
 #if defined (MODULE_OPTEE_GUEST)
+#if defined (PACK_OPTEE)
+	evmm_desc->optee_desc.optee_file.loadtime_addr = packed_file[OPTEE_BIN_INDEX].load_addr;
+	evmm_desc->optee_desc.optee_file.loadtime_size = packed_file[OPTEE_BIN_INDEX].size;
+#endif
 	evmm_desc->optee_desc.optee_file.runtime_addr = (uint64_t)trusty_boot->TrustyMemBase;
 	evmm_desc->optee_desc.optee_file.runtime_total_size = ((uint64_t)(trusty_boot->TrustyMemSize)) << 10;
 	evmm_desc->optee_desc.dev_sec_info = dev_sec_info;

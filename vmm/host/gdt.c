@@ -1,23 +1,14 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "vmm_base.h"
 #include "vmm_arch.h"
 #include "heap.h"
-#include "vmm_util.h"
 #include "gdt.h"
 #include "dbg.h"
 #include "host_cpu.h"
@@ -83,7 +74,7 @@ uint64_t get_tss_base(uint16_t cpu_id)
 static void setup_null_seg(void)
 {
 	uint64_t *p_entry =
-		(uint64_t *)&gdt[GDT_NULL_ENTRY_OFFSET];
+		(uint64_t *)(void *)&gdt[GDT_NULL_ENTRY_OFFSET];
 
 	*p_entry = 0ULL;
 }
@@ -91,7 +82,7 @@ static void setup_null_seg(void)
 static void setup_data_seg(void)
 {
 	uint64_t *p_data =
-		(uint64_t *)&gdt[GDT_DATA_OFFSET];
+		(uint64_t *)(void *)&gdt[GDT_DATA_OFFSET];
 
 	/*
 	low 32bits data segement descriptor format
@@ -120,7 +111,7 @@ static void setup_data_seg(void)
 static void setup_code64_seg(void)
 {
 	uint64_t *p_code64 =
-		(uint64_t *)&gdt[GDT_CODE64_OFFSET];
+		(uint64_t *)(void *)&gdt[GDT_CODE64_OFFSET];
 
 	/*
 	low 32-bit word is reserved, configure only high word
@@ -145,7 +136,7 @@ static void setup_code64_seg(void)
 static void setup_tss64_seg(uint16_t cpu_id)
 {
 	tss64_descripor_t *p_tss64 =
-		(tss64_descripor_t *)&gdt[TSS_ENTRY_OFFSET(cpu_id)];
+		(tss64_descripor_t *)(void *)&gdt[TSS_ENTRY_OFFSET(cpu_id)];
 	uint64_t base_address = get_tss_base(cpu_id);
 	uint32_t segment_limit =
 		OFFSET_OF(tss64_t, io_bitmap_last_byte);
@@ -213,7 +204,7 @@ void gdt_load(IN uint16_t cpu_id)
 
 	asm_set_ds(GDT_DATA_OFFSET);
 	asm_set_ss(GDT_DATA_OFFSET);
-	hw_write_cs(GDT_CODE64_OFFSET);
+	asm_set_cs(GDT_CODE64_OFFSET);
 
 	asm_ltr(TSS_ENTRY_OFFSET(cpu_id));
 

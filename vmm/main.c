@@ -1,24 +1,15 @@
-/*******************************************************************************
-* Copyright (c) 2015 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 
 #include "vmm_base.h"
 #include "evmm_desc.h"
 #include "heap.h"
 #include "gdt.h"
-#include "vmm_util.h"
 #include "idt.h"
 #include "isr.h"
 #include "stack.h"
@@ -155,6 +146,22 @@
 #include "modules/aps_state.h"
 #endif
 
+#ifdef MODULE_VIRTUAL_APIC
+#include "modules/virtual_apic.h"
+#endif
+
+#ifdef MODULE_NESTED_VT
+#include "modules/nested_vt.h"
+#endif
+
+#ifdef MODULE_BLOCK_NPK
+#include "modules/block_npk.h"
+#endif
+
+#ifdef MODULE_TEMPLATE_TEE
+#include "modules/template_tee.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -172,9 +179,6 @@ typedef enum {
 static
 volatile vmm_boot_stage_t vmm_boot_stage = STAGE_INIT_BSP;
 
-static
-volatile uint32_t launched_ap_count = 0;
-
 /*-------------------------- macros ------------------------- */
 #define AP_WAIT_FOR_STAGE(_STAGE)			\
 	{ while (vmm_boot_stage < _STAGE) { asm_pause(); } }
@@ -182,11 +186,15 @@ volatile uint32_t launched_ap_count = 0;
 #define BSP_SET_STAGE(_STAGE)				\
 	{ vmm_boot_stage = _STAGE; }
 
+#ifdef SYNC_CPU_IN_BOOT
+static volatile uint32_t launched_ap_count = 0;
+
 #define BSP_WAIT_FOR_AP(count)				\
 	{ while (launched_ap_count != (uint32_t)(count)) { asm_pause(); } }
 
 #define AP_SET_LAUNCHED()				\
 	{ asm_lock_inc32((&launched_ap_count)); }
+#endif
 
 /*------------------------- forwards ------------------------ */
 /*---------------------- implementation --------------------- */
@@ -244,12 +252,6 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		vmm_heap_initialize(heap_address, heap_size);
 		vmm_pool_initialize();
 
-		/* Prepare guest0 gcpu initial state */
-		prepare_g0gcpu_init_state(&evmm_desc->guest0_gcpu0_state);
-#ifdef MODULE_APS_STATE
-		prepare_g0ap_init_state(&evmm_desc->guest0_aps_state[0]);
-#endif
-
 		/* Initialize GDT for all cpus */
 		gdt_setup();
 		print_trace("\nGDT setup is finished.\n");
@@ -271,19 +273,25 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 #endif
 	}
 
-	if (cpuid == 0) {
-		BSP_SET_STAGE(STAGE_SETUP_HOST);
-	}
-
 	gdt_load(cpuid);
 	print_trace("GDT is loaded.\n");
 	idt_load();
 	print_trace("IDT is loaded.\n");
-	hmm_enable();
 
 #ifdef DEBUG
+	/*
+	 * The mtrr_check() is designed to check the consistency of MTRR values between BSP and AP.
+	 * The logic is to record MTRR values of BSP first and then compare values of AP. So this
+	 * point is the right place to execute mtrr_check() which will run BSP before APs.
+	 */
 	mtrr_check();
 #endif
+
+	if (cpuid == 0) {
+		BSP_SET_STAGE(STAGE_SETUP_HOST);
+	}
+
+	hmm_enable();
 
 	/* stage 2: setup vmx */
 	if (cpuid != 0) {
@@ -410,6 +418,14 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		ext_intr_init();
 #endif
 
+#ifdef MODULE_VIRTUAL_APIC
+		virtual_apic_init();
+#endif
+
+#ifdef MODULE_NESTED_VT
+		nested_vt_init();
+#endif
+
 #ifdef MODULE_VMEXIT_INIT
 		vmexit_register_init_event();
 #endif
@@ -431,6 +447,15 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		interrupt_ipi_init();
 #endif
 
+#ifdef MODULE_TEMPLATE_TEE
+		template_tee_init(evmm_desc->x64_cr3);
+#endif
+
+		/* Prepare guest0 gcpu initial state */
+		prepare_g0gcpu_init_state(&evmm_desc->guest0_gcpu0_state);
+#ifdef MODULE_APS_STATE
+		prepare_g0ap_init_state(&evmm_desc->guest0_aps_state[0]);
+#endif
 	} else {
 
 #ifdef MODULE_SUSPEND
@@ -456,7 +481,11 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		/* Initialize GPM */
 		gpm_init();
 
-		create_guest(host_cpu_num, &(evmm_desc->evmm_file));
+		guest_save_evmm_range(evmm_desc->evmm_file.runtime_addr, evmm_desc->evmm_file.runtime_total_size);
+
+		/* Create guest with RWX(0x7) attribute */
+		create_guest(host_cpu_num, 0x7);
+
 #ifdef MODULE_TRUSTY_GUEST
 		/* Dependency:
 		 *  LIB_IPC,
@@ -478,6 +507,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		 * here will take BSP more time and reduce the wait time for AP. */
 		vtd_activate();
 #endif
+
+#ifdef MODULE_BLOCK_NPK
+		block_npk();
+#endif
 	}
 
 	/* stage 5: init gcpu */
@@ -498,6 +531,7 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		gcpu = gcpu->next_same_host_cpu;
 	} while (gcpu != get_current_gcpu());
 
+	event_raise(NULL, EVENT_SCHEDULE_INITIAL_GCPU, NULL);
 	initial_gcpu = schedule_initial_gcpu();
 	print_trace(
 		"initial guest selected: uint16_t: %d GUEST_CPU_ID: %d\n",
@@ -513,12 +547,28 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 #endif
 
 	/* stage 6: launch guest */
+
+	/* Add ifndef here to avoid duplication of print because template tee also outputs the similar log */
+#ifndef MODULE_TEMPLATE_TEE
 	print_info("CPU%d Launch first Guest\n", cpuid);
+#endif
 	gcpu_resume(initial_gcpu);
 
 	//print_panic("CPU%d Resume initial guest cpu failed\n", cpuid);
 
 	//VMM_DEADLOOP();
+}
+
+typedef void (*func_main_continue_t) (void *params);
+static inline void hw_set_stack_pointer(uint64_t new_rsp, func_main_continue_t func, void *params)
+{
+	__asm__ __volatile__(
+		"mov %2, %%rdi;"
+		"mov %0, %%rsp;"
+		"call *%1;"
+		"jmp ."
+		::"r"(new_rsp), "r"((uint64_t)func), "r"((uint64_t)params)
+	);
 }
 
 void vmm_main(uint32_t cpuid,

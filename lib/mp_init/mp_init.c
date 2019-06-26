@@ -1,48 +1,11 @@
-/*******************************************************************************
-* Copyright (c) 2017 Intel Corporation
-* Copyright (C) 2000 - 2007, R. Byron Moore
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions
-* are met:
-* 1. Redistributions of source code must retain the above copyright
-*    notice, this list of conditions, and the following disclaimer,
-*    without modification.
-* 2. Redistributions in binary form must reproduce at minimum a disclaimer
-*    substantially similar to the "NO WARRANTY" disclaimer below
-*    ("Disclaimer") and any redistribution must be conditioned upon
-*    including a substantially similar Disclaimer requirement for further
-*    binary redistribution.
-* 3. Neither the names of the above-listed copyright holders nor the names
-*    of any contributors may be used to endorse or promote products derived
-*    from this software without specific prior written permission.
-*
-* NO WARRANTY
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-* HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-* OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-* STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-* IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-* POSSIBILITY OF SUCH DAMAGES.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+/*
+ * Copyright (c) 2015-2019 Intel Corporation.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
+
 #include "vmm_base.h"
 #include "vmm_asm.h"
 #include "vmm_arch.h"
@@ -135,11 +98,11 @@ void setup_sipi_page(uint64_t sipi_page, boolean_t need_wakeup_bsp, uint64_t c_e
 
 	memcpy(code_to_patch, (const void *)real_mode_code, (uint64_t)sizeof(real_mode_code));
 
-	*((uint16_t *)(code_to_patch + REAL_MODE_STARTUP)) = (uint16_t)(sipi_page>>4);
-	*((uint16_t *)(code_to_patch + GDTR_OFFSET_IN_CODE)) = (uint16_t)(GDTR_OFFSET_IN_PAGE);
-	*((uint32_t *)(code_to_patch + CPU_STARTUP_DATA)) = (uint32_t)(uint64_t)(&g_startup_data);
-	*((uint32_t *)(code_to_patch + CPU_STARTUP64)) = (uint32_t)(uint64_t)(&cpu_startup64);
-	*((uint32_t *)(code_to_patch + CPU_STARTUP32)) = (uint32_t)(uint64_t)(&cpu_startup32);
+	*((uint16_t *)(void *)(code_to_patch + REAL_MODE_STARTUP)) = (uint16_t)(sipi_page>>4);
+	*((uint16_t *)(void *)(code_to_patch + GDTR_OFFSET_IN_CODE)) = (uint16_t)(GDTR_OFFSET_IN_PAGE);
+	*((uint32_t *)(void *)(code_to_patch + CPU_STARTUP_DATA)) = (uint32_t)(uint64_t)(&g_startup_data);
+	*((uint32_t *)(void *)(code_to_patch + CPU_STARTUP64)) = (uint32_t)(uint64_t)(&cpu_startup64);
+	*((uint32_t *)(void *)(code_to_patch + CPU_STARTUP32)) = (uint32_t)(uint64_t)(&cpu_startup32);
 
 	memcpy(code_to_patch + GDT_OFFSET_IN_PAGE, (uint8_t *)(uint64_t)&gdt_32_table[0], sizeof(gdt_32_table));
 	gdtr_32 = (gdtr32_t *)(code_to_patch + GDTR_OFFSET_IN_PAGE);
