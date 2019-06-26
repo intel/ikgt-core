@@ -62,7 +62,7 @@ CFLAGS += -fno-builtin
 # add warning checks as much as possible.
 # -Wconversion option will cause a warning like i += 1, so we strip this
 # warning option
-CFLAGS += -Wall -Wextra -Werror -Wbad-function-cast -Wpacked -Wpadded \
+CFLAGS += -Wall -Wextra -Werror -Wpacked \
 	-Winit-self -Wswitch-default -Wdeclaration-after-statement \
 	-Wredundant-decls -Wnested-externs -Winline -Wstack-protector \
 	-Woverlength-strings -Waggregate-return \
