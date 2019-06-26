@@ -62,6 +62,10 @@
 #include "modules/trusty_guest.h"
 #endif
 
+#ifdef MODULE_SECURITY_TEST
+#include "modules/security_test.h"
+#endif
+
 #ifdef MODULE_OPTEE_GUEST
 #include "modules/optee_guest.h"
 #endif
@@ -501,6 +505,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		 *  MODULE_MSR_ISOLATION,
 		 *  MODULE_DEADLOOP */
 		init_trusty_guest(evmm_desc);
+#endif
+
+#ifdef MODULE_SECURITY_TEST
+		init_security_test();
 #endif
 
 #ifdef MODULE_OPTEE_GUEST
