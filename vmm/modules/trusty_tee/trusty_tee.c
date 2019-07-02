@@ -22,13 +22,10 @@
 #include "lib/image_loader.h"
 #include "modules/vmcall.h"
 #include "modules/template_tee.h"
+#include "modules/security_info.h"
 
 #ifdef MODULE_VTD
 #include "modules/vtd.h"
-#endif
-
-#ifdef DERIVE_KEY
-#include "modules/crypto.h"
 #endif
 
 #ifdef MODULE_DEADLOOP
@@ -42,12 +39,6 @@ enum {
 
 static uint64_t g_init_rdi, g_init_rsp, g_init_rip;
 static guest_handle_t trusty_guest;
-/* For Tee early launch, dev_sec_info gets from evmm->trusty_desc which
- * belongs to evmm stack, so no need to free it.
- * For later launch, dev_sec_info is dynamic alloc during trusty_tee_init,
- * then copy secure info to it. The memory should be free in first_smc_to_tee.
-*/
-static void *dev_sec_info;
 
 /* Reserved size for dev_sec_info/trusty_startup and Stack(1 page) */
 /*
@@ -101,65 +92,13 @@ static uint64_t relocate_trusty_image(module_file_info_t *tee_file)
 	return entry_point;
 }
 
-#ifdef DERIVE_KEY
-static int get_max_svn_index(device_sec_info_v0_t *sec_info)
-{
-	uint32_t i, max_svn_idx = 0;
-
-	if ((sec_info->num_seeds == 0) || (sec_info->num_seeds > BOOTLOADER_SEED_MAX_ENTRIES))
-		return -1;
-
-	for (i = 1; i < sec_info->num_seeds; i++) {
-		if (sec_info->dseed_list[i].cse_svn > sec_info->dseed_list[i - 1].cse_svn) {
-			max_svn_idx = i;
-		}
-	}
-
-	return max_svn_idx;
-}
-
-static void key_derive(device_sec_info_v0_t *sec_info)
-{
-	const char salt[] = "Attestation Keybox Encryption Key";
-	const uint8_t *ikm;
-	uint8_t *prk;
-	uint32_t ikm_len;
-	int max_svn_idx;
-
-	max_svn_idx = get_max_svn_index(sec_info);
-	if (max_svn_idx < 0) {
-		print_info("VMM: failed to get max svn index\n");
-		memset(sec_info, 0, sizeof(device_sec_info_v0_t));
-		return;
-	}
-
-	ikm = sec_info->dseed_list[max_svn_idx].seed;
-	ikm_len = 32;
-
-	prk = sec_info->attkb_enc_key;
-
-	if (hmac_sha256((const uint8_t *)salt, sizeof(salt), ikm, ikm_len, prk) != 1) {
-		memset(sec_info, 0, sizeof(device_sec_info_v0_t));
-		print_panic("VMM: failed to derive key!\n");
-	}
-}
-#endif
-
 /* Set up trusty device security info and trusty startup info */
-static uint64_t setup_trusty_mem(uint64_t runtime_addr, uint64_t runtime_total_size)
+static uint64_t setup_trusty_mem(uint64_t runtime_addr, uint64_t runtime_total_size, void *dev_sec_info)
 {
 	uint32_t dev_sec_info_size;
 	trusty_startup_info_t *trusty_para;
 
-	/* Setup trusty boot info */
-	dev_sec_info_size = *((uint32_t *)dev_sec_info);
-	memcpy((void *)runtime_addr, dev_sec_info, dev_sec_info_size);
-	memset(dev_sec_info, 0, dev_sec_info_size);
-	barrier();
-
-#ifdef DERIVE_KEY
-	key_derive((device_sec_info_v0_t *)runtime_addr);
-#endif
+	dev_sec_info_size = mov_sec_info((void *)runtime_addr, dev_sec_info);
 
 	/* Setup trusty startup info */
 	trusty_para = (trusty_startup_info_t *)ALIGN_F(runtime_addr + dev_sec_info_size, 8);
@@ -208,11 +147,8 @@ static void first_smc_to_tee(guest_cpu_handle_t gcpu_ree)
 	 * 2. Set RIP RDI and RSP
 	 */
 	g_init_rip = parse_trusty_boot_param(gcpu_ree, &runtime_addr, &runtime_total_size);
-	g_init_rdi = setup_trusty_mem(runtime_addr, runtime_total_size);
+	g_init_rdi = setup_trusty_mem(runtime_addr, runtime_total_size, INTERNAL);
 	g_init_rsp = runtime_addr + runtime_total_size;
-
-	mem_free(dev_sec_info);
-	dev_sec_info = NULL;
 
 	launch_tee(trusty_guest, runtime_addr, runtime_total_size);
 }
@@ -273,7 +209,6 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 {
 	tee_config_t trusty_cfg;
 	tee_desc_t *trusty_desc;
-	uint32_t dev_sec_info_size;
 	uint8_t smc_param_to_tee[] = {REG_RDI, REG_RSI, REG_RDX, REG_RBX};
 	uint8_t smc_param_to_ree[] = {REG_RDI, REG_RSI, REG_RDX, REG_RBX};
 
@@ -309,20 +244,14 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 
 		/* Set RIP RDI and RSP */
 		g_init_rip = relocate_trusty_image(&trusty_desc->tee_file);
-		g_init_rdi = setup_trusty_mem(trusty_desc->tee_file.runtime_addr, trusty_desc->tee_file.runtime_total_size);
+		g_init_rdi = setup_trusty_mem(trusty_desc->tee_file.runtime_addr,
+			trusty_desc->tee_file.runtime_total_size, trusty_desc->dev_sec_info);
 		g_init_rsp = trusty_desc->tee_file.runtime_addr + trusty_desc->tee_file.runtime_total_size;
-
-		dev_sec_info = trusty_desc->dev_sec_info;
 	} else {
 		trusty_cfg.first_smc_to_tee = first_smc_to_tee;
 
-		/* Copy dev_sec_info from loader to VMM's memory */
-		dev_sec_info_size = *((uint32_t *)trusty_desc->dev_sec_info);
-		VMM_ASSERT_EX(!(dev_sec_info_size & 0x3ULL), "size of trusty boot info is not 32bit aligned!\n");
-		dev_sec_info = mem_alloc(dev_sec_info_size);
-		memcpy(dev_sec_info, trusty_desc->dev_sec_info, dev_sec_info_size);
-		memset(trusty_desc->dev_sec_info, 0, dev_sec_info_size);
-		barrier();
+		/* Copy dev_sec_info from loader to VMM's memory which will be alloced in mov_sec_info */
+		mov_sec_info(INTERNAL, trusty_desc->dev_sec_info);
 	}
 
 	trusty_guest = create_tee(&trusty_cfg);
