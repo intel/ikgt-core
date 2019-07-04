@@ -397,7 +397,6 @@ static void check_segment_selector(vmcs_obj_t vmcs)
 	seg_ar_t ldtr_ar;
 	boolean_t  is_ug;
 	boolean_t  is_vr8086;
-	uint32_t   proc_ctrl2;
 	uint16_t  cs_sel, ss_sel, tr_sel, ldtr_sel;
 
 	cs_sel   = (uint16_t) vmcs_read(vmcs, VMCS_GUEST_CS_SEL);
@@ -463,7 +462,6 @@ static void check_segment_base_address(vmcs_obj_t vmcs)
 	seg_ar_t ldtr_ar;
 	boolean_t  is_64bit;
 	boolean_t  is_vr8086;
-	uint32_t   proc_ctrl2;
 	segment_t  cs;
 	segment_t  ss;
 	segment_t  ds;
@@ -1439,13 +1437,13 @@ static void check_guest_activity_state(vmcs_obj_t vmcs)
 	 **  The activity-state field must not indicate the wait-for-SIPI state if the "entry
 	 **  to SMM" VM-entry control is 1.
 	 */
-	activity_state_t               activity;
+	uint32_t                       activity;
 	uint32_t                       interruptibility;
 	vmx_exit_idt_info_t            vmenter_intr_info;
 	uint32_t                       vmentry_control;
 	seg_ar_t                       ss_ar;
 
-	activity = (activity_state_t) vmcs_read(vmcs, VMCS_GUEST_ACTIVITY_STATE);
+	activity = (uint32_t) vmcs_read(vmcs, VMCS_GUEST_ACTIVITY_STATE);
 	interruptibility = (uint32_t) vmcs_read(vmcs, VMCS_GUEST_INTERRUPTIBILITY);
 	ss_ar.u32 = (uint32_t) vmcs_read(vmcs, VMCS_GUEST_SS_AR);
 	vmenter_intr_info.uint32 = (uint32_t) vmcs_read(vmcs, VMCS_ENTRY_INTR_INFO);
@@ -1566,7 +1564,7 @@ static void check_guest_interruptibility_state(vmcs_obj_t vmcs)
 	uint64_t                        guest_rflags;
 	uint32_t                        pin_control;
 	uint32_t                        vmentry_control;
-	cpuid_params_t                 cpuid_params;
+	cpuid_params_t                 cpuid_params = {0, 0, 0, 0};
 
 	interruptibility = (uint32_t) vmcs_read(vmcs, VMCS_GUEST_INTERRUPTIBILITY);
 	vmenter_intr_info.uint32 = (uint32_t) vmcs_read(vmcs, VMCS_ENTRY_INTR_INFO);
@@ -1574,7 +1572,7 @@ static void check_guest_interruptibility_state(vmcs_obj_t vmcs)
 	pin_control     = (uint32_t) vmcs_read(vmcs, VMCS_PIN_CTRL);
 	guest_rflags = vmcs_read(vmcs, VMCS_GUEST_RFLAGS);
 
-	if (0 != interruptibility & INTR_RESERVED)
+	if (0 != (interruptibility & INTR_RESERVED))
 	{
 		print_info("Interruptibility-state reserved bits (bits 31:4) must be 0\n");
 	}
@@ -1689,13 +1687,13 @@ static void check_guest_pending_debug_exception(vmcs_obj_t vmcs)
 	 **    (bit 1 in that field must be 0).
 	 */
 	uint64_t                       pending_debg;
-	activity_state_t               activity;
+	uint32_t                       activity;
 	uint32_t                       interruptibility;
 	uint64_t                       ctrl_debg;
 	uint64_t                       guest_rflags;
-	cpuid_params_t                 cpuid_params;
+	cpuid_params_t                 cpuid_params = {0, 0, 0, 0};
 
-	activity = (activity_state_t) vmcs_read(vmcs, VMCS_GUEST_ACTIVITY_STATE);
+	activity = (uint32_t) vmcs_read(vmcs, VMCS_GUEST_ACTIVITY_STATE);
 	interruptibility = (uint32_t) vmcs_read(vmcs, VMCS_GUEST_INTERRUPTIBILITY);
 	guest_rflags = vmcs_read(vmcs, VMCS_GUEST_RFLAGS);
 	pending_debg = vmcs_read(vmcs, VMCS_GUEST_PEND_DBG_EXCEPTION);
@@ -2082,10 +2080,8 @@ static void check_vmx_apic_access(vmcs_obj_t vmcs)
 	 **  The address should not set any bits beyond the processor's
 	 **  physical-address width.
 	 */
-	uint32_t proc_ctrl;
 	uint32_t proc_ctrl2;
 
-	proc_ctrl = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL1);
 	proc_ctrl2 = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL2);
 
 	if (proc_ctrl2 & PROC2_VAPIC_ACCESSES)
@@ -2437,7 +2433,7 @@ static void check_vm_active_preemption_timer(vmcs_obj_t vmcs)
 	}
 }
 
-static void check_vm_msr_addr(uint64_t addr, uint32_t count, char* name)
+static void check_vm_msr_addr(uint64_t addr, uint32_t count, const char* name)
 {
 	/*
 	 ** According to IA32 Manual: Volume 3, Chapter 26.2.1.2:
@@ -3104,7 +3100,7 @@ static void check_host_segment(vmcs_obj_t vmcs)
 	is_64bit = ((vmcs_read(vmcs, VMCS_EXIT_CTRL) & EXIT_HOST_ADDR_SPACE) != 0);
 	/*check host segment selector and base*/
 	check_host_segment_sel_base(SEG_CS, cs_sel, 0, is_64bit);
-	check_host_segment_sel_base(SEG_DS, ss_sel, 0, is_64bit);
+	check_host_segment_sel_base(SEG_DS, ds_sel, 0, is_64bit);
 	check_host_segment_sel_base(SEG_SS, ss_sel, 0, is_64bit);
 	check_host_segment_sel_base(SEG_ES, es_sel, 0, is_64bit);
 	check_host_segment_sel_base(SEG_FS, fs_sel, fs_base, is_64bit);
@@ -3207,17 +3203,13 @@ static void check_loading_msr(vmcs_obj_t vmcs)
 	 */
 	uint32_t load_count;
 	uint64_t load_addr;
-	uint64_t proc2_ctrl;
 	uint64_t entry_ctrl;
-	uint64_t cr0;
 	msr_list_t * msr_list;
 	uint32_t list_idx;
 
 	load_addr = vmcs_read(vmcs, VMCS_ENTRY_MSR_LOAD_ADDR);
 	load_count = (uint32_t)vmcs_read(vmcs, VMCS_ENTRY_MSR_LOAD_COUNT);
-	proc2_ctrl = vmcs_read(vmcs, VMCS_PROC_CTRL2);
 	entry_ctrl = vmcs_read(vmcs, VMCS_ENTRY_CTRL);
-	cr0 = vmcs_read(vmcs, VMCS_HOST_CR0);
 
 	if (load_count == 0)
 	{
@@ -3309,8 +3301,7 @@ static void vmenter_failure_check(guest_cpu_handle_t gcpu)
 	/* According to IA32 Manual: Volume 3, Chapter 26.3.1.*/
 	VMM_ASSERT_EX(gcpu, "gcpu is NULL in vmenter failure check\n");
 
-	vmcs_obj_t vmcs = gcpu->vmcs;
-	vmcs_check(vmcs);
+	vmcs_check(gcpu->vmcs);
 
 	VMM_DEADLOOP();
 }

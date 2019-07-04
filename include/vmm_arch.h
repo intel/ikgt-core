@@ -514,6 +514,20 @@ typedef uint8_t cache_type_t;
 #define EFER_LMA        (1ull << 10)
 #define EFER_NXE        (1ull << 11)
 
+typedef union msr_efer {
+	struct {
+		uint64_t sce:1;
+		uint64_t rsvd0:7;
+		uint64_t lme:1;
+		uint64_t rsvd1:1;
+		uint64_t lma:1;
+		uint64_t nxe:1;
+		uint64_t rsvd:52;
+	} bits;
+	uint64_t uint64;
+} msr_efer_t;
+
+
 #define MSR_STAR                   ((uint32_t)0xc0000081)	/* System Call Target Address */
 #define MSR_LSTAR                  ((uint32_t)0xc0000082)	/* IA-32e Mode System Call Target Address */
 #define MSR_FMASK                  ((uint32_t)0xc0000084)	/* System Call Flag Mask */
