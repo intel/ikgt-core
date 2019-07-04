@@ -296,10 +296,14 @@ static void g0gcpu_set_guest_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
 	VMM_ASSERT_EX(g0gcpu0_state, "g0gcpu0_state is NULL\n");
 
 	if (gcpu->guest->id == 0) {
-		if (gcpu->id == 0)
+		if (gcpu->id == 0) {
 			gcpu_set_init_state(gcpu, g0gcpu0_state);
-		else
+		} else {
 			gcpu_set_reset_state(gcpu);
+#ifdef AP_START_IN_HLT
+			vmcs_write(gcpu->vmcs, VMCS_GUEST_ACTIVITY_STATE, ACTIVITY_STATE_HLT);
+#endif
+		}
 	}
 }
 
