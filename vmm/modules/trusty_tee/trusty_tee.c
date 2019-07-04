@@ -192,19 +192,6 @@ void trusty_register_deadloop_handler(evmm_desc_t *evmm_desc)
 	register_final_deadloop_handler(trusty_erase_sensetive_info);
 }
 
-#ifdef AP_START_IN_HLT
-static void set_guest0_aps_to_hlt_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
-{
-	D(VMM_ASSERT(gcpu));
-
-	if (gcpu->guest->id == 0) {
-		if (gcpu->id != 0) {
-			vmcs_write(gcpu->vmcs, VMCS_GUEST_ACTIVITY_STATE, ACTIVITY_STATE_HLT);
-		}
-	}
-}
-#endif
-
 void init_trusty_tee(evmm_desc_t *evmm_desc)
 {
 	tee_config_t trusty_cfg;
@@ -256,10 +243,6 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 
 	trusty_guest = create_tee(&trusty_cfg);
 	VMM_ASSERT_EX(trusty_guest, "Failed to create trusty guest!\n");
-
-#ifdef AP_START_IN_HLT
-	event_register(EVENT_GCPU_MODULE_INIT, set_guest0_aps_to_hlt_state);
-#endif
 
 #ifdef DMA_FROM_CSE
 	vtd_assign_dev(gid2did(trusty_guest->id), DMA_FROM_CSE);
