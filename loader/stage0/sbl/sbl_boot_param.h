@@ -106,4 +106,5 @@ typedef struct {
 
 image_boot_params_t *cmdline_parse(multiboot_info_t *mbi);
 void parse_seed_list(device_sec_info_v0_t *dev_sec_info, seed_list_t *seed_list);
+void erase_seed_list(seed_list_t *seed_list);
 #endif

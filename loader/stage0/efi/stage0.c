@@ -80,6 +80,12 @@ uint32_t stage0_main(
 exit:
 	/* wipe seed data when error occurs */
 	cleanup_sensetive_data(tos_startup_info);
+
+	if (evmm_desc && evmm_desc->trusty_desc.dev_sec_info) {
+		memset(evmm_desc->trusty_desc.dev_sec_info, 0, sizeof(device_sec_info_v0_t));
+		barrier();
+	}
+
 	/* Code will not run to here when boot successfully.
 	 * The return value is set in g0_gcpu_setup() when do gcpu_resume. */
 	return -1;

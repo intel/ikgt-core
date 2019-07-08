@@ -91,8 +91,8 @@ void stage0_main(
 	multiboot_info_t *mbi;
 	uint64_t tom;
 	cmdline_params_t cmdline_params;
-	device_sec_info_v0_t *dev_sec_info;
-	abl_trusty_boot_params_t *trusty_boot;
+	device_sec_info_v0_t *dev_sec_info = NULL;
+	abl_trusty_boot_params_t *trusty_boot = NULL;
 	vmm_boot_params_t *vmm_boot;
 	android_image_boot_params_t *and_boot;
 	memory_layout_t *loader_mem;
@@ -198,6 +198,17 @@ void stage0_main(
 	print_panic("stage1_main() returned because of a error.\n");
 fail:
 	print_panic("deadloop in stage0\n");
+
+	if (trusty_boot) {
+		memset(trusty_boot, 0, sizeof(abl_trusty_boot_params_t));
+		barrier();
+	}
+
+	if (dev_sec_info) {
+		memset(dev_sec_info, 0, sizeof(device_sec_info_v0_t));
+		barrier();
+	}
+
 	__STOP_HERE__;
 }
 /* End of file */

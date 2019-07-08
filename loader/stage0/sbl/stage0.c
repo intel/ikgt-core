@@ -100,8 +100,8 @@ void stage0_main(
 	uint64_t (*stage1_main)(evmm_desc_t *xd);
 	uint64_t tom;
 	multiboot_info_t *mbi;
-	device_sec_info_v0_t *dev_sec_info;
-	seed_list_t *seed_list;
+	device_sec_info_v0_t *dev_sec_info = NULL;
+	seed_list_t *seed_list = NULL;
 	platform_info_t *plat_info;
 	vmm_boot_params_t *vmm_boot;
 	image_boot_params_t *image_boot;
@@ -191,5 +191,13 @@ void stage0_main(
 	print_panic("stage1_main() returned because of a error.\n");
 fail:
 	print_panic("deadloop in stage0\n");
+
+	erase_seed_list(seed_list);
+
+	if (dev_sec_info) {
+		memset(dev_sec_info, 0, sizeof(device_sec_info_v0_t));
+		barrier();
+	}
+
 	__STOP_HERE__;
 }

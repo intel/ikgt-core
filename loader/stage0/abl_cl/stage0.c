@@ -144,7 +144,7 @@ void stage0_main(
 	multiboot_info_t *mbi;
 	uint64_t tom;
 	cmdline_params_t cmdline_params;
-	device_sec_info_v0_t *dev_sec_info;
+	device_sec_info_v0_t *dev_sec_info = NULL;
 	memory_layout_t *loader_mem;
 	packed_file_t packed_file[PACK_BIN_COUNT];
 	boolean_t ret;
@@ -353,6 +353,22 @@ void stage0_main(
 	print_panic("stage1_main() returned because of a error.\n");
 fail:
 	print_panic("deadloop in stage0\n");
+
+	if (cmdline_params.svnseed_addr) {
+		memset(cmdline_params.svnseed_addr, 0, sizeof(abl_svnseed_t));
+		barrier();
+	}
+
+	if (cmdline_params.rpmb_key_addr) {
+		memset(cmdline_params.rpmb_key_addr, 0, ABL_RPMB_KEY_LEN);
+		barrier();
+	}
+
+	if (dev_sec_info) {
+		memset(dev_sec_info, 0, sizeof(device_sec_info_v0_t));
+		barrier();
+	}
+
 	__STOP_HERE__;
 }
 /* End of file */

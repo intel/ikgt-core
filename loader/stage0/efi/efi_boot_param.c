@@ -6,6 +6,7 @@
  *
  */
 
+#include "vmm_asm.h"
 #include "vmm_base.h"
 #include "stage0_asm.h"
 #include "ldr_dbg.h"
@@ -55,14 +56,20 @@ static boolean_t fill_device_sec_info(device_sec_info_v0_t *dev_sec_info, tos_st
 				BUP_MKHI_BOOTLOADER_SEED_LEN);
 	}
 
-	/* copy serial info from startup_info to  dev_sec_info*/
+	/* copy serial info from startup_info to dev_sec_info */
 	memcpy(dev_sec_info->serial, p_startup_info->serial, MMC_PROD_NAME_WITH_PSN_LEN);
 
-	/* copy RPMB keys from startup_info to  dev_sec_info*/
+	/* copy RPMB keys from startup_info to dev_sec_info */
 	memcpy(dev_sec_info->rpmb_key, p_startup_info->rpmb_key, RPMB_MAX_PARTITION_NUMBER*64);
 
 	/* clear the seed */
 	memset(p_startup_info->seed_list, 0, sizeof(p_startup_info->seed_list));
+	barrier();
+
+	/* clear the RPMB key */
+	memset(p_startup_info->rpmb_key, 0, RPMB_MAX_PARTITION_NUMBER*64);
+	barrier();
+
 	return TRUE;
 }
 

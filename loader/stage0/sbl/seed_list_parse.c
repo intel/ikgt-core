@@ -74,6 +74,8 @@ static boolean_t fill_rpmb_seed(device_sec_info_v0_t *dev_sec_info, seed_entry_t
 
 	rpmb_seed_index++;
 
+	/* RPMB key will be reused in osloader, so don't scrub them */
+
 	return TRUE;
 }
 
@@ -128,4 +130,31 @@ fail:
 	memset(&dev_sec_info->rpmb_key[0], 0, sizeof(dev_sec_info->rpmb_key));
 	memset(dev_sec_info->dseed_list[0].seed, 0xA5,
 			sizeof(dev_sec_info->dseed_list[0].seed));
+}
+
+void erase_seed_list(seed_list_t *seed_list)
+{
+	uint8_t i;
+	uint32_t size;
+	seed_entry_t *entry;
+
+	if (!seed_list) {
+		print_panic("Invalid seed_list pointer!\n");
+		return;
+	}
+
+	size = sizeof(seed_list_t);
+	entry = (seed_entry_t *)((uint8_t *)seed_list +
+			sizeof(seed_list_t));
+
+	for (i = 0; i < seed_list->total_seed_count; i++) {
+		size += entry->seed_entry_size;
+		entry = (seed_entry_t *)((uint8_t *)entry +
+				entry->seed_entry_size);
+	}
+
+	memset((void *)seed_list, 0, size);
+	barrier();
+
+	return;
 }
