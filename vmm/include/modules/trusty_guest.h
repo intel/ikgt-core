@@ -16,6 +16,5 @@
 #include "evmm_desc.h"
 
 void init_trusty_guest(evmm_desc_t *evmm_desc);
-void trusty_register_deadloop_handler(evmm_desc_t *evmm_desc);
 
 #endif

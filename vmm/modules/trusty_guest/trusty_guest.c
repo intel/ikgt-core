@@ -476,22 +476,6 @@ static void trusty_set_gcpu_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
 	}
 }
 
-static void *sensitive_info;
-static void trusty_erase_sensetive_info(void)
-{
-#ifndef DEBUG //in DEBUG build, access from VMM to LK will be removed. so, only erase sensetive info in RELEASE build
-	memset(sensitive_info, 0, PAGE_4K_SIZE);
-#endif
-}
-
-void trusty_register_deadloop_handler(evmm_desc_t *evmm_desc)
-{
-	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
-	sensitive_info = (void *)evmm_desc->trusty_desc.lk_file.runtime_addr;
-
-	register_final_deadloop_handler(trusty_erase_sensetive_info);
-}
-
 void init_trusty_guest(evmm_desc_t *evmm_desc)
 {
 	uint32_t cpu_num = 1;

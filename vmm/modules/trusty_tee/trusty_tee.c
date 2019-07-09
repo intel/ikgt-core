@@ -176,22 +176,6 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 	gcpu_set_gp_reg(gcpu, REG_RAX, 0);
 }
 
-static void *sensitive_info;
-static void trusty_erase_sensetive_info(void)
-{
-#ifndef DEBUG //in DEBUG build, access from VMM to Trusty will be removed. so, only erase sensetive info in RELEASE build
-	memset(sensitive_info, 0, PAGE_4K_SIZE);
-#endif
-}
-
-void trusty_register_deadloop_handler(evmm_desc_t *evmm_desc)
-{
-	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
-	sensitive_info = (void *)evmm_desc->trusty_tee_desc.tee_file.runtime_addr;
-
-	register_final_deadloop_handler(trusty_erase_sensetive_info);
-}
-
 void init_trusty_tee(evmm_desc_t *evmm_desc)
 {
 	tee_config_t trusty_cfg;
