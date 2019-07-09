@@ -226,10 +226,6 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 
 	/* stage 1: setup host */
 	if (cpuid == 0) {
-#if defined(MODULE_TRUSTY_GUEST) || defined(MODULE_TRUSTY_TEE)
-		trusty_register_deadloop_handler(evmm_desc);
-#endif
-
 		print_trace(
 			"\nVMM image base address = 0x%llX\n",
 			evmm_desc->evmm_file.runtime_addr);

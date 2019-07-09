@@ -51,17 +51,6 @@ void clear_deadloop_flag(void)
 	in_deadloop[cpu_id] = 0;
 }
 
-static void (*final_deadloop_handler)(void);
-
-void register_final_deadloop_handler(void (*func)(void))
-{
-	D(VMM_ASSERT_EX(func, "final deadloop handle is NULL\n"));
-	if (final_deadloop_handler) {
-		print_warn(" final deadloop handle has exsit\n");
-	}
-	final_deadloop_handler = func;
-}
-
 void vmm_deadloop(const char *file_name, uint32_t line_num)
 {
 	uint16_t host_cpu;
@@ -78,7 +67,7 @@ void vmm_deadloop(const char *file_name, uint32_t line_num)
 	host_cpu = calculate_cpu_id(asm_str());
 	if (!(host_cpu < host_cpu_num)) {
 		printf("Deadloop: host_cpu_id(%d) should less than host_cpu_num(%d)\n", host_cpu, host_cpu_num);
-		goto final_handler;
+		goto final;
 	}
 	printf("Deadloop: host_cpu_id = %d\n", host_cpu);
 
@@ -91,18 +80,18 @@ void vmm_deadloop(const char *file_name, uint32_t line_num)
 
 	if (!gcpu) {
 		printf("Deadloop: gcpu is NULL\n");
-		goto final_handler;
+		goto final;
 	}
 	printf("Deadloop: gcpu_id = %d\n", gcpu->id);
 
 	if (!gcpu->guest) {
 		printf("Deadloop: gcpu_guest is NULL\n");
-		goto final_handler;
+		goto final;
 	}
 
 	if (!gcpu->vmcs) {
 		printf("Deadloop: vmcs is NULL\n");
-		goto final_handler;
+		goto final;
 	}
 	printf("Deadloop: guest_id = %d\n", gcpu->guest->id);
 
@@ -112,13 +101,13 @@ void vmm_deadloop(const char *file_name, uint32_t line_num)
 
 	if (gcpu->guest->id != 0) {
 		printf("Deadloop: it is not guest 0\n");
-		goto final_handler;
+		goto final;
 	}
 
 	if (gcpu->is_vmentry_fail)
 	{
 		printf("Deadloop: vmentry fail.\n");
-		goto final_handler;
+		goto final;
 	}
 
 	vmexit_reason = (uint32_t)vmcs_read(gcpu->vmcs, VMCS_EXIT_REASON);
@@ -127,13 +116,13 @@ void vmm_deadloop(const char *file_name, uint32_t line_num)
 			vmexit_reason == REASON_34_ENTRY_FAIL_MSR ||
 			vmexit_reason == REASON_41_ENTRY_FAIL_MC) {
 		printf("irrecoverable vmexit reason:%d\n", vmexit_reason);
-		goto final_handler;
+		goto final;
 	}
 
 	guest_state = (uint32_t)vmcs_read(gcpu->vmcs, VMCS_GUEST_ACTIVITY_STATE);
 	if (guest_state != ACTIVITY_STATE_ACTIVE) {
 		printf("guest state(%d) is not active\n", guest_state);
-		goto final_handler;
+		goto final;
 	}
 
 	event_deadloop.file_name = (const char *)file_name;
@@ -143,10 +132,6 @@ void vmm_deadloop(const char *file_name, uint32_t line_num)
 	/* inject #GP to guest 0 */
 	gcpu_inject_gp0(gcpu);
 	gcpu_resume(gcpu);
-
-final_handler:
-	if (final_deadloop_handler != NULL)
-		final_deadloop_handler();
 
 final:
 #ifndef DEBUG
