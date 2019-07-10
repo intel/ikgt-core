@@ -17,9 +17,15 @@
 
 #define INTERNAL NULL
 
-/* When dest is INTERNAL, an internal memory will be allocated to hold the info;
- * when src is INTERNAL, the info stored in the internal memory will be moved to dest,
- * and the internal memory will be freed */
-uint32_t mov_sec_info(void *dest, void *src);
+/* Move security info from src to dest. All parameters can't be NULL. Returns number of byte moved */
+uint32_t mov_secinfo(void *dest, void *src);
+
+/* Move security info from src to memory which will be allocated in the function,
+   returns the allocated memory address */
+void *mov_secinfo_to_internal(void *src);
+
+/* Move security info from allocated memory which gets from mov_secinfo_to_internal() to dest.
+  Then the allocated memory will be freed. All parameters can't be NULL. Returns number of byte moved */
+uint32_t mov_secinfo_from_internal(void *dest, void *handle);
 
 #endif
