@@ -77,34 +77,48 @@ static uint32_t _mov_info(void *dest, void *src)
 	return dev_sec_info_size;
 }
 
-uint32_t mov_sec_info(void *dest, void *src)
+uint32_t mov_secinfo(void *dest, void *src)
 {
-	static void *dev_sec_info;
 	uint32_t dev_sec_info_size;
 
-	D(VMM_ASSERT_EX(src || dest, "dest and src can't be NULL simultaneously!\n"));
-	D(VMM_ASSERT_EX((dest || (dev_sec_info == NULL)), "When dest is NULL, dev_sec_info MUST be NULL!\n"));
-	D(VMM_ASSERT_EX(src || dev_sec_info, "src and dev_sec_info can't be NULL simultaneously!\n"));
-
-	if (dest == INTERNAL) {
-		dev_sec_info_size = *((uint32_t *)src);
-		dev_sec_info = mem_alloc(dev_sec_info_size);
-		dest = dev_sec_info;
-	}
-
-	if (src == INTERNAL)
-		src = dev_sec_info;
+	D(VMM_ASSERT_EX(src && dest, "dest and src can't be NULL!\n"));
 
 	dev_sec_info_size = _mov_info(dest, src);
 
-	if (src == dev_sec_info) {
-		mem_free(dev_sec_info);
-		dev_sec_info = NULL;
-	}
+#ifdef DERIVE_KEY
+	key_derive((device_sec_info_v0_t *)dest);
+#endif
+
+	return dev_sec_info_size;
+}
+
+void *mov_secinfo_to_internal(void *src)
+{
+	void *handle;
+	uint32_t dev_sec_info_size;
+
+	D(VMM_ASSERT_EX(src, "src can't be NULL!\n"));
+
+	dev_sec_info_size = *((uint32_t *)src);
+	handle = mem_alloc(dev_sec_info_size);
+
+	_mov_info(handle, src);
+
+	return handle;
+}
+
+uint32_t mov_secinfo_from_internal(void *dest, void *handle)
+{
+	uint32_t dev_sec_info_size;
+
+	D(VMM_ASSERT_EX(src && handle, "dest and handle can't be NULL!\n"));
+
+	dev_sec_info_size = _mov_info(dest, handle);
+
+	mem_free(handle);
 
 #ifdef DERIVE_KEY
-	if (dest != dev_sec_info)
-		key_derive((device_sec_info_v0_t *)dest);
+	key_derive((device_sec_info_v0_t *)dest);
 #endif
 
 	return dev_sec_info_size;

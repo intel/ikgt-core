@@ -39,6 +39,7 @@ enum {
 
 static uint64_t g_init_rdi, g_init_rsp, g_init_rip;
 static guest_handle_t trusty_guest;
+static void *dev_sec_info;
 
 /* Reserved size for dev_sec_info/trusty_startup and Stack(1 page) */
 /*
@@ -92,16 +93,13 @@ static uint64_t relocate_trusty_image(module_file_info_t *tee_file)
 	return entry_point;
 }
 
-/* Set up trusty device security info and trusty startup info */
-static uint64_t setup_trusty_mem(uint64_t runtime_addr, uint64_t runtime_total_size, void *dev_sec_info)
+/* Set up trusty startup info */
+static uint64_t setup_startup_info(uint64_t runtime_addr, uint64_t runtime_total_size, uint32_t offset)
 {
-	uint32_t dev_sec_info_size;
 	trusty_startup_info_t *trusty_para;
 
-	dev_sec_info_size = mov_sec_info((void *)runtime_addr, dev_sec_info);
-
 	/* Setup trusty startup info */
-	trusty_para = (trusty_startup_info_t *)ALIGN_F(runtime_addr + dev_sec_info_size, 8);
+	trusty_para = (trusty_startup_info_t *)ALIGN_F(runtime_addr + offset, 8);
 	VMM_ASSERT_EX(((uint64_t)trusty_para + sizeof(trusty_startup_info_t)) <
 			(runtime_addr + PAGE_4K_SIZE),
 			"size of (dev_sec_info+trusty_startup_info) exceeds the reserved 4K size!\n");
@@ -142,12 +140,17 @@ static uint64_t parse_trusty_boot_param(guest_cpu_handle_t gcpu, uint64_t *runti
 static void first_smc_to_tee(guest_cpu_handle_t gcpu_ree)
 {
 	uint64_t runtime_addr, runtime_total_size;
+	uint32_t offset;
 
 	/* 1. Get trusty info from osloader then set trusty startup&sec info.
 	 * 2. Set RIP RDI and RSP
 	 */
 	g_init_rip = parse_trusty_boot_param(gcpu_ree, &runtime_addr, &runtime_total_size);
-	g_init_rdi = setup_trusty_mem(runtime_addr, runtime_total_size, INTERNAL);
+
+	offset = mov_secinfo_from_internal((void *)runtime_addr, dev_sec_info);
+	dev_sec_info = NULL;
+
+	g_init_rdi = setup_startup_info(runtime_addr, runtime_total_size, offset);
 	g_init_rsp = runtime_addr + runtime_total_size;
 
 	launch_tee(trusty_guest, runtime_addr, runtime_total_size);
@@ -178,6 +181,7 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 
 void init_trusty_tee(evmm_desc_t *evmm_desc)
 {
+	uint32_t offset;
 	tee_config_t trusty_cfg;
 	tee_desc_t *trusty_desc;
 	uint8_t smc_param_to_tee[] = {REG_RDI, REG_RSI, REG_RDX, REG_RBX};
@@ -213,16 +217,18 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 		trusty_cfg.tee_runtime_addr = trusty_desc->tee_file.runtime_addr;
 		trusty_cfg.tee_runtime_size = trusty_desc->tee_file.runtime_total_size;
 
+		offset = mov_secinfo((void *)trusty_desc->tee_file.runtime_addr, trusty_desc->dev_sec_info);
+
 		/* Set RIP RDI and RSP */
 		g_init_rip = relocate_trusty_image(&trusty_desc->tee_file);
-		g_init_rdi = setup_trusty_mem(trusty_desc->tee_file.runtime_addr,
-			trusty_desc->tee_file.runtime_total_size, trusty_desc->dev_sec_info);
+		g_init_rdi = setup_startup_info(trusty_desc->tee_file.runtime_addr,
+			trusty_desc->tee_file.runtime_total_size, offset);
 		g_init_rsp = trusty_desc->tee_file.runtime_addr + trusty_desc->tee_file.runtime_total_size;
 	} else {
 		trusty_cfg.first_smc_to_tee = first_smc_to_tee;
 
-		/* Copy dev_sec_info from loader to VMM's memory which will be alloced in mov_sec_info */
-		mov_sec_info(INTERNAL, trusty_desc->dev_sec_info);
+		/* Move dev_sec_info from loader to VMM's memory which will be allocated in below function */
+		dev_sec_info = mov_secinfo_to_internal(trusty_desc->dev_sec_info);
 	}
 
 	trusty_guest = create_tee(&trusty_cfg);
