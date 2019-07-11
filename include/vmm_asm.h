@@ -841,8 +841,9 @@ static inline void asm_invept(uint64_t eptp, uint64_t invept_type)
 	} operand = {eptp, 0};
 
 	__asm__ __volatile__ (
-		"invept (%%rax), %%rcx"
-		: :"a" (&operand), "c" (invept_type)
+		"invept %0, %1"
+		: : "m" (operand), "r" (invept_type)
+		: "memory"
 	);
 }
 
@@ -859,8 +860,9 @@ static inline void asm_invvpid(uint16_t vpid, uint64_t linear_addr, uint64_t inv
 	} operand = {vpid, {0}, linear_addr};
 
 	__asm__ __volatile__ (
-		"invvpid (%%rax), %%rcx"
-		: :"a" (&operand), "c" (invvpid_type)
+		"invvpid %0, %1"
+		: :"m" (operand), "r" (invvpid_type)
+		: "memory"
 	);
 }
 
