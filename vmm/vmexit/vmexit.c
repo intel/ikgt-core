@@ -129,6 +129,7 @@ void vmexit_common_handler(void)
 	vmcs_obj_t vmcs;
 	vmx_exit_reason_t reason;
 	event_profile_t profile;
+	boolean_t handled = FALSE;
 
 	/* Raise event to overwrite RSB to prevent Spectre Side-channel attack
 	   at the very beginning of VM Exit. This Event must be raised before any
@@ -142,6 +143,11 @@ void vmexit_common_handler(void)
 
 	/* clear guest cpu cache data. in fact it clears all VMCS caches too. */
 	vmcs_clear_cache(gcpu->vmcs);
+
+	event_raise(gcpu, EVENT_VMEXIT_PRE_HANDLER, (void *)&handled);
+	if (handled) {
+		goto resume_guest;
+	}
 
 	gcpu_reflect_idt_vectoring_info(gcpu);
 	gcpu_check_nmi_iret(gcpu);
@@ -159,6 +165,7 @@ void vmexit_common_handler(void)
 	/* call reason-specific VMEXIT handler */
 	g_vmexit_handlers[reason.bits.basic_reason](gcpu);
 
+resume_guest:
 	/* select guest for execution */
 	next_gcpu = get_current_gcpu();
 

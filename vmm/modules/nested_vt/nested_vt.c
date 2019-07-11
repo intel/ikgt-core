@@ -12,6 +12,7 @@
 #include "gcpu.h"
 #include "guest.h"
 #include "lock.h"
+#include "event.h"
 #include "nested_vt_internal.h"
 
 #include "lib/util.h"
@@ -95,15 +96,18 @@ void nested_vt_init(void)
 {
 	lock_init(&nestedvt_lock, "nestedvt_lock");
 
-	vmexit_install_handler(vmclear_vmexit, REASON_19_VMCLEAR_INSTR);
-	vmexit_install_handler(vmptrld_vmexit, REASON_21_VMPTRLD_INSTR);
-	vmexit_install_handler(vmptrst_vmexit, REASON_22_VMPTRST_INSTR);
-	vmexit_install_handler(vmread_vmexit,  REASON_23_VMREAD_INSTR);
-	vmexit_install_handler(vmwrite_vmexit, REASON_25_VMWRITE_INSTR);
-	vmexit_install_handler(vmxoff_vmexit,  REASON_26_VMXOFF_INSTR);
-	vmexit_install_handler(vmxon_vmexit,   REASON_27_VMXON_INSTR);
-	vmexit_install_handler(invept_vmexit,  REASON_50_INVEPT_INSTR);
-	vmexit_install_handler(invvpid_vmexit, REASON_53_INVVPID_INSTR);
+	vmexit_install_handler(vmclear_vmexit,  REASON_19_VMCLEAR_INSTR);
+	vmexit_install_handler(emulate_vmentry, REASON_20_VMLAUNCH_INSTR);
+	vmexit_install_handler(vmptrld_vmexit,  REASON_21_VMPTRLD_INSTR);
+	vmexit_install_handler(vmptrst_vmexit,  REASON_22_VMPTRST_INSTR);
+	vmexit_install_handler(vmread_vmexit,   REASON_23_VMREAD_INSTR);
+	vmexit_install_handler(emulate_vmentry, REASON_24_VMRESUME_INSTR);
+	vmexit_install_handler(vmwrite_vmexit,  REASON_25_VMWRITE_INSTR);
+	vmexit_install_handler(vmxoff_vmexit,   REASON_26_VMXOFF_INSTR);
+	vmexit_install_handler(vmxon_vmexit,    REASON_27_VMXON_INSTR);
+	vmexit_install_handler(invept_vmexit,   REASON_50_INVEPT_INSTR);
+	vmexit_install_handler(invvpid_vmexit,  REASON_53_INVVPID_INSTR);
 
 	event_register(EVENT_GUEST_MODULE_INIT, nested_vt_guest_setup);
+	event_register(EVENT_VMEXIT_PRE_HANDLER, emulate_vmexit);
 }
