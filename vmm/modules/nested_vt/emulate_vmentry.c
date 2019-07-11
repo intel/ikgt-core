@@ -6,9 +6,11 @@
  *
  */
 
+#include "vmm_arch.h"
 #include "gcpu.h"
 #include "vmcs.h"
 #include "gpm.h"
+#include "vmx_cap.h"
 #include "nested_vt_internal.h"
 
 static void copy_from_gvmcs(guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field_t vmcs_field)
@@ -89,7 +91,12 @@ static void handle_link_ptr(guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field
 {
 	uint64_t hpa;
 
-	VMM_ASSERT(gpm_gpa_to_hpa(gcpu->guest, gvmcs[VMCS_LINK_PTR], &hpa, NULL));
+	/* TODO: consider whether to support shadow VMCS for Layer-1 VMM */
+	if (gvmcs[VMCS_LINK_PTR] == 0xFFFFFFFFFFFFFFFF) {
+		hpa = 0xFFFFFFFFFFFFFFFF;
+	} else {
+		VMM_ASSERT(gpm_gpa_to_hpa(gcpu->guest, gvmcs[VMCS_LINK_PTR], &hpa, NULL));
+	}
 
 	vmcs_write(gcpu->vmcs, VMCS_LINK_PTR, hpa);
 }
@@ -113,13 +120,36 @@ static void handle_entry_msr_load_addr(guest_cpu_handle_t gcpu, uint64_t *gvmcs,
 static void handle_entry_ctrl(guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field_t vmcs_field UNUSED)
 {
 	/* TODO: merge with hvmcs */
-	vmcs_write(gcpu->vmcs, VMCS_ENTRY_CTRL, gvmcs[VMCS_ENTRY_CTRL]);
+	vmcs_write(gcpu->vmcs, VMCS_ENTRY_CTRL, gvmcs[VMCS_ENTRY_CTRL] | ENTRY_LOAD_IA32_PAT | ENTRY_LOAD_IA32_EFER);
 }
 
 static void handle_preemption_timer(guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field_t vmcs_field UNUSED)
 {
 	/* TODO: merge with hvmcs */
 	vmcs_write(gcpu->vmcs, VMCS_PREEMPTION_TIMER, gvmcs[VMCS_PREEMPTION_TIMER]);
+}
+
+static void handle_guest_pat(guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field_t vmcs_field UNUSED)
+{
+	if (gvmcs[VMCS_ENTRY_CTRL] & ENTRY_LOAD_IA32_PAT) {
+		vmcs_write(gcpu->vmcs, VMCS_GUEST_PAT, gvmcs[VMCS_GUEST_PAT]);
+	}
+}
+
+static void handle_guest_efer(guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field_t vmcs_field UNUSED)
+{
+	msr_efer_t guest_efer;
+
+	if (gvmcs[VMCS_ENTRY_CTRL] & ENTRY_LOAD_IA32_EFER) {
+		guest_efer.uint64 = gvmcs[VMCS_GUEST_EFER];
+	} else {
+		guest_efer.uint64 = vmcs_read(gcpu->vmcs, VMCS_GUEST_EFER);
+
+		/* According to IA32-SDM, the processor always sets IA32_EFER.LMA to (CR0.PG & IA32_EFER.LME) */
+		guest_efer.bits.lma = (gvmcs[VMCS_GUEST_CR0] & CR0_PG) && guest_efer.bits.lme;
+	}
+
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_EFER, guest_efer.uint64);
 }
 
 typedef void (*vmentry_vmcs_handler_t) (guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field_t field_id);
@@ -202,8 +232,8 @@ static vmentry_vmcs_handle_t vmentry_vmcs_handle_array[] = {
 	{ handle_entry_ctrl,           TRUE, 0 }, //VMCS_ENTRY_CTRL
 	{ copy_from_gvmcs,            FALSE, 0 }, //VMCS_ENTRY_INSTR_LEN
 	{ handle_preemption_timer,     TRUE, 0 }, //VMCS_PREEMPTION_TIMER
-	{ copy_from_gvmcs,            FALSE, 0 }, //VMCS_GUEST_PAT
-	{ copy_from_gvmcs,            FALSE, 0 }, //VMCS_GUEST_EFER
+	{ handle_guest_pat,           FALSE, 0 }, //VMCS_GUEST_PAT
+	{ handle_guest_efer,          FALSE, 0 }, //VMCS_GUEST_EFER
 	{ copy_from_gvmcs,            FALSE, 0 }, //VMCS_GUEST_PERF_G_CTRL
 	{ copy_from_gvmcs,            FALSE, 0 }, //VMCS_GUEST_PDPTR0
 	{ copy_from_gvmcs,            FALSE, 0 }, //VMCS_GUEST_PDPTR1
@@ -284,6 +314,7 @@ void emulate_vmentry(guest_cpu_handle_t gcpu)
 	data = get_nestedvt_data(gcpu);
 	gvmcs = data->gvmcs;
 	hvmcs = data->hvmcs;
+	data->guest_layer = GUEST_L2;
 
 	/* Backup VMCS fields for Layer-0 */
 	for (i = 0; i < VMCS_FIELD_COUNT; i++) {

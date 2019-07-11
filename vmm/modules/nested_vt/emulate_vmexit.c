@@ -8,6 +8,7 @@
 
 #include "gcpu.h"
 #include "vmcs.h"
+#include "vmx_cap.h"
 #include "vmexit_cr_access.h"
 #include "nested_vt_internal.h"
 
@@ -52,16 +53,30 @@ static void handle_guest_pend_dbg_exception(guest_cpu_handle_t gcpu, nestedvt_da
 
 static void handle_guest_pat(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id UNUSED)
 {
-	vmcs_write(gcpu->vmcs, VMCS_GUEST_PAT, data->gvmcs[VMCS_HOST_PAT]);
+	if (data->gvmcs[VMCS_EXIT_CTRL] & EXIT_LOAD_IA32_PAT) {
+		vmcs_write(gcpu->vmcs, VMCS_GUEST_PAT, data->gvmcs[VMCS_HOST_PAT]);
+	}
 }
 
 static void handle_guest_efer(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id UNUSED)
 {
-	vmcs_write(gcpu->vmcs, VMCS_GUEST_EFER, data->gvmcs[VMCS_HOST_EFER]);
+	msr_efer_t guest_efer;
+
+	if (data->gvmcs[VMCS_EXIT_CTRL] & EXIT_LOAD_IA32_EFER) {
+		guest_efer.uint64 = data->gvmcs[VMCS_HOST_EFER];
+	} else {
+		guest_efer.uint64 = vmcs_read(gcpu->vmcs, VMCS_GUEST_EFER);
+
+		/* According to IA32-SDM, the processor always sets IA32_EFER.LMA to (CR0.PG & IA32_EFER.LME) */
+		guest_efer.bits.lma = (data->gvmcs[VMCS_HOST_CR0] & CR0_PG) && guest_efer.bits.lme;
+	}
+
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_EFER, guest_efer.uint64);
 }
 
 static void handle_guest_perf_g_ctrl(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id UNUSED)
 {
+	/* TODO: consider to co-work with module_perf_ctrl_isolation */
 	vmcs_write(gcpu->vmcs, VMCS_GUEST_PERF_G_CTRL, data->gvmcs[VMCS_HOST_PERF_G_CTRL]);
 }
 
@@ -171,12 +186,20 @@ static void handle_guest_seg_limit(guest_cpu_handle_t gcpu, nestedvt_data_t *dat
 
 static void handle_guest_es_ar(guest_cpu_handle_t gcpu, nestedvt_data_t *data UNUSED, vmcs_field_t field_id UNUSED)
 {
+	seg_ar_t seg = { .u32 = 0U };
+
 	/* Set segment AR according to SDM: Vol3, Chapter 27.5.2 Loading Host Segment and Descriptor-Table Registers */
 	if (data->gvmcs[VMCS_HOST_ES_SEL]) {
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_ES_AR, 3 | (1 << 4) | (1 << 7) | (1 << 14) | (1 << 15));
+		seg.bits.type = 3;
+		seg.bits.s_bit = 1;
+		seg.bits.p_bit = 1;
+		seg.bits.db_bit = 1;
+		seg.bits.g_bit = 1;
 	} else {
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_ES_AR, 1 << 16);
+		seg.bits.null_bit = 1;
 	}
+
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_ES_AR, seg.u32);
 }
 
 static void handle_guest_cs_sel(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id UNUSED)
@@ -186,8 +209,17 @@ static void handle_guest_cs_sel(guest_cpu_handle_t gcpu, nestedvt_data_t *data, 
 
 static void handle_guest_cs_ar(guest_cpu_handle_t gcpu, nestedvt_data_t *data UNUSED, vmcs_field_t field_id UNUSED)
 {
+	seg_ar_t seg = { .u32 = 0U };
+
 	/* Set segment AR according to SDM: Vol3, Chapter 27.5.2 Loading Host Segment and Descriptor-Table Registers */
-	vmcs_write(gcpu->vmcs, VMCS_GUEST_CS_AR, 0xB | (1 << 7) | ((!(data->gvmcs[VMCS_EXIT_CTRL] >> 9)) << 14) | (1 << 15));
+	seg.bits.type = 0xB;
+	seg.bits.s_bit = 1;
+	seg.bits.p_bit = 1;
+	seg.bits.l_bit = !!(data->gvmcs[VMCS_EXIT_CTRL] & EXIT_HOST_ADDR_SPACE);
+	seg.bits.db_bit = !(data->gvmcs[VMCS_EXIT_CTRL] & EXIT_HOST_ADDR_SPACE);
+	seg.bits.g_bit = 1;
+
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_CS_AR, seg.u32);
 }
 
 static void handle_guest_ss_sel(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id UNUSED)
@@ -197,12 +229,21 @@ static void handle_guest_ss_sel(guest_cpu_handle_t gcpu, nestedvt_data_t *data, 
 
 static void handle_guest_ss_ar(guest_cpu_handle_t gcpu, nestedvt_data_t *data UNUSED, vmcs_field_t field_id UNUSED)
 {
+	seg_ar_t seg = { .u32 = 0U };
+
 	/* Set segment AR according to SDM: Vol3, Chapter 27.5.2 Loading Host Segment and Descriptor-Table Registers */
 	if (data->gvmcs[VMCS_HOST_SS_SEL]) {
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_SS_AR, 3 | (1 << 4) | (1 << 7) | (1 << 14) | (1 << 15));
+		seg.bits.type = 3;
+		seg.bits.s_bit = 1;
+		seg.bits.p_bit = 1;
+		seg.bits.g_bit = 1;
 	} else {
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_SS_AR, (1 << 14) | (1 << 16));
+		seg.bits.null_bit = 1;
 	}
+
+	seg.bits.db_bit = 1;
+
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_SS_AR, seg.u32);
 }
 
 static void handle_guest_ds_sel(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id UNUSED)
@@ -212,12 +253,20 @@ static void handle_guest_ds_sel(guest_cpu_handle_t gcpu, nestedvt_data_t *data, 
 
 static void handle_guest_ds_ar(guest_cpu_handle_t gcpu, nestedvt_data_t *data UNUSED, vmcs_field_t field_id UNUSED)
 {
+	seg_ar_t seg = { .u32 = 0U };
+
 	/* Set segment AR according to SDM: Vol3, Chapter 27.5.2 Loading Host Segment and Descriptor-Table Registers */
 	if (data->gvmcs[VMCS_HOST_DS_SEL]) {
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_DS_AR, 3 | (1 << 4) | (1 << 7) | (1 << 14) | (1 << 15));
+		seg.bits.type = 3;
+		seg.bits.s_bit = 1;
+		seg.bits.p_bit = 1;
+		seg.bits.db_bit = 1;
+		seg.bits.g_bit = 1;
 	} else {
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_DS_AR, 1 << 16);
+		seg.bits.null_bit = 1;
 	}
+
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_DS_AR, seg.u32);
 }
 
 static void handle_guest_fs_sel(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id UNUSED)
@@ -232,12 +281,20 @@ static void handle_guest_fs_base(guest_cpu_handle_t gcpu, nestedvt_data_t *data,
 
 static void handle_guest_fs_ar(guest_cpu_handle_t gcpu, nestedvt_data_t *data UNUSED, vmcs_field_t field_id UNUSED)
 {
+	seg_ar_t seg = { .u32 = 0U };
+
 	/* Set segment AR according to SDM: Vol3, Chapter 27.5.2 Loading Host Segment and Descriptor-Table Registers */
 	if (data->gvmcs[VMCS_HOST_FS_SEL]) {
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_FS_AR, 3 | (1 << 4) | (1 << 7) | (1 << 14) | (1 << 15));
+		seg.bits.type = 3;
+		seg.bits.s_bit = 1;
+		seg.bits.p_bit = 1;
+		seg.bits.db_bit = 1;
+		seg.bits.g_bit = 1;
 	} else {
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_FS_AR, 1 << 16);
+		seg.bits.null_bit = 1;
 	}
+
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_FS_AR, seg.u32);
 }
 
 static void handle_guest_gs_sel(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id UNUSED)
@@ -252,12 +309,20 @@ static void handle_guest_gs_base(guest_cpu_handle_t gcpu, nestedvt_data_t *data,
 
 static void handle_guest_gs_ar(guest_cpu_handle_t gcpu, nestedvt_data_t *data UNUSED, vmcs_field_t field_id UNUSED)
 {
+	seg_ar_t seg = { .u32 = 0U };
+
 	/* Set segment AR according to SDM: Vol3, Chapter 27.5.2 Loading Host Segment and Descriptor-Table Registers */
 	if (data->gvmcs[VMCS_HOST_GS_SEL]) {
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_GS_AR, 3 | (1 << 4) | (1 << 7) | (1 << 14) | (1 << 15));
+		seg.bits.type = 3;
+		seg.bits.s_bit = 1;
+		seg.bits.p_bit = 1;
+		seg.bits.db_bit = 1;
+		seg.bits.g_bit = 1;
 	} else {
-		vmcs_write(gcpu->vmcs, VMCS_GUEST_GS_AR, 1 << 16);
+		seg.bits.null_bit = 1;
 	}
+
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_GS_AR, seg.u32);
 }
 
 static void handle_guest_ldtr_sel(guest_cpu_handle_t gcpu, nestedvt_data_t *data UNUSED, vmcs_field_t field_id UNUSED)
@@ -274,8 +339,12 @@ static void handle_guest_ldtr_limit(guest_cpu_handle_t gcpu, nestedvt_data_t *da
 
 static void handle_guest_ldtr_ar(guest_cpu_handle_t gcpu, nestedvt_data_t *data UNUSED, vmcs_field_t field_id UNUSED)
 {
+	seg_ar_t seg = { .u32 = 0U };
+
 	/* Set LDTR according to SDM: Vol3, Chapter 27.5.2 Loading Host Segment and Descriptor-Table Registers */
-	vmcs_write(gcpu->vmcs, VMCS_GUEST_LDTR_AR, 1 << 16);
+	seg.bits.null_bit = 1;
+
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_LDTR_AR, seg.u32);
 }
 
 static void handle_guest_tr_sel(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id UNUSED)
@@ -296,8 +365,12 @@ static void handle_guest_tr_limit(guest_cpu_handle_t gcpu, nestedvt_data_t *data
 
 static void handle_guest_tr_ar(guest_cpu_handle_t gcpu, nestedvt_data_t *data UNUSED, vmcs_field_t field_id UNUSED)
 {
+	seg_ar_t seg = { .u32 = 0U };
 	/* Set segment AR according to SDM: Vol3, Chapter 27.5.2 Loading Host Segment and Descriptor-Table Registers */
-	vmcs_write(gcpu->vmcs, VMCS_GUEST_CS_AR, 0xB | (1 << 7));
+	seg.bits.type = 0xB;
+	seg.bits.p_bit = 1;
+
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_TR_AR, seg.u32);
 }
 
 static void handle_guest_rsp(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id UNUSED)
@@ -313,7 +386,7 @@ static void handle_guest_rip(guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmc
 static void handle_guest_rflags(guest_cpu_handle_t gcpu, nestedvt_data_t *data UNUSED, vmcs_field_t field_id UNUSED)
 {
 	/* Clear RFLAGS except bit 1 according to SDM: Vol3, Chapter 27.5.3 Loading Host RIP RSP and RFLAGS */
-	vmcs_write(gcpu->vmcs, VMCS_GUEST_RFLAGS, 1 << 1);
+	vmcs_write(gcpu->vmcs, VMCS_GUEST_RFLAGS, RFLAGS_RSVD1);
 }
 
 typedef void (*vmexit_vmcs_handler_t) (guest_cpu_handle_t gcpu, nestedvt_data_t *data, vmcs_field_t field_id);
@@ -465,14 +538,19 @@ static vmexit_vmcs_handle_t vmexit_vmcs_handle_array[] = {
 _Static_assert(sizeof(vmexit_vmcs_handle_array)/sizeof(vmexit_vmcs_handle_t) == VMCS_FIELD_COUNT,
 			"Nested VT: vmexit vmcs handle count not aligned with VMCS fields count!");
 
-void emulate_vmexit(guest_cpu_handle_t gcpu)
+void emulate_vmexit(guest_cpu_handle_t gcpu, void *pv)
 {
 	vmcs_obj_t vmcs;
 	nestedvt_data_t *data;
 	uint32_t i;
+	boolean_t *handled = (boolean_t *)pv;
 
 	vmcs = gcpu->vmcs;
 	data = get_nestedvt_data(gcpu);
+
+	if (data->guest_layer == GUEST_L1) {
+		return;
+	}
 
 	/* Copy VMCS fields for Layer-1 */
 	for (i = 0; i < VMCS_FIELD_COUNT; i++) {
@@ -496,4 +574,8 @@ void emulate_vmexit(guest_cpu_handle_t gcpu)
 	/* Update Guest CR0/CR4 */
 	cr0_guest_write(gcpu, vmcs_read(vmcs, VMCS_GUEST_CR0));
 	cr4_guest_write(gcpu, vmcs_read(vmcs, VMCS_GUEST_CR4));
+
+	data->guest_layer = GUEST_L1;
+
+	*handled = TRUE;
 }

@@ -67,6 +67,6 @@ void emulate_vmentry(guest_cpu_handle_t gcpu);
 
 
 /* API of emulate_vmexit.c */
-void emulate_vmexit(guest_cpu_handle_t gcpu);
+void emulate_vmexit(guest_cpu_handle_t gcpu, void *pv);
 
 #endif /* _NESTED_VT_INTERNAL_H_ */

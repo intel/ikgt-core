@@ -453,6 +453,7 @@ vmcs_field_t enc2id(uint32_t vmcs_encoding)
 	}
 
 	print_panic("VMCS Encoding %P is unknown\n", vmcs_encoding);
+	VMM_DEADLOOP();
 	return -1;
 
 }

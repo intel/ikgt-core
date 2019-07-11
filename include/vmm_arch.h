@@ -574,7 +574,7 @@ typedef union {
 	struct {
 		uint32_t type:4;                 /* bits 3:0   */
 		uint32_t s_bit:1;                /* bit  4     */
-		uint32_t dpl:2;                  /* bit2 6:5   */
+		uint32_t dpl:2;                  /* bits 6:5   */
 		uint32_t p_bit:1;                /* bit  7     */
 		uint32_t reserved_11_8:4;        /* bits 11:8  */
 		uint32_t avl_bit:1;              /* bit  12    */
