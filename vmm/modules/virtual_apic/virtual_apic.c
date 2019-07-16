@@ -201,8 +201,13 @@ static inline void lapic_set_reg(uint32_t offset, uint32_t val)
 
 static void setup_virtual_apic_page(guest_cpu_handle_t gcpu)
 {
+	uint64_t vapic_page_hpa;
 	uint64_t *vapic_page = page_alloc(1);
-	vmcs_write(gcpu->vmcs, VMCS_VIRTUAL_APIC_ADDR, (uint64_t)vapic_page);
+
+	VMM_ASSERT_EX(hmm_hva_to_hpa((uint64_t)vapic_page, &vapic_page_hpa, NULL),
+		"fail to convert hva %p to hpa\n", vapic_page);
+
+	vmcs_write(gcpu->vmcs, VMCS_VIRTUAL_APIC_ADDR, vapic_page_hpa);
 	memset(vapic_page, 0, PAGE_4K_SIZE);
 	memcpy(vapic_page, (void *)0xFEE00000, PAGE_4K_SIZE);
 
@@ -212,9 +217,14 @@ static void setup_virtual_apic_page(guest_cpu_handle_t gcpu)
 #ifdef MODULE_POST_INTERRUPT
 static void setup_post_interrupt(guest_cpu_handle_t gcpu)
 {
+	uint64_t post_interrupt_desc_hpa;
 	uint64_t *post_interrupt_desc = page_alloc(1);
+
+	VMM_ASSERT_EX(hmm_hva_to_hpa((uint64_t)post_interrupt_desc, &post_interrupt_desc_hpa, NULL),
+		"fail to convert hva %p to hpa\n", post_interrupt_desc);
+
 	memset(post_interrupt_desc, 0, PAGE_4K_SIZE);
-	vmcs_write(gcpu->vmcs, VMCS_POST_INTR_DESC_ADDR, (uint64_t)post_interrupt_desc);
+	vmcs_write(gcpu->vmcs, VMCS_POST_INTR_DESC_ADDR, post_interrupt_desc_hpa);
 	vmcs_write(gcpu->vmcs, VMCS_POST_INTR_NOTI_VECTOR, POST_NOTIFY_VECTOR);
 }
 #endif
