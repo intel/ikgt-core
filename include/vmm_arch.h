@@ -485,6 +485,31 @@ typedef uint8_t cache_type_t;
 #define MSR_EFER                   ((uint32_t)0xC0000080)
 
 /*
+ * VMX MSR Indexes
+ */
+#define MSR_VMX_BASIC                  0x480
+#define MSR_VMX_PINBASED_CTRLS         0x481
+#define MSR_VMX_PROCBASED_CTRLS        0x482
+#define MSR_VMX_PROCBASED_CTRLS2       0x48B
+#define MSR_VMX_EXIT_CTRLS             0x483
+#define MSR_VMX_ENTRY_CTRLS            0x484
+#define MSR_VMX_MISC                   0x485
+#define MSR_VMX_CR0_FIXED0             0x486
+#define MSR_VMX_CR0_FIXED1             0x487
+#define MSR_VMX_CR4_FIXED0             0x488
+#define MSR_VMX_CR4_FIXED1             0x489
+#define MSR_VMX_VMCS_ENUM              0x48A
+#define MSR_VMX_EPT_VPID_CAP           0x48C
+#define MSR_VMX_TRUE_PINBASED_CTRLS    0x48D
+#define MSR_VMX_TRUE_PROCBASED_CTRLS   0x48E
+#define MSR_VMX_TRUE_EXIT_CTRLS        0x48F
+#define MSR_VMX_TRUE_ENTRY_CTRLS       0x490
+#define MSR_VMX_VMFUNC                 0x491
+
+#define MSR_VMX_FIRST                  MSR_VMX_BASIC
+#define MSR_VMX_LAST                   MSR_VMX_VMFUNC
+
+/*
  * MSRs for Side Channal Attack Dectection and Mitigation
  */
 #define MSR_SPEC_CTRL              ((uint32_t)0x48)
