@@ -187,6 +187,8 @@ static vmentry_vmcs_handle_t vmentry_vmcs_handle_array[] = {
 	{ handle_entry_msr_load_count, TRUE, 0 }, //VMCS_ENTRY_MSR_LOAD_COUNT
 	{ handle_entry_msr_load_addr,  TRUE, 0 }, //VMCS_ENTRY_MSR_LOAD_ADDR
 	{ copy_from_gvmcs,             TRUE, 0 }, //VMCS_EXCEPTION_BITMAP
+	{ copy_from_gvmcs,            FALSE, 0 }, //VMCS_PAGE_FAULT_ECODE_MASK
+	{ copy_from_gvmcs,            FALSE, 0 }, //VMCS_PAGE_FAULT_ECODE_MATCH
 	{ NULL,                       FALSE, 0 }, //VMCS_HOST_SYSENTER_CS
 	{ NULL,                       FALSE, 0 }, //VMCS_HOST_SYSENTER_ESP
 	{ NULL,                       FALSE, 0 }, //VMCS_HOST_SYSENTER_EIP

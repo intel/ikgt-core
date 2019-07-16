@@ -217,9 +217,6 @@ typedef union {
 
 uint64_t get_basic_cap();
 
-#define MSR_VMX_FIRST               0x480
-#define MSR_VMX_LAST                0x491
-
 /*-------------------------------------------------------------------------
  *
  * Init

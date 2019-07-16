@@ -336,7 +336,9 @@ static void msr_mtrrs_monitor(uint16_t guest_id)
 static void guest_msr_monitor_setup(UNUSED guest_cpu_handle_t gcpu, void *pv)
 {
 	guest_handle_t guest = (guest_handle_t)pv;
+#ifndef MODULE_NESTED_VT
 	uint32_t msr_id;
+#endif
 
 	D(VMM_ASSERT(guest));
 
@@ -346,12 +348,13 @@ static void guest_msr_monitor_setup(UNUSED guest_cpu_handle_t gcpu, void *pv)
 	/* Block access to VMX related MSRs */
 	for (msr_id = MSR_VMX_FIRST; msr_id <= MSR_VMX_LAST; ++msr_id)
 		block_msr_access(guest->id, msr_id);
-#endif
 
 	/* IA32 spec Volume2, Chapter6.3, GETSEC[SENTER]
 	 * IA32_FEATURE_CONTROL is only available on SMX or VMX enabled
 	 * processors. Otherwise, it is treated as reserved. */
 	block_msr_access(guest->id, MSR_FEATURE_CONTROL);
+#endif
+
 	monitor_msr_write(guest->id, MSR_MISC_ENABLE, msr_misc_enable_write_handler);
 
 #ifdef DEBUG

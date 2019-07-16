@@ -81,6 +81,8 @@ typedef enum {
 	VMCS_ENTRY_MSR_LOAD_COUNT,     // init as 0 (see dirty_bitmap in vmcs_create)
 	VMCS_ENTRY_MSR_LOAD_ADDR,      // init as 0 (see dirty_bitmap in vmcs_create)
 	VMCS_EXCEPTION_BITMAP,         // init as 0 (see dirty_bitmap in vmcs_create)
+	VMCS_PAGE_FAULT_ECODE_MASK,
+	VMCS_PAGE_FAULT_ECODE_MATCH,
 	VMCS_HOST_SYSENTER_CS,         // init as 0 (see dirty_bitmap in vmcs_create)
 	VMCS_HOST_SYSENTER_ESP,        // init as 0 (see dirty_bitmap in vmcs_create)
 	VMCS_HOST_SYSENTER_EIP,        // init as 0 (see dirty_bitmap in vmcs_create)
