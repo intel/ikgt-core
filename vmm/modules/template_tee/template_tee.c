@@ -313,11 +313,43 @@ static void smc_handler(guest_cpu_handle_t gcpu)
 	}
 }
 
+/* remove other tees range in this tee */
+static void remove_other_tee_range(tee_config_ex_t *this_tee)
+{
+	tee_config_ex_t *tee_ex = g_tee_cfg_ex;
+
+	while (tee_ex) {
+		if ((tee_ex != this_tee) &&
+				tee_ex->tee_config.tee_runtime_addr &&
+				tee_ex->tee_config.tee_runtime_size) {
+			gpm_remove_mapping(this_tee->tee_guest,
+					tee_ex->tee_config.tee_runtime_addr,
+					tee_ex->tee_config.tee_runtime_size);
+		}
+		tee_ex = tee_ex->next;
+	}
+}
+
+/* remove this tee range in other guests */
+static void remove_this_tee_range(tee_config_ex_t *this_tee)
+{
+	guest_handle_t guest = guest_handle(0);
+
+	while (guest) {
+		if (guest != this_tee->tee_guest) {
+			gpm_remove_mapping(guest,
+					this_tee->tee_config.tee_runtime_addr,
+					this_tee->tee_config.tee_runtime_size);
+		}
+		guest = guest->next_guest;
+	}
+}
+
 guest_handle_t create_tee(tee_config_t *cfg)
 {
 	uint32_t i, cpu_num;
 	guest_handle_t guest;
-	tee_config_ex_t *tee_ex, *new_tee_ex;
+	tee_config_ex_t *new_tee_ex;
 
 	VMM_ASSERT_EX(cfg, "%s(): No configure for tee\n", __func__);
 	VMM_ASSERT_EX(cfg->tee_name, "%s(): No tee name\n", __func__);
@@ -353,6 +385,14 @@ guest_handle_t create_tee(tee_config_t *cfg)
 	vmcall_register(GUEST_REE, cfg->smc_vmcall_id, smc_handler);
 	vmcall_register(guest->id, cfg->smc_vmcall_id, smc_handler);
 
+	new_tee_ex = (tee_config_ex_t *)mem_alloc(sizeof(tee_config_ex_t));
+	memcpy(&new_tee_ex->tee_config, cfg, sizeof(tee_config_t));
+	new_tee_ex->tee_guest = guest;
+	memset(new_tee_ex->tee_status, TEE_INIT, host_cpu_num);
+	new_tee_ex->next = g_tee_cfg_ex;
+	/* Always add new tee to list head */
+	g_tee_cfg_ex = new_tee_ex;
+
 	/* For this tee guest, set rwx(0x7) permission to its own range
 	 * For all other guests (note: not all tee, but all guests),
 	 * remove this tees' range in oher guest */
@@ -363,32 +403,12 @@ guest_handle_t create_tee(tee_config_t *cfg)
 				cfg->tee_runtime_size,
 				0x7);
 
-		for (i=0; i<guest->id; i++) {
-			gpm_remove_mapping(guest_handle(i),
-					cfg->tee_runtime_addr,
-					cfg->tee_runtime_size);
-		}
+		/* remove this tees range in other guests */
+		remove_this_tee_range(new_tee_ex);
 	}
 
-	/* remove other tees' range in this tee */
-	tee_ex = g_tee_cfg_ex;
-	while (tee_ex) {
-		if (tee_ex->tee_config.tee_runtime_addr &&
-				tee_ex->tee_config.tee_runtime_size) {
-			gpm_remove_mapping(guest,
-					tee_ex->tee_config.tee_runtime_addr,
-					tee_ex->tee_config.tee_runtime_size);
-		}
-		tee_ex = tee_ex->next;
-	}
-
-	new_tee_ex = (tee_config_ex_t *)mem_alloc(sizeof(tee_config_ex_t));
-	memcpy(&new_tee_ex->tee_config, cfg, sizeof(tee_config_t));
-	new_tee_ex->tee_guest = guest;
-	memset(new_tee_ex->tee_status, TEE_INIT, host_cpu_num);
-	new_tee_ex->next = g_tee_cfg_ex;
-	/* Always add new tee to list head */
-	g_tee_cfg_ex = new_tee_ex;
+	/* remove other tees range in this tee */
+	remove_other_tee_range(new_tee_ex);
 
 	return guest;
 }
@@ -396,7 +416,7 @@ guest_handle_t create_tee(tee_config_t *cfg)
 guest_cpu_handle_t launch_tee(guest_handle_t guest, uint64_t tee_rt_addr, uint64_t tee_rt_size)
 {
 	uint16_t host_cpu = host_cpu_id();
-	tee_config_ex_t *tee_ex, *tee_ex_tmp;
+	tee_config_ex_t *tee_ex;
 	guest_cpu_handle_t next_gcpu;
 	boolean_t updated = FALSE;
 
@@ -445,15 +465,8 @@ guest_cpu_handle_t launch_tee(guest_handle_t guest, uint64_t tee_rt_addr, uint64
 				tee_ex->tee_config.tee_runtime_size,
 				0x7);
 
-		tee_ex_tmp = g_tee_cfg_ex;
-		while (tee_ex_tmp) {
-			if (tee_ex_tmp->tee_guest != guest) {
-				gpm_remove_mapping(tee_ex_tmp->tee_guest,
-						tee_ex->tee_config.tee_runtime_addr,
-						tee_ex->tee_config.tee_runtime_size);
-			}
-			tee_ex_tmp = tee_ex_tmp->next;
-		}
+		/* remove this tees range in other guests */
+		remove_this_tee_range(tee_ex);
 
 		/* Invalidate all EPT cache on all physical CPUs */
 		invalidate_gpm_all();
