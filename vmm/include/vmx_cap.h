@@ -62,7 +62,7 @@ uint32_t get_proctl1_cap(uint32_t* p_may0);
  *
  *------------------------------------------------------------------------- */
 #define PROC2_VAPIC_ACCESSES      (1u << 0)
-#define PRO2C_ENABLE_EPT          (1u << 1)
+#define PROC2_ENABLE_EPT          (1u << 1)
 #define PROC2_DESCRIPTOR_EXIT     (1u << 2)
 #define PROC2_ENABLE_RDTSCP       (1u << 3)
 #define PROC2_VX2APIC_MODE        (1u << 4)

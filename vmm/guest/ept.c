@@ -65,9 +65,9 @@ static void ept_enable(guest_cpu_handle_t gcpu, boolean_t enable_ug)
 	uint32_t proc2;
 
 	proc2 = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL2);
-	if ((proc2 & PRO2C_ENABLE_EPT) == 0)
+	if ((proc2 & PROC2_ENABLE_EPT) == 0)
 	{
-		proc2 |= PRO2C_ENABLE_EPT;
+		proc2 |= PROC2_ENABLE_EPT;
 		if (enable_ug)
 			proc2 |= PROC2_UNRESTRICTED_GUEST;
 		vmcs_write(vmcs, VMCS_PROC_CTRL2, proc2);
@@ -83,9 +83,9 @@ static void ept_disable(guest_cpu_handle_t gcpu)
 	uint32_t proc2;
 
 	proc2 = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL2);
-	if (proc2 & PRO2C_ENABLE_EPT)
+	if (proc2 & PROC2_ENABLE_EPT)
 	{
-		proc2 &= ~(PRO2C_ENABLE_EPT);
+		proc2 &= ~(PROC2_ENABLE_EPT);
 		proc2 &= ~(PROC2_UNRESTRICTED_GUEST);
 		vmcs_write(vmcs, VMCS_PROC_CTRL2, proc2);
 		vmcs_write(vmcs, VMCS_EPTP_ADDRESS, 0);
@@ -209,7 +209,7 @@ void ept_guest_init(guest_handle_t guest)
 
 	if (guest->ept_policy.bits.enabled)
 	{
-		//PRO2C_ENABLE_EPT is checked in vmx_cap_init()
+		//PROC2_ENABLE_EPT is checked in vmx_cap_init()
 		guest->eptp = ept_calculate_eptp(guest);
 		if (guest->ept_policy.bits.ug_real_mode)
 		{
