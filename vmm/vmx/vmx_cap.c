@@ -211,7 +211,7 @@ void vmx_cap_init()
 		| PROC_SECONDARY_CTRL;
 
 	ctrl_may1 = get_proctl2_cap(&ctrl_may0);
-	must_have = PRO2C_ENABLE_EPT;
+	must_have = PROC2_ENABLE_EPT;
 	VMM_ASSERT_EX((must_have & ctrl_may1) == must_have,
 		"proc2: may1 = %x, must_have = %x\n", ctrl_may1, must_have);
 	nice_have = PROC2_ENABLE_RDTSCP

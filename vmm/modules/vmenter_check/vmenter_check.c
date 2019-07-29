@@ -1815,7 +1815,7 @@ static void check_guest_pdpte(vmcs_obj_t vmcs)
 
 	if ((cr0 & CR0_PG) && (cr4 & CR4_PAE) && (is_64bit == 0))
 	{
-		if (proc_ctrl2 & PRO2C_ENABLE_EPT)
+		if (proc_ctrl2 & PROC2_ENABLE_EPT)
 		{
 			for (idx = VMCS_GUEST_PDPTR0; idx <= VMCS_GUEST_PDPTR3; idx++)
 			{
@@ -2228,7 +2228,7 @@ static void check_vmx_enable_ept(vmcs_obj_t vmcs)
 	eptp.uint64 = vmcs_read(vmcs, VMCS_EPTP_ADDRESS);
 	ept_vpid_cap.uint64 = get_ept_vpid_cap();
 	proc_ctrl2 = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL2);
-	if (proc_ctrl2 & PRO2C_ENABLE_EPT)
+	if (proc_ctrl2 & PROC2_ENABLE_EPT)
 	{
 		if (eptp.bits.emt == CACHE_TYPE_WB)
 		{
@@ -2280,7 +2280,7 @@ static void check_vmx_enable_pml(vmcs_obj_t vmcs)
 	uint32_t proc_ctrl2;
 
 	proc_ctrl2 = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL2);
-	if ((proc_ctrl2 & (PROC2_ENABLE_PML | PRO2C_ENABLE_EPT)) == (PROC2_ENABLE_PML | PRO2C_ENABLE_EPT))
+	if ((proc_ctrl2 & (PROC2_ENABLE_PML | PROC2_ENABLE_EPT)) == (PROC2_ENABLE_PML | PROC2_ENABLE_EPT))
 	{
 		// TODO: The PML address  will not be used, so we do not check it here.
 	}
@@ -2298,7 +2298,7 @@ static void check_vmx_ug(vmcs_obj_t vmcs)
 	proc_ctrl2 = (uint32_t)vmcs_read(vmcs, VMCS_PROC_CTRL2);
 	if (proc_ctrl2 & PROC2_UNRESTRICTED_GUEST)
 	{
-		if ((proc_ctrl2 & PRO2C_ENABLE_EPT) == 0)
+		if ((proc_ctrl2 & PROC2_ENABLE_EPT) == 0)
 		{
 			print_info("If ug is 1, the enable EPT must also be 1.\n");
 		}
