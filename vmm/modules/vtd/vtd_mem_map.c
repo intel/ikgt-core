@@ -34,8 +34,9 @@ typedef struct _domain {
 	struct _domain                *next;
 } domain_t;
 
-static uint8_t g_tm = 1;
-static uint8_t g_snoop = 1;
+static uint8_t g_tm;
+static uint8_t g_snoop;
+static uint8_t g_sagaw;
 static domain_t *g_domain_list;
 
 static boolean_t vtd_addr_trans_is_leaf(uint64_t entry, uint32_t level)
@@ -153,9 +154,36 @@ mam_handle_t vtd_get_mam_handle(uint16_t domain_id)
 	return domain->mam_handle;
 }
 
-void set_translation_cap(uint8_t max_leaf, uint8_t tm, uint8_t snoop)
+void set_translation_cap(uint8_t max_leaf, uint8_t tm, uint8_t snoop, uint8_t sagaw)
 {
 	vtd_entry_ops.max_leaf_level = max_leaf;
 	g_tm = tm;
 	g_snoop = snoop;
+	g_sagaw = sagaw;
+}
+
+#define PAGE_TABLE_3_LVL_AGAW 0x1U
+#define PAGE_TABLE_4_LVL_AGAW 0x2U
+void vtd_get_trans_table(uint16_t domain_id, vtd_trans_table_t *trans_table)
+{
+	uint64_t hpa;
+	uint64_t hva;
+	mam_handle_t mam_handle;
+
+	mam_handle = vtd_get_mam_handle(domain_id);
+	hpa = mam_get_table_hpa(mam_handle);
+
+	/*
+	 * The cap must support 3 or 4 level page table and already asserted in
+	 * vtd_calculate_trans_cap().
+	 */
+	if (g_sagaw & SAGAW_SUPPORT_4_LVL_PT) {
+		trans_table->hpa = hpa;
+		trans_table->agaw = PAGE_TABLE_4_LVL_AGAW;
+	} else {
+		VMM_ASSERT(hmm_hpa_to_hva(hpa, &hva));
+		/* Use the first entry of PML4 as 3-level page-table address */
+		trans_table->hpa =  *((uint64_t *)hva) & MASK64_MID(51, 12);
+		trans_table->agaw = PAGE_TABLE_3_LVL_AGAW;
+	}
 }
