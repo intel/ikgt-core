@@ -16,6 +16,7 @@
 #include "guest.h"
 #include "vmm_arch.h"
 #include "heap.h"
+#include "kvm_workaround.h"
 
 #include "lib/util.h"
 
@@ -154,7 +155,7 @@ static cr_pre_handler cr4_vmxe_pre_handler = NULL;
 #else
 static boolean_t cr4_vmxe_pre_handler(uint64_t write_value)
 {
-	if (write_value & CR4_VMXE) // nested VT is not supported by eVmm
+	if ((write_value & CR4_VMXE) && !running_on_kvm()) // nested VT is not supported by eVmm
 	{
 		print_warn("%s(), write_value=0x%llx, injecting #GP\n", __FUNCTION__, write_value);
 		return TRUE;
