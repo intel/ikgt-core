@@ -16,6 +16,7 @@
 #include "hmm.h"
 #include "vmexit_cr_access.h"
 #include "event.h"
+#include "kvm_workaround.h"
 
 #include "lib/util.h"
 
@@ -277,10 +278,17 @@ void gcpu_set_reset_state(guest_cpu_handle_t gcpu)
 	vmcs_write(vmcs, VMCS_GUEST_SYSENTER_EIP, 0);
 	vmcs_write(vmcs, VMCS_GUEST_PAT, asm_rdmsr(MSR_PAT));
 
-	/* Put guest CPU into the WAIT-FOR-SIPI state */
-	/*  wait-for-SIPI support is checked in vmx_cap_init() */
-	vmcs_write(vmcs, VMCS_GUEST_ACTIVITY_STATE,
-			ACTIVITY_STATE_WAIT_FOR_SIPI);
+	/*
+	 * Running on KVM: Put guest CPU into the HLT state
+	 * Others:         Put guest CPU into the WAIT-FOR-SIPI state
+	 */
+	if (running_on_kvm()) {
+		vmcs_write(vmcs, VMCS_GUEST_ACTIVITY_STATE,
+				ACTIVITY_STATE_HLT);
+	} else {
+		vmcs_write(vmcs, VMCS_GUEST_ACTIVITY_STATE,
+				ACTIVITY_STATE_WAIT_FOR_SIPI);
+	}
 
 	cr0_guest_write(gcpu, 0x60000010);
 	cr4_guest_write(gcpu, 0);

@@ -12,6 +12,7 @@
 #include "host_cpu.h"
 #include "dbg.h"
 #include "vmm_arch.h"
+#include "kvm_workaround.h"
 
 #include "lib/util.h"
 
@@ -240,7 +241,7 @@ void vmx_cap_init()
 	g_vmx_cap.init_cr4 |= nice_have & cr_may1;
 
 	misc_data.uint64 = get_misc_data_cap();
-	if (host_cpu_num > 1) {
+	if ((host_cpu_num > 1) && !running_on_kvm()) {
 		VMM_ASSERT_EX(misc_data.bits.sipi,
 			"wait-for-SIPI is not supported\n");
 	}
