@@ -40,7 +40,7 @@ uint32_t stage0_main(
 	uint64_t rsp)
 {
 	evmm_desc_t *evmm_desc;
-	uint64_t (*stage1_main) (evmm_desc_t *xd);
+	uint64_t (*stage1_main) (evmm_desc_t *xd) = NULL;
 	void *ret_addr;
 
 	print_init(FALSE);
@@ -69,7 +69,9 @@ uint32_t stage0_main(
 		goto exit;
 	}
 
+#if defined (MODULE_TRUSTY_GUEST)
 	setup_32bit_env(&(evmm_desc->trusty_desc.gcpu0_state));
+#endif
 
 	if (!relocate_elf_image(&(evmm_desc->stage1_file), (uint64_t *)&stage1_main)) {
 		print_panic("relocate stage1 image failed\n");
@@ -81,10 +83,19 @@ exit:
 	/* wipe seed data when error occurs */
 	cleanup_sensetive_data(tos_startup_info);
 
+#if defined (MODULE_TRUSTY_GUEST)
 	if (evmm_desc && evmm_desc->trusty_desc.dev_sec_info) {
 		memset(evmm_desc->trusty_desc.dev_sec_info, 0, sizeof(device_sec_info_v0_t));
 		barrier();
 	}
+#endif
+
+#if defined (MODULE_TRUSTY_TEE)
+	if (evmm_desc && evmm_desc->trusty_tee_desc.dev_sec_info) {
+		memset(evmm_desc->trusty_tee_desc.dev_sec_info, 0, sizeof(device_sec_info_v0_t));
+		barrier();
+	}
+#endif
 
 	/* Code will not run to here when boot successfully.
 	 * The return value is set in g0_gcpu_setup() when do gcpu_resume. */
