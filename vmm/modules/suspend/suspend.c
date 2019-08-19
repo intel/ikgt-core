@@ -10,6 +10,7 @@
 #include "gcpu_state.h"
 #include "gcpu_switch.h"
 #include "hmm.h"
+#include "heap.h"
 #include "vmcs.h"
 #include "vmx_cap.h"
 #include "stack.h"
@@ -31,6 +32,7 @@ typedef struct {
 	uint32_t *p_waking_vector;
 	uint32_t orig_waking_vector;
 	uint32_t sipi_page; // must under 1M
+	uint8_t *save_area;
 } suspend_data_t;
 
 typedef struct {
@@ -85,12 +87,30 @@ static void prepare_s3_percpu(guest_cpu_handle_t gcpu, void *unused UNUSED)
 	}
 }
 
+static void save_sipi_mem(void)
+{
+	uint32_t size = get_startup_code_size();
+
+	if (suspend_data.save_area == NULL) {
+		suspend_data.save_area = mem_alloc(size);
+	}
+
+	memcpy(suspend_data.save_area, (void *)(uint64_t)suspend_data.sipi_page, size);
+}
+
+static void restore_sipi_mem(void)
+{
+	memcpy((void *)(uint64_t)suspend_data.sipi_page, suspend_data.save_area, get_startup_code_size());
+}
+
 static void prepare_s3(guest_cpu_handle_t gcpu)
 {
 	uint8_t cpu_id;
 #ifdef DEBUG
 	gdtr64_t gdtr;
 #endif
+
+	save_sipi_mem();
 
 	setup_sipi_page(suspend_data.sipi_page, TRUE, (uint64_t)main_from_s3);
 
@@ -185,6 +205,7 @@ static void main_from_s3(uint32_t cpu_id)
 				asm_pause();
 			}
 		}
+		restore_sipi_mem();
 	}
 	else {
 		suspend_percpu_data[cpu_id].slept = 0;
@@ -216,21 +237,11 @@ void suspend_s3_io_handler(guest_cpu_handle_t gcpu,
 	}
 }
 
-static void suspend_guest_setup(UNUSED guest_cpu_handle_t gcpu, void *pv)
-{
-	guest_handle_t guest = (guest_handle_t)pv;
-
-	/* protect sipi page with ept for Guest0 */
-	if (guest->id == 0)
-		gpm_remove_mapping(guest, (uint64_t)suspend_data.sipi_page, 0x1000);
-}
-
 void suspend_bsp_init(uint32_t sipi_page)
 {
 	uint8_t i;
 
 	D(VMM_ASSERT(((sipi_page & PAGE_4K_MASK) == 0) && (sipi_page < 0x100000)));
-	event_register(EVENT_GUEST_MODULE_INIT, suspend_guest_setup);
 
 	acpi_pm_init(&acpi_fadt_info);
 	suspend_data.p_waking_vector = acpi_fadt_info.p_waking_vector;
