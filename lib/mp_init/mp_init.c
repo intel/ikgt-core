@@ -84,6 +84,11 @@ uint32_t get_active_cpu_num(void)
 	return g_startup_data.cpu_num;
 }
 
+uint32_t get_startup_code_size(void)
+{
+	return sizeof(real_mode_code);
+}
+
 void setup_sipi_page(uint64_t sipi_page, boolean_t need_wakeup_bsp, uint64_t c_entry)
 {
 	uint8_t *code_to_patch = (uint8_t *)sipi_page;
