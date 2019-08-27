@@ -69,7 +69,7 @@ uint32_t stage0_main(
 		goto exit;
 	}
 
-#if defined (MODULE_TRUSTY_GUEST)
+#ifdef MODULE_TRUSTY_GUEST
 	setup_32bit_env(&(evmm_desc->trusty_desc.gcpu0_state));
 #endif
 
@@ -83,14 +83,14 @@ exit:
 	/* wipe seed data when error occurs */
 	cleanup_sensetive_data(tos_startup_info);
 
-#if defined (MODULE_TRUSTY_GUEST)
+#ifdef MODULE_TRUSTY_GUEST
 	if (evmm_desc && evmm_desc->trusty_desc.dev_sec_info) {
 		memset(evmm_desc->trusty_desc.dev_sec_info, 0, sizeof(device_sec_info_v0_t));
 		barrier();
 	}
 #endif
 
-#if defined (MODULE_TRUSTY_TEE)
+#ifdef MODULE_TRUSTY_TEE
 	if (evmm_desc && evmm_desc->trusty_tee_desc.dev_sec_info) {
 		memset(evmm_desc->trusty_tee_desc.dev_sec_info, 0, sizeof(device_sec_info_v0_t));
 		barrier();

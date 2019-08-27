@@ -117,13 +117,13 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 		return NULL;
 	}
 
-#if defined (MODULE_TRUSTY_GUEST)
+#ifdef MODULE_TRUSTY_GUEST
 	evmm_desc->trusty_desc.lk_file.runtime_addr = (uint64_t)p_startup_info->trusty_mem_base;
 	evmm_desc->trusty_desc.lk_file.runtime_total_size = ((uint64_t)(p_startup_info->trusty_mem_size));
 	evmm_desc->trusty_desc.dev_sec_info = dev_sec_info;
 #endif
 
-#if defined (MODULE_TRUSTY_TEE)
+#ifdef MODULE_TRUSTY_TEE
 	evmm_desc->trusty_tee_desc.tee_file.runtime_addr = (uint64_t)p_startup_info->trusty_mem_base;
 	evmm_desc->trusty_tee_desc.tee_file.runtime_total_size = ((uint64_t)(p_startup_info->trusty_mem_size));
 	evmm_desc->trusty_tee_desc.dev_sec_info = dev_sec_info;

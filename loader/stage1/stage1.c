@@ -138,6 +138,11 @@ void stage1_main(evmm_desc_t *xd)
 #endif
 #endif
 
+#ifdef MODULE_TEMPLATE_TEE
+	if (evmm_desc->x64_cr3 == 0)
+		evmm_desc->x64_cr3 = asm_get_cr3();
+#endif
+
 	/* Load evmm image */
 	if (!relocate_elf_image(&(xd->evmm_file), (uint64_t *)&vmm_main)) {
 		print_panic("relocate evmm file fail\n");
