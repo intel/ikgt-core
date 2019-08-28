@@ -31,4 +31,8 @@ uint64_t get_stack_cookie_value(void);
 
 void save_current_cpu_state(gcpu_state_t *s);
 
+/* Calculate barrier size for rowhammer mitigation.
+ * return: 0xFFFFFFFFFFFFFFFF on fail, others on success */
+uint64_t calulate_barrier_size(uint64_t total_mem_size, uint64_t min_mem_size);
+
 #endif

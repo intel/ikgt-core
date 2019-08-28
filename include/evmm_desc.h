@@ -12,6 +12,9 @@
 #include "vmm_base.h"
 #include "vmm_arch.h"
 
+#define MINIMAL_EVMM_RT_SIZE (4 MEGABYTE)
+#define MINIMAL_TEE_RT_SIZE  (16 MEGABYTE)
+#define DEFAULT_BARRIER_SIZE (1 MEGABYTE)
 /*--------------------------------------------------------------------------
  *
  * gcpu_state_t: Initial Guest CPU State
@@ -66,6 +69,8 @@ typedef struct {
 	uint64_t runtime_image_size;
 	/* size including heap/stack after relocate */
 	uint64_t runtime_total_size;
+	/* For rowhammer mitigation. OFF if value is 0; ON if value is not 0 */
+	uint64_t barrier_size;
 } module_file_info_t;
 
 typedef struct {

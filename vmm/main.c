@@ -481,7 +481,12 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		/* Initialize GPM */
 		gpm_init();
 
-		guest_save_evmm_range(evmm_desc->evmm_file.runtime_addr, evmm_desc->evmm_file.runtime_total_size);
+		/* Check rowhammer mitigation for evmm */
+		if (evmm_desc->evmm_file.barrier_size == 0)
+			print_warn("No rawhammer mitigation for EVMM\n");
+
+		guest_save_evmm_range(evmm_desc->evmm_file.runtime_addr - evmm_desc->evmm_file.barrier_size,
+			 evmm_desc->evmm_file.runtime_total_size + 2 * evmm_desc->evmm_file.barrier_size);
 
 		/* Create guest with RWX(0x7) attribute */
 		create_guest(host_cpu_num, 0x7);

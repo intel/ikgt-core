@@ -185,3 +185,20 @@ void save_current_cpu_state(gcpu_state_t *s)
 	fill_segment(&s->segment[SEG_GS], 0, 0xffffffff, 0xc093, asm_get_ds());
 	fill_segment(&s->segment[SEG_SS], 0, 0xffffffff, 0xc093, asm_get_ds());
 }
+
+/* Calculate barrier size for rowhammer mitigation
+ * Memory layout:
+ * barrier memory (1M bytes if exist)
+ * EVMM/TEE memory
+ * barrier memory (1M bytes if exist)
+ */
+uint64_t calulate_barrier_size(uint64_t total_mem_size, uint64_t min_mem_size)
+{
+	if (total_mem_size < min_mem_size) {
+		return (uint64_t)-1;
+	} else if (total_mem_size < min_mem_size + 2 * DEFAULT_BARRIER_SIZE) {
+		return 0;
+	} else {
+		return DEFAULT_BARRIER_SIZE;
+	}
+}
