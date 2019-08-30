@@ -23,7 +23,7 @@ typedef struct {
 
 typedef struct {
 	uint8_t image_load[EVMM_PKG_BIN_SIZE];
-	uint8_t stage1[STAGE1_IMG_SIZE];
+	uint8_t stage1[STAGE1_RT_SIZE];
 	evmm_payload_t payload;
 } memory_layout_t;
 
@@ -108,7 +108,7 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 	evmm_desc->evmm_file.runtime_addr = (uint64_t)p_startup_info->vmm_mem_base + barrier_size;
 
 	evmm_desc->stage1_file.runtime_addr = (uint64_t)loader_mem->stage1;
-	evmm_desc->stage1_file.runtime_total_size = STAGE1_IMG_SIZE;
+	evmm_desc->stage1_file.runtime_total_size = STAGE1_RT_SIZE;
 
 	evmm_desc->sipi_ap_wkup_addr = (uint64_t)p_startup_info->sipi_ap_wkup_addr;
 #ifdef LIB_EFI_SERVICES
