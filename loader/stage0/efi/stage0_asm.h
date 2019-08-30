@@ -21,7 +21,10 @@
  */
 #define STAGE0_STACK_SIZE             0x4000
 
-#define STAGE1_IMG_SIZE	              0xC000
+/* Temp STACK for stage1 to launch APs */
+#define AP_TEMP_STACK_SIZE            (0x400 * ((MAX_CPU_NUM) + 1))
+
+#define STAGE1_RT_SIZE                (0xA000 + (AP_TEMP_STACK_SIZE))
 #define SEED_MSG_DST_OFFSET           0
 
 /* This payload memory will store evmm_desc_t and device_sec_info_t */
