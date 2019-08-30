@@ -1371,7 +1371,7 @@ static void check_guest_rflags(vmcs_obj_t vmcs)
 	is_64bit = ((vmentry_control & ENTRY_GUEST_IA32E_MODE) != 0);
 	rflags = vmcs_read(vmcs, VMCS_GUEST_RFLAGS);
 	cr0 = vmcs_read(vmcs, VMCS_GUEST_CR0);
-	if ((rflags & 0xFFFFFFFFFFC0802A) != 2)
+	if ((rflags & 0xFFFFFFFFFFC0802AULL) != 2)
 	{
 		print_info("Guest RFLAGS.reserved bits are invalid\n");
 	}
@@ -1699,7 +1699,7 @@ static void check_guest_pending_debug_exception(vmcs_obj_t vmcs)
 	pending_debg = vmcs_read(vmcs, VMCS_GUEST_PEND_DBG_EXCEPTION);
 	ctrl_debg = vmcs_read(vmcs, VMCS_GUEST_DBGCTL);
 
-	if ((pending_debg & 0xFFFFFFFFFFFEAFF0) != 0)
+	if ((pending_debg & 0xFFFFFFFFFFFEAFF0ULL) != 0)
 	{
 		print_info("Guest Pending deug exception reserved bits are invalid\n");
 	}
@@ -1722,7 +1722,7 @@ static void check_guest_pending_debug_exception(vmcs_obj_t vmcs)
 
 	if (pending_debg & NRS_PENDING_DEBG_RTM_BIT)
 	{
-		if ((pending_debg & 0xFFFFFFFFFFFEFFFF) != 0x1000)
+		if ((pending_debg & 0xFFFFFFFFFFFEFFFFULL) != 0x1000)
 		{
 			print_info("Guest Pending deug exception Bits 11:0, bits 15:13, and\n");
 			print_info("bits 63:17 must be 0; bit 12 must be 1.\n");
@@ -1753,7 +1753,7 @@ static void check_guest_vmcs_link_pointer(vmcs_obj_t vmcs)
 	uint64_t  link_ptr;
 
 	link_ptr = vmcs_read(vmcs, VMCS_LINK_PTR);
-	if (link_ptr != (uint64_t)-1)
+	if (link_ptr != 0xFFFFFFFFFFFFFFFFULL)
 	{
 		print_info("VMCS link pointer must be 0xFFFFFFFFFFFFFFFF\n");
 	}

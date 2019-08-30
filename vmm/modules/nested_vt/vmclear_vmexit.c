@@ -40,7 +40,7 @@ void vmclear_vmexit(guest_cpu_handle_t gcpu)
 	VMM_ASSERT(gcpu_copy_from_gva(gcpu, gva, (uint64_t)&vmcs_gpa, 1 << (info.vmclear_instr.addr_size + 1), &pfinfo));
 
 	if (data->gvmcs_gpa == vmcs_gpa) {
-		data->gvmcs_gpa = 0xFFFFFFFFFFFFFFFF;
+		data->gvmcs_gpa = 0xFFFFFFFFFFFFFFFFULL;
 		data->gvmcs = NULL;
 	}
 
