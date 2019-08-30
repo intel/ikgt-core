@@ -92,8 +92,8 @@ void setup_sipi_page(uint64_t sipi_page, boolean_t need_wakeup_bsp, uint64_t c_e
 	static const uint64_t gdt_32_table[] __attribute__ ((aligned(16))) = {
 		0,
 		0,
-		0x00cf9a000000ffff, /* 32bit CS */
-		0x00cf93000000ffff  /* 32bit DS */
+		0x00cf9a000000ffffULL, /* 32bit CS */
+		0x00cf93000000ffffULL  /* 32bit DS */
 	};
 
 	memcpy(code_to_patch, (const void *)real_mode_code, (uint64_t)sizeof(real_mode_code));

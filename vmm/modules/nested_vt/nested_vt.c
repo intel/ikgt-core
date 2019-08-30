@@ -45,7 +45,7 @@ nestedvt_data_t *get_nestedvt_data(guest_cpu_handle_t gcpu)
 
 	new_data->gcpu = gcpu;
 	/* It stores the value FFFFFFFF_FFFFFFFF if there is no current VMCS according to IA spec*/
-	new_data->gvmcs_gpa = 0xFFFFFFFFFFFFFFFF;
+	new_data->gvmcs_gpa = 0xFFFFFFFFFFFFFFFFULL;
 	new_data->gvmcs = NULL;
 	new_data->guest_layer = GUEST_L1;
 	new_data->vmx_on_status = VMX_OFF;

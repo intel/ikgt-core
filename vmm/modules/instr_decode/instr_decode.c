@@ -81,7 +81,7 @@ static void sign_extend_to_64(uint64_t *value, uint8_t size)
 
 	mask = 1 << (size * 8 - 1);
 	if (*value & mask) {
-		*value += (0xFFFFFFFFFFFFFFFF << size );
+		*value += (0xFFFFFFFFFFFFFFFFULL << size );
 	}
 }
 

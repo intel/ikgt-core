@@ -183,10 +183,10 @@ bspstack:
 
 .balign 8
 gdt_x64:
-	.quad   0x0000000000000000  /* NULL descriptor */
-	.quad   0x0000000000000000  /* reserved for linux boot protocal */
-	.quad   0x00af9b000000ffff  /* 0x10 __BOOT_CS */
-	.quad   0x00cf93000000ffff  /* 0x18 __BOOT_DS */
+	.quad   0x0000000000000000ULL  /* NULL descriptor */
+	.quad   0x0000000000000000ULL  /* reserved for linux boot protocal */
+	.quad   0x00af9b000000ffffULL  /* 0x10 __BOOT_CS */
+	.quad   0x00cf93000000ffffULL  /* 0x18 __BOOT_DS */
 gdt_x64_end:
 
 gdtr_x64:

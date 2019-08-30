@@ -105,7 +105,7 @@ static void setup_data_seg(void)
 		granularity = 1
 		base_address_31_24 = 0
 	*/
-	*p_data = 0xCF92000000FFFF;
+	*p_data = 0xCF92000000FFFFULL;
 }
 
 static void setup_code64_seg(void)
@@ -130,7 +130,7 @@ static void setup_code64_seg(void)
 		granularity = 0
 		reserved_31_24:
 	*/
-	*p_code64 = 0x209E0000000000;
+	*p_code64 = 0x209E0000000000ULL;
 }
 
 static void setup_tss64_seg(uint16_t cpu_id)

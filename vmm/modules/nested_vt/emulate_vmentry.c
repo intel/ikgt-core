@@ -92,8 +92,8 @@ static void handle_link_ptr(guest_cpu_handle_t gcpu, uint64_t *gvmcs, vmcs_field
 	uint64_t hpa;
 
 	/* TODO: consider whether to support shadow VMCS for Layer-1 VMM */
-	if (gvmcs[VMCS_LINK_PTR] == 0xFFFFFFFFFFFFFFFF) {
-		hpa = 0xFFFFFFFFFFFFFFFF;
+	if (gvmcs[VMCS_LINK_PTR] == 0xFFFFFFFFFFFFFFFFULL) {
+		hpa = 0xFFFFFFFFFFFFFFFFULL;
 	} else {
 		VMM_ASSERT(gpm_gpa_to_hpa(gcpu->guest, gvmcs[VMCS_LINK_PTR], &hpa, NULL));
 	}
