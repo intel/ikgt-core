@@ -476,6 +476,7 @@ static void check_segment_base_address(vmcs_obj_t vmcs)
 	es.base = (uint16_t) vmcs_read(vmcs, VMCS_GUEST_ES_BASE);
 	fs.base = (uint16_t) vmcs_read(vmcs, VMCS_GUEST_FS_BASE);
 	gs.base = (uint16_t) vmcs_read(vmcs, VMCS_GUEST_GS_BASE);
+	tr.base = (uint16_t) vmcs_read(vmcs, VMCS_GUEST_TR_BASE);
 	cs.selector = (uint16_t) vmcs_read(vmcs, VMCS_GUEST_CS_SEL);
 	ss.selector = (uint16_t) vmcs_read(vmcs, VMCS_GUEST_SS_SEL);
 	ds.selector = (uint16_t) vmcs_read(vmcs, VMCS_GUEST_DS_SEL);
@@ -2439,10 +2440,10 @@ static void check_vm_msr_addr(uint64_t addr, uint32_t count, const char* name)
 	 **  The following checks are performed for the MSR store/load address
 	 **  if the MSR store/load count field is non-zero:
 	 **   The lower 4 bits of the MSR-store/load address must be 0.
-	 **   The address should not set any bits beyond the processor¡¯s physical-address width.
+	 **   The address should not set any bits beyond the processors physical-address width.
 	 **   The address of the last byte in the  MSR-store/load area should not set any bits
 	 **   beyond the processor's physical-address width. The address of this last byte
-	 **   is MSR-store/load address + (MSR count * 16) ¨C1.
+	 **   is MSR-store/load address + (MSR count * 16) - 1.
 	 **   If IA32_VMX_BASIC[48] is read as 1, neither address should set any bits in the range 63:32.
 	 */
 	uint64_t last_byte_addr;
@@ -2464,7 +2465,7 @@ static void check_vm_msr_addr(uint64_t addr, uint32_t count, const char* name)
 		last_byte_addr = addr + (count*16) - 1;
 		if(last_byte_addr >> get_max_phy_addr())
 		{
-			print_info("The %s last byte addr should not set any bits beyond the processor¡¯s physical-address width..\n",
+			print_info("The %s last byte addr should not set any bits beyond the processors physical-address width..\n",
 				name);
 		}
 
@@ -2538,11 +2539,11 @@ static void check_vm_entry_intr_type(vmcs_obj_t vmcs)
 {
 	/*
 	 ** According to IA32 Manual: Volume 3, Chapter 26.2.1.3:
-	 **  The field¡¯s interruption type (bits 10:8) is not set to a reserved value.
+	 **  The fields interruption type (bits 10:8) is not set to a reserved value.
 	 **  Value 1 is reserved on all logical processors; value 7 (other event)
 	 **  is reserved on logical processors that do not support the 1-setting of
 	 **  the "monitor trap flag" VM-execution control.
-	 **  The field¡¯s vector (bits 7:0) is consistent with the interruption type:
+	 **  The fields vector (bits 7:0) is consistent with the interruption type:
 	 **  If the interruption type is non-maskable interrupt (NMI), the vector is 2.
 	 **  If the interruption type is hardware exception, the vector is at most 31.
 	 **  If the interruption type is other event, the vector is 0 (pending MTF VM exit).
@@ -2554,7 +2555,7 @@ static void check_vm_entry_intr_type(vmcs_obj_t vmcs)
 	{
 		if ((entry_info.bits.interrupt_type == VECTOR_TYPE_OTHER_EVE) || (entry_info.bits.interrupt_type == VECTOR_TYPE_RES))
 		{
-			print_info("The field¡¯s interruption type (bits 10:8) is not set to a reserved value.\n");
+			print_info("The fields interruption type (bits 10:8) is not set to a reserved value.\n");
 		}
 
 		if (entry_info.bits.interrupt_type == VECTOR_TYPE_NMI)
@@ -2810,7 +2811,7 @@ static void check_host_64bits_settings(vmcs_obj_t vmcs)
 	 ** According to IA32 Manual: Volume 3, Chapter 26.2.2:
 	 **  On processors that support Intel 64 architecture,
 	 **  the CR3 field must be such that bits 63:52 and bits
-	 **  in the range 51:32 beyond the processor¡¯s
+	 **  in the range 51:32 beyond the processors
 	 **  physical-address width must be 0.
 	 **  On processors that support Intel 64 architecture,
 	 **  the IA32_SYSENTER_ESP field and the IA32_SYSENTER_EIP
@@ -2828,7 +2829,7 @@ static void check_host_64bits_settings(vmcs_obj_t vmcs)
 
 	if(cr3 >> get_max_phy_addr())
 	{
-		print_info("Host CR3 beyond the processor¡¯s physical-address width must be 0\n");
+		print_info("Host CR3 beyond the processors physical-address width must be 0\n");
 	}
 
 	if(addr_is_canonical(is_64bit, sysenter_esp) == FALSE)
