@@ -182,6 +182,12 @@ void vtd_get_trans_table(uint16_t domain_id, vtd_trans_table_t *trans_table)
 		trans_table->agaw = PAGE_TABLE_4_LVL_AGAW;
 	} else {
 		VMM_ASSERT(hmm_hpa_to_hva(hpa, &hva));
+
+		if ((*((uint64_t *)hva) & MASK64_MID(51, 12)) == 0ULL) {
+			/* Insert 4K page to initialze PDPT(3rd level) in page table */
+			mam_insert_range(mam_handle, 0, 0, PAGE_4K_SIZE, 0x3);
+		}
+
 		/* Use the first entry of PML4 as 3-level page-table address */
 		trans_table->hpa =  *((uint64_t *)hva) & MASK64_MID(51, 12);
 		trans_table->agaw = PAGE_TABLE_3_LVL_AGAW;
