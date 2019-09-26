@@ -284,8 +284,10 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	trusty_guest = create_tee(&trusty_cfg);
 	VMM_ASSERT_EX(trusty_guest, "Failed to create trusty guest!\n");
 
+#ifdef MODULE_VTD
 #ifdef DMA_FROM_CSE
 	vtd_assign_dev(gid2did(trusty_guest->id), DMA_FROM_CSE);
+#endif
 #endif
 
 	vmcall_register(GUEST_REE, TRUSTY_VMCALL_DUMP_INIT, trusty_vmcall_dump_init);
