@@ -10,7 +10,6 @@
 #define _SERIAL_H_
 
 #include "vmm_base.h"
-uint64_t get_serial_base(void);
-void serial_init(uint64_t serial_base);
-void serial_puts(const char *str, uint64_t serial_base);
+void serial_init(boolean_t setup);
+void serial_puts(const char *str);
 #endif
