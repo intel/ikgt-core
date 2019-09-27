@@ -47,6 +47,20 @@ typedef union {
 #define PCI_CFG_DATA 0xCFC
 #define PCI_ADDR_ENABLE 0x80000000
 
+#define PCI_CMD_REG     0x04
+#define PCI_CLASS_REG   0x0A
+#define PCI_BAR_REG(n) (0x10 + ((n) << 2)) // Base Register starts from 0x10
+
+#define PCI_BAR_IS_IO_SPACE(bar) ((bar) & BIT(0)) // Bit 0 of BAR indicates the type: 0-->MMIO, 1-->IO
+#define PCI_BAR_MMIO_MASK 0xFFFFFFF0
+#define PCI_BAR_IO_MASK   0xFFFFFFFC
+
+#define PCI_CMD_IO_SPACE      BIT(0)
+#define PCI_CMD_MEMORY_SPACE  BIT(1)
+
+#define PCI_CLASS_COM_SERIAL 0x0700
+#define PCI_CLASS_COM_MODEM  0x0703
+
 #define PCI_DEV(bus, dev, fun) (((uint16_t)(bus) << 8) | \
 				((uint16_t)(dev) << 3)| \
 				(uint16_t)(fun))

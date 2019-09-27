@@ -67,20 +67,16 @@ Config files
 
 	- LIB_PRINT
 		Description: Provide print functions.
-		Dependency:
-			LIB_PCI (optional)
 		SubFlags:
-			- SERIAL_MMIO
-				Description: Determine whether the print devices uses IO or MMIO.
-			- SERIAL_PCI
+			- SERIAL_PCI="PCI_DEV(b,d,f)"
 				Description: If print device is a PCI device, the PCI bus/device/function must be specified here.
 				Dependency: LIB_PCI
-				SubFlags:
-					- SERIAL_PCI_BUS
-					- SERIAL_PCI_DEV
-					- SERIAL_PCI_FUN
-			- SERIAL_BASE
-				Description: If SERIAL_PCI is not define, serial base (IO or MMIO) should be specified by this flag.
+			- SERIAL_IO=io_base
+				Description: Serial type is IO, and this macro defines the IO base address.
+			- SERIAL_MMIO=mmio_base
+				Description: Serial type is MMIO, and this macro defines the MMIO base address.
+			- SERIAL_BAUD=baud
+				Description: (optional), if not set, 115200 will be used as default baud.
 
 	- LIB_EFI_SERVICES
 		Description: Support UEFI services

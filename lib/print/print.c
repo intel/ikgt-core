@@ -15,14 +15,9 @@
 
 #define PRINTF_BUFFER_SIZE 256
 
-static uint64_t serial_base;
-
 void print_init(boolean_t setup)
 {
-	serial_base = get_serial_base();
-	if (setup) {
-		serial_init(serial_base);
-	}
+	serial_init(setup);
 }
 /*caller must make sure this function is NOT
 called simultaneously in different cpus*/
@@ -37,6 +32,6 @@ void printf(const char *format, ...)
 	printed_size = vmm_vsprintf_s(buffer, PRINTF_BUFFER_SIZE, format, args);
 	va_end(args);
 	if (printed_size > 0)
-		serial_puts(buffer, serial_base);
+		serial_puts(buffer);
 }
 
