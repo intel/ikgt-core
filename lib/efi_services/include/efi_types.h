@@ -9,6 +9,25 @@
 #ifndef _EFI_TYPES_H_
 #define _EFI_TYPES_H_
 
+typedef enum {
+  EfiReservedMemoryType,
+  EfiLoaderCode,
+  EfiLoaderData,
+  EfiBootServicesCode,
+  EfiBootServicesData,
+  EfiRuntimeServicesCode,
+  EfiRuntimeServicesData,
+  EfiConventionalMemory,
+  EfiUnusableMemory,
+  EfiACPIReclaimMemory,
+  EfiACPIMemoryNVS,
+  EfiMemoryMappedIO,
+  EfiMemoryMappedIOPortSpace,
+  EfiPalCode,
+  EfiPersistentMemory,
+  EfiMaxMemoryType
+} efi_memory_type_t;
+
 typedef uint64_t uintn_t;
 typedef long long intn_t;
 typedef uint8_t efi_bool_t;
@@ -27,5 +46,14 @@ typedef struct {
 	uint16_t data3;
 	uint8_t data4[8];
 } efi_guid_t;
+
+typedef struct {
+  uint32_t type;
+  uint32_t pad;
+  uint64_t physical_start;
+  uint64_t virtual_start;
+  uint64_t number_of_pages;
+  uint64_t attribute;
+} efi_memory_descriptor_t;
 
 #endif

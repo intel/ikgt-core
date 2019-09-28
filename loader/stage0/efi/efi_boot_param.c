@@ -116,7 +116,6 @@ evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
 #endif
 
 	evmm_desc->tsc_per_ms = TSC_PER_MS;
-	evmm_desc->top_of_mem = TOP_OF_MEM;
 
 	dev_sec_info = &(loader_mem->payload.dev_sec_info);
 	memset(dev_sec_info, 0, sizeof(device_sec_info_v0_t));
