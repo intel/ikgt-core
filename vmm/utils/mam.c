@@ -283,8 +283,8 @@ static void try_convert_table_to_leaf(uint64_t* p_table_entry, mam_entry_ops_t *
 	entry_ops->to_leaf(p_table_entry, level, attr_0);
 }
 
-#define MAM_MAX_SRC_ADDR (1ULL << 48)
-#define MAM_MAX_TGT_ADDR (1ULL << 52)
+#define MAM_MAX_SRC_ADDR (MAX_PHYS_ADDR)
+#define MAM_MAX_TGT_ADDR (MAX_VIRT_ADDR)
 
 void mam_insert_range(mam_handle_t mam_handle, uint64_t src_addr,
 	uint64_t tgt_addr, uint64_t size, uint32_t attr)
