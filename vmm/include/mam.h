@@ -11,6 +11,9 @@
 
 #include <vmm_base.h>
 
+#define MAX_PHYS_ADDR (1ULL << 48)
+#define MAX_VIRT_ADDR (1ULL << 52)
+
 #define MAM_LEVEL_PT 0
 #define MAM_LEVEL_PD 1
 #define MAM_LEVEL_PDPT 2
