@@ -109,6 +109,10 @@ void stage1_main(evmm_desc_t *xd)
 		print_panic("%s: Failed init efi services\n", __func__);
 		return;
 	}
+
+	if (xd->top_of_mem == 0) {
+		xd->top_of_mem = efi_get_tom();
+	}
 #endif
 
 	print_init(FALSE);

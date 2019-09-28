@@ -30,8 +30,18 @@ typedef void *efi_restore_tpl_t;
 
 typedef void *efi_allocate_pages_t;
 typedef void *efi_free_pages_t;
-typedef void *efi_get_memory_map_t;
-typedef void *efi_allocate_pool_t;
+typedef efi_status_t (EFI_API *efi_get_memory_map_t) (
+  uintn_t *mem_map_size,
+  efi_memory_descriptor_t *mem_map,
+  uintn_t *map_key,
+  uintn_t *desc_size,
+  uint32_t *desc_ver
+);
+typedef efi_status_t (EFI_API *efi_allocate_pool_t) (
+  efi_memory_type_t pool_type,
+  uintn_t size,
+  void **buffer
+);
 typedef void *efi_free_pool_t;
 
 /*
