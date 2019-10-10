@@ -74,7 +74,6 @@
 #define PAE_PDPTE_PRESENT            (1ull << 0)
 #define PAE_PDPTE_RESV_21_85_BITS    0x1E6      // bits 2:1 and bits 8:5 are reserved
 
-#define MSR_BIOS_UPDT_IRIG           0X79
 #define MSR_SIGN_BBL_CR_D3           0X8B
 #define MSR_SMM_MONITOR_CTL          0x9B
 
@@ -3251,10 +3250,10 @@ static void check_loading_msr(vmcs_obj_t vmcs)
 			}
 		}
 
-		if ((msr_list[list_idx].msr_index == MSR_BIOS_UPDT_IRIG)
+		if ((msr_list[list_idx].msr_index == MSR_BIOS_UPDT_TRIG)
 			|| (msr_list[list_idx].msr_index == MSR_SIGN_BBL_CR_D3))
 		{
-			print_info("The msr index(0x%x) in entry load msr list[id=%u] can not be MSR_BIOS_UPDT_IRIG or MSR_SIGN_BBL_CR_D3.\n",
+			print_info("The msr index(0x%x) in entry load msr list[id=%u] can not be MSR_BIOS_UPDT_TRIG or MSR_SIGN_BBL_CR_D3.\n",
 				msr_list[list_idx].msr_index, list_idx);
 		}
 
