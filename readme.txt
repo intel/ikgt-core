@@ -247,4 +247,7 @@ Config files
 	 - MODULE_SECURITY_INFO
 		Description: Set device secure information and provide derive key function
 
+	 - MODULE_UCODE_UPDATE
+		Description: support ucode update from guest
+
 End of file

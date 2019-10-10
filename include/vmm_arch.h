@@ -474,6 +474,7 @@ typedef uint8_t cache_type_t;
 #define MSR_APIC_BASE              (0x01B)
 #define MSR_FEATURE_CONTROL        ((uint32_t)0x03A)
 #define MSR_TSC_ADJUST             ((uint32_t)0x03B)
+#define MSR_BIOS_UPDT_TRIG         ((uint32_t)0x079)
 #define MSR_TSC_DEADLINE           ((uint32_t)0x6E0)
 #define MSR_SYSENTER_CS            ((uint32_t)0x174)
 #define MSR_SYSENTER_ESP           ((uint32_t)0x175)

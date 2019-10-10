@@ -166,6 +166,10 @@
 #include "modules/block_npk.h"
 #endif
 
+#ifdef MODULE_UCODE_UPDATE
+#include "modules/ucode_update.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -424,6 +428,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 
 #ifdef MODULE_NESTED_VT
 		nested_vt_init();
+#endif
+
+#ifdef MODULE_UCODE_UPDATE
+		ucode_update_init();
 #endif
 
 #ifdef MODULE_VMEXIT_INIT
