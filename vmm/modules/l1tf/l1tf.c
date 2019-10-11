@@ -209,7 +209,7 @@ static void init_cpu_info(uint16_t hcpu_id)
 		apic_id = get_init_apic_id();
 	}
 
-	D(VMM_ASSERT(hcpu_id >= MAX_CPU_NUM));
+	D(VMM_ASSERT(hcpu_id < MAX_CPU_NUM));
 
 	g_cpu_info[hcpu_id].smt_id = apic_id & smt_mask;
 	g_cpu_info[hcpu_id].core_id = apic_id & core_mask;
