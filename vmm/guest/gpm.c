@@ -185,6 +185,7 @@ void gpm_set_mapping(IN guest_handle_t guest,
 							hpa_tmp,
 							size_tmp,
 							ept_attr.uint32);
+				size_tmp = 0;
 				break;
 			} else {
 				cnt = mtrr_ptr->size - (hpa_tmp - mtrr_ptr->base);
@@ -203,13 +204,8 @@ void gpm_set_mapping(IN guest_handle_t guest,
 		}
 	}
 
-	/*
-	 * Size will equals to MAX_PHYS_ADDR when create guesting mapping in case guest trying to
-	 * access very high address(MMIO).
-	 * For [0, top_of_memory), already set in above; for [top_of_memory, MAX_PHYS_ADDR), set
-	 * mapping with Uncached type.
-	 */
-	if (size == MAX_PHYS_ADDR) {
+	/* For [top_of_memory, MAX_PHYS_ADDR), set cache type to Uncached. */
+	if (size_tmp > 0) {
 		ept_attr.bits.emt = CACHE_TYPE_UC;
 		mam_insert_range(guest->gpa_to_hpa, gpa_tmp, hpa_tmp, size_tmp, ept_attr.uint32);
 	}
