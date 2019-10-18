@@ -50,7 +50,7 @@ acpi_fadt_data_t acpi_fadt_data;
 /*------------------Forward Declarations for Local Functions---------------*/
 /*-----------------------------C-Code Starts Here--------------------------*/
 #ifdef DEBUG
-static void acpi_print_fadt(uint8_t *fadt)
+static void acpi_print_fadt(uint64_t fadt)
 {
 	vmm_printf(
 		"===============FADT================\n");
@@ -61,7 +61,7 @@ static void acpi_print_fadt(uint8_t *fadt)
 	vmm_printf("pm1a_control_block=0x%x, pm1b_control_block=0x%x, pm1_control_length=0x%x\n",
 		*(uint32_t *)(fadt + FADT_PM1A_CNT_BLK_OFFSET),
 		*(uint32_t *)(fadt + FADT_PM1B_CNT_BLK_OFFSET),
-		*(fadt + FADT_PM1_CNT_LEN_OFFSET));
+		*(uint8_t *)(fadt + FADT_PM1_CNT_LEN_OFFSET));
 	vmm_printf(
 		"===================================\n");
 }
@@ -224,17 +224,17 @@ static void acpi_parse_fadt_states(uint8_t *fadt)
 
 void acpi_pm_init(acpi_fadt_info_t *p_acpi_fadt_info)
 {
-	uint8_t *fadt;
+	acpi_table_header_t *fadt;
 
 	D(VMM_ASSERT_EX(p_acpi_fadt_info, "[ACPI] p_acpi_fadt_info is NULL\n"));
 
-	fadt = (uint8_t *)acpi_locate_table(ACPI_SIG_FADT);
+	fadt = acpi_locate_table(ACPI_SIG_FADT);
 	VMM_ASSERT_EX(fadt, "[ACPI] ERROR: No FADT table found\n");
 
 	#ifdef DEBUG
-	acpi_print_fadt(fadt);
+	acpi_print_fadt((uint64_t)fadt);
 	#endif
-	acpi_parse_fadt_states(fadt);
+	acpi_parse_fadt_states((uint8_t *)fadt);
 
 	p_acpi_fadt_info->port_id[ACPI_PM1_CNTRL_A] = acpi_fadt_data.port_id[ACPI_PM1_CNTRL_A];
 	p_acpi_fadt_info->port_id[ACPI_PM1_CNTRL_B] = acpi_fadt_data.port_id[ACPI_PM1_CNTRL_B];
