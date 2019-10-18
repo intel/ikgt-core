@@ -111,7 +111,7 @@ uint32_t mov_secinfo_from_internal(void *dest, void *handle)
 {
 	uint32_t dev_sec_info_size;
 
-	D(VMM_ASSERT_EX(src && handle, "dest and handle can't be NULL!\n"));
+	D(VMM_ASSERT_EX(handle, "dest and handle can't be NULL!\n"));
 
 	dev_sec_info_size = _mov_info(dest, handle);
 
