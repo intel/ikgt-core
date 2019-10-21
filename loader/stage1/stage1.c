@@ -111,10 +111,6 @@ uint32_t stage1_main(evmm_desc_t *xd)
 		print_panic("%s: Failed init efi services\n", __func__);
 		return -1;
 	}
-
-	if (xd->top_of_mem == 0) {
-		xd->top_of_mem = efi_get_tom();
-	}
 #endif
 
 	if (xd->top_of_mem == 0)
@@ -179,6 +175,9 @@ uint32_t stage1_main(evmm_desc_t *xd)
 #endif
 
 	print_info("Loader: Launch VMM\n");
+
+	/* disable interrupts before jump to vmm */
+	asm volatile("cli;");
 
 	/* launch vmm on BSP */
 	vmm_main(0, evmm_desc);

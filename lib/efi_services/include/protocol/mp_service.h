@@ -45,8 +45,18 @@ typedef efi_status_t (EFI_API *efi_mp_services_startup_all_aps_t) (
 typedef void *efi_mp_services_get_processor_info_t;
 typedef void *efi_mp_services_startup_this_ap_t;
 typedef void *efi_mp_services_switch_bsp_t;
-typedef void *efi_mp_services_enable_disable_ap_t;
-typedef void *efi_mp_services_who_am_i_t;
+
+typedef efi_status_t (EFI_API *efi_mp_services_enable_disable_ap_t) (
+	efi_mp_services_protocol_t *this,
+	uintn_t processor_number,
+	efi_bool_t enable_ap,
+	uint32_t *health_flag
+);
+
+typedef efi_status_t (EFI_API *efi_mp_services_who_am_i_t) (
+	efi_mp_services_protocol_t *this,
+	uintn_t *processor_number
+);
 
 struct _efi_mp_services_protocol {
 	efi_mp_services_get_number_of_processors_t get_number_of_processors;

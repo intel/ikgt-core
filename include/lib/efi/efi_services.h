@@ -13,6 +13,7 @@ boolean_t init_efi_services(uint64_t sys_table);
 void *efi_locate_acpi_table(void);
 uint64_t efi_get_tom(void);
 
+boolean_t efi_enable_disable_aps(boolean_t enable);
 uint64_t efi_launch_aps(uint64_t c_entry);
 
 #endif

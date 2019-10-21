@@ -16,6 +16,10 @@ OBJS =  $(OUTDIR)/stage0.o \
 	$(LIB_DIR)/elf_ld.o \
 	$(LIB_DIR)/elf32_ld.o \
 	$(LIB_DIR)/elf64_ld.o \
+	$(LIB_DIR)/efi_services.o \
+	$(LIB_DIR)/efi_conf_table.o \
+	$(LIB_DIR)/efi_mp.o \
+	$(LIB_DIR)/efi_ap.o \
 	$(LIB_DIR)/util.o \
 	$(LIB_DIR)/string.o
 

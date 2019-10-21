@@ -90,6 +90,11 @@ uint32_t stage0_main(
 
 	print_init(FALSE);
 
+	if (!init_efi_services(tos_startup_info->system_table_addr)) {
+		print_panic("%s: Failed init efi services\n", __func__);
+		goto exit;
+	}
+
 	evmm_desc = boot_params_parse(tos_startup_info, stage0_base);
 
 	if (!evmm_desc) {
@@ -112,12 +117,21 @@ uint32_t stage0_main(
 		goto exit;
 	}
 
+	if (!efi_enable_disable_aps(FALSE)) {
+		print_panic("Failed to disable APs by EFI services!\n");
+		goto exit;
+	}
+
 	ret = call_stage1((uint64_t)stage1_main, evmm_desc);
 	if (ret != 0) {
 		print_panic("Failed in stage1\n");
 		goto exit;
 	}
 
+	if (!efi_enable_disable_aps(TRUE)) {
+		print_panic("Failed to enable APs by EFI services!\n");
+		ret = -1;
+	}
 exit:
 	/* wipe seed data */
 	cleanup_sensetive_data(tos_startup_info);

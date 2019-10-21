@@ -242,29 +242,3 @@ uint64_t get_top_of_memory(multiboot_info_t *mbi)
 
 	return tom;
 }
-
-/* Get top of memory from efi memory map description */
-uint64_t get_efi_tom(uint64_t mmap_addr, uint32_t mmap_size)
-{
-	uint64_t tom = 0;
-	efi_mem_desc_t *mmap = NULL;
-	uint32_t i;
-	uint32_t nr_entry;
-
-	if (mmap_addr == 0) {
-		print_panic("mmap_addr is NULL\n");
-		return 0;
-	}
-
-	mmap = (efi_mem_desc_t *)mmap_addr;
-	nr_entry = mmap_size/sizeof(efi_mem_desc_t);
-
-	for (i = 0; i < nr_entry; i++) {
-		if (tom < (mmap->PhysicalStart + mmap->NumberOfPages * PAGE_4K_SIZE))
-			tom = mmap->PhysicalStart + mmap->NumberOfPages * PAGE_4K_SIZE;
-		mmap ++;
-	}
-	print_trace("top of memory = %llx\n", tom);
-
-	return tom;
-}

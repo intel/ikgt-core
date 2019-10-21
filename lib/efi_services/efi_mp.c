@@ -86,3 +86,40 @@ out:
 
 	return num_enabled_processors;
 }
+
+boolean_t efi_enable_disable_aps(boolean_t enable)
+{
+	uintn_t num_core, num_core_enabled;
+	uintn_t core_id;
+	uintn_t i;
+	efi_guid_t mp_service_guid = EFI_MP_SERVICES_PROTOCOL_GUID;
+	efi_mp_services_protocol_t *mp;
+	efi_status_t ret;
+
+	ret = g_bs->locate_protocol(&mp_service_guid, NULL, (void **)&mp);
+	if (ret != EFI_SUCCESS) {
+		return FALSE;
+	}
+
+	ret = mp->get_number_of_processors(mp, &num_core, &num_core_enabled);
+	if (ret != EFI_SUCCESS) {
+		return FALSE;
+	}
+
+	ret = mp->who_am_i(mp, &core_id);
+	if (ret != EFI_SUCCESS) {
+		return FALSE;
+	}
+
+	for (i = 0; i < num_core; i++) {
+		if (i == core_id)
+			continue;
+
+		ret = mp->enable_disable_ap(mp, i, (efi_bool_t)enable, NULL);
+		if (ret != EFI_SUCCESS) {
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
