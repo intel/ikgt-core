@@ -15,6 +15,9 @@
 #include "device_sec_info.h"
 
 #include "lib/util.h"
+#ifdef LIB_EFI_SERVICES
+#include "lib/efi/efi_services.h"
+#endif
 
 typedef struct {
 	evmm_desc_t xd;
@@ -112,6 +115,7 @@ evmm_desc_t *boot_params_parse(tos_startup_info_t *p_startup_info, uint64_t load
 	evmm_desc->sipi_ap_wkup_addr = (uint64_t)p_startup_info->sipi_ap_wkup_addr;
 #ifdef LIB_EFI_SERVICES
 	evmm_desc->system_table_base = (uint64_t)p_startup_info->system_table_addr;
+	evmm_desc->top_of_mem = efi_get_tom();
 #endif
 
 	evmm_desc->tsc_per_ms = TSC_PER_MS;
