@@ -11,7 +11,8 @@ export OUTDIR = $(BUILD_DIR)stage0
 $(shell mkdir -p $(OUTDIR))
 
 INCLUDES += -I$(PROJS)/loader/stage0 \
-	-I$(PROJS)/loader/stage0/stage0_lib
+	-I$(PROJS)/loader/stage0/stage0_lib \
+	-I$(PROJS)/loader/stage0/entry
 
 CFLAGS += $(INCLUDES)
 

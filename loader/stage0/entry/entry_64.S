@@ -6,13 +6,13 @@
  *
  */
 
-.file   "stage0_entry.s"
-#include "stage0_asm.h"
+.file   "entry_64.s"
+#include "entry_asm.h"
 #include "file_pack_asm.h"
 
 .text
 
-.extern stage0_main
+.extern entry_main
 
 #---------------------------------------------------------------------
 #  void_t start(void)
@@ -74,13 +74,25 @@ file_mapping_hdr_info:
 .code64
 start_x64:
 	/* save the old register */
-	pushfq
+	pushq %rax
+	pushq %rcx
+	pushq %rdx
 	pushq %rbx
+	movq %rsp, %rax
+	add $0x24, %rax
+	pushq %rax
 	pushq %rbp
+	pushq %rsi
+	pushq %rdi
+	pushq %r8
+	pushq %r9
+	pushq %r10
+	pushq %r11
 	pushq %r12
 	pushq %r13
 	pushq %r14
 	pushq %r15
+	pushfq
 
 	/* reset rflags */
 	pushq $0
@@ -95,6 +107,10 @@ start_x64:
 	movq %rax, %rsp
 
 #ifdef STACK_PROTECTOR
+	/* save old fs */
+	leaq old_fs(%rip), %rax
+	movw %fs, (%rax)
+
 	xorw %ax, %ax
 	movw %ax, %fs
 
@@ -119,33 +135,51 @@ start_x64:
 0:
 #endif
 
-	/* prepare parameters when calling into stage0_main() */
-	/* Note: rdi is passed from bootloader */
-	leaq start(%rip), %rsi /* rsi saved load base of stage0_entry.S */
-	movq %rsp, %rdx        /* rdx saved the new rsp */
+	/* prepare parameters when calling into entry_main() */
+	leaq old_rsp(%rip), %rax
+	movq (%rax), %rdi                       /* rdi: init registers */
+	leaq file_mapping_hdr_info(%rip), %rsi  /* rsi: file_mapping_hdr_info */
+	leaq start(%rip), %rdx                  /* rdx: load base of entry_x64.S */
+	leaq stage0_runtime_base(%rip), %rcx    /* rcx: stage0 runtime base */
+	leaq stage0_loadtime_base(%rip), %r8    /*  r8: stage0 loadtime base */
 
-	callq stage0_main
-
-	/* Here give UEFI BIOS a window to handle interrupts */
-	sti
-	nop
-	cli
+	callq entry_main
 
 	/* restore the old rsp */
 	leaq old_rsp(%rip), %rcx
 	movq (%rcx), %rsp
 
+#ifdef STACK_PROTECTOR
+	/* restore old fs */
+	leaq old_fs(%rip), %rbx
+	movw (%rbx), %cx
+	movw %cx, %fs
+#endif
+
+	popfq
 	popq %r15
 	popq %r14
 	popq %r13
 	popq %r12
+	popq %r11
+	popq %r10
+	popq %r9
+	popq %r8
+	popq %rdi
+	popq %rsi
 	popq %rbp
+	add $8, %rsp /* skip rsp */
 	popq %rbx
-	popfq
+	popq %rdx
+	popq %rcx
+	add $8, %rsp /* skip rax */
 
 	retq
 
 old_rsp:
+	.quad 0
+
+old_fs:
 	.quad 0
 
 /* stack for stage0 */
@@ -160,3 +194,9 @@ stack_canary:
 	.fill 0x28, 1, 0  /* GCC hardcodes the stack cookie offset as 0x28 on x86-64 */
 	.quad 0
 #endif
+
+.section .stage0_runtime
+.align 8
+stage0_runtime_base:
+	.fill STAGE0_RT_SIZE, 1, 0
+stage0_loadtime_base:

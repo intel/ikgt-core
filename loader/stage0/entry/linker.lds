@@ -35,13 +35,16 @@ SECTIONS
 
     /* merge .bss into .text */
     *(.bss .bss.* .gnu.linkonce.b.* COMMON)
+
+    /* stage0 runtime section must be put last */
+    *(.stage0_runtime)
   } =0x90909090
 
   /DISCARD/ :
   {
     /*
      * The .eh_frame and .eh_framehdr sections contain the exception frames.
-     * There is no need to link such sections in our stage0. Detail reference:
+     * There is no need to link such sections in our entry. Detail reference:
      * http://refspecs.linux-foundation.org/LSB_4.0.0/LSB-Core-generic/LSB-Core-generic/ehframechpt.html
      */
     *(.eh_frame)

@@ -10,7 +10,6 @@
 #define _EFI_BOOT_PARAM_H_
 
 #include "evmm_desc.h"
-#include "stage0_asm.h"
 #include "device_sec_info.h"
 
 #define TRUSTY_KEYBOX_KEY_SIZE        32
@@ -118,6 +117,6 @@ typedef struct tos_image_header{
 	uint8_t reserved[3];
 }tos_image_header_t;
 
-evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr);
+evmm_desc_t *boot_params_parse(tos_startup_info_t *tos_startup_info, uint64_t loader_addr);
 
 #endif /* _EFI_BOOT_PARAM_H_ */
