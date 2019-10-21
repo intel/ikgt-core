@@ -8,7 +8,7 @@
 
 #include "vmm_asm.h"
 #include "vmm_base.h"
-#include "stage0_asm.h"
+#include "entry_asm.h"
 #include "ldr_dbg.h"
 #include "efi_boot_param.h"
 #include "stage0_lib.h"
@@ -73,9 +73,8 @@ static boolean_t fill_device_sec_info(device_sec_info_v0_t *dev_sec_info, tos_st
 	return TRUE;
 }
 
-evmm_desc_t *boot_params_parse(uint64_t tos_startup_info, uint64_t loader_addr)
+evmm_desc_t *boot_params_parse(tos_startup_info_t *p_startup_info, uint64_t loader_addr)
 {
-	tos_startup_info_t *p_startup_info = (tos_startup_info_t *)tos_startup_info;
 	memory_layout_t *loader_mem;
 	evmm_desc_t *evmm_desc;
 	device_sec_info_v0_t *dev_sec_info;
