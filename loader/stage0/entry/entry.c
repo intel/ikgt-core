@@ -20,25 +20,25 @@
 /*
  * Layout of stage0.bin:
  *
- * -----------------------------------------
- *         ^          |            |       | High
- *         |          |            |       |
- *  all elf sections  | stage0.elf |       |
- *  (.text, .bss ...) |            |   M   |
- * --------------------------------|   E   |
- *         ^          |            |   M   |
- *         |          |            |   O   |
- *   .stage0_runtime  |            |   R   |
- *    section         | entry.bin  |   Y   |
- * -------------------|            |       |
- *         ^          |            |       |
- *    .text section   |            |       | Low
- * -----------------------------------------
+ *             -----------------------------------------
+ *             |        ^          |            |       | High
+ *             |        |          |            |       |
+ *             | all elf sections  | stage0.elf |       |
+ *             | (.text, .bss ...) |            |   M   |
+ * ld_base --> +--------------------------------|   E   |
+ *             |        ^          |            |   M   |
+ *             |        |          |            |   O   |
+ *             |  .stage0_runtime  |            |   R   |
+ *             |   section         | entry.bin  |   Y   |
+ * rt_base --> +-------------------|            |       |
+ *             |        ^          |            |       |
+ *             |   .text section   |            |       | Low
+ * entry_base->+-----------------------------------------
  */
-static void get_stage0_elf(uint64_t ld_base, uint64_t rt_base, uint64_t bin_size, module_file_info_t *file)
+static void get_stage0_elf(uint64_t entry_base, uint64_t ld_base, uint64_t rt_base, uint64_t bin_size, module_file_info_t *file)
 {
 	file->loadtime_addr = ld_base;
-	file->loadtime_size = bin_size - rt_base;
+	file->loadtime_size = entry_base + bin_size - ld_base;
 	file->runtime_addr = rt_base;
 	file->runtime_total_size = ld_base - rt_base;
 }
@@ -61,7 +61,7 @@ uint32_t entry_main(
 
 	print_init(FALSE);
 
-	get_stage0_elf(stage0_ld_base, stage0_rt_base, header->file_size[STAGE0_BIN_INDEX], &stage0_elf_file);
+	get_stage0_elf(image_base, stage0_ld_base, stage0_rt_base, header->file_size[STAGE0_BIN_INDEX], &stage0_elf_file);
 
 	if (!relocate_elf_image(&stage0_elf_file, (uint64_t *)&stage0_main)) {
 		print_panic("relocate stage0 image failed\n");
