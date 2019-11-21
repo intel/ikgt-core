@@ -9,7 +9,7 @@
 #ifndef _ENTRY_ASM_H_
 #define _ENTRY_ASM_H_
 
-#define TOS_HEADER_MAGIC              0x6d6d76656967616dULL
+#define TOS_HEADER_MAGIC              0x6d6d76656967616d
 #define TOS_HEADER_VERSION            1
 #define TOS_IMAGE_VERSION             1
 #define TOS_STARTUP_VERSION           3
