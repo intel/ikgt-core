@@ -258,7 +258,7 @@ static void register_mitigation_event(void)
 			}
 		}
 	} else {
-		print_warn("IA32_ARCH_CAPABILITIES is not supported!");
+		print_warn("IA32_ARCH_CAPABILITIES is not supported!\n");
 	}
 }
 

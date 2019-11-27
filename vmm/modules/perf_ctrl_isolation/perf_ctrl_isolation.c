@@ -65,12 +65,12 @@ static void perf_ctrl_isolation_gcpu_init(guest_cpu_handle_t gcpu, UNUSED void *
 void msr_perf_ctrl_isolation_init(void)
 {
 	if (!(get_entryctl_cap(NULL) & ENTRY_LOAD_IA32_PERF_CTRL)) {
-		print_warn("ENTRY_LOAD_IA32_PERF_CTRL not supported! IA32_PERF_CTRL MSR will not isolated!");
+		print_warn("ENTRY_LOAD_IA32_PERF_CTRL not supported! IA32_PERF_CTRL MSR will not isolated!\n");
 		return;
 	}
 
 	if (!(get_exitctl_cap(NULL) & EXIT_LOAD_IA32_PERF_CTRL)) {
-		print_warn("EXIT_LOAD_IA32_PERF_CTRL not supported! IA32_PERF_CTRL MSR will not isolated!");
+		print_warn("EXIT_LOAD_IA32_PERF_CTRL not supported! IA32_PERF_CTRL MSR will not isolated!\n");
 		return;
 	}
 
