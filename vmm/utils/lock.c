@@ -13,7 +13,7 @@
 #include "lib/print.h"
 
 #define WRITELOCK_MASK  0x80000000
-#define DEADLOCK_CYCLE 1200000
+#define DEADLOCK_CYCLE 12000000
 
 #if LOG_LEVEL >= LEVEL_PANIC
 static boolean_t printed = FALSE;
