@@ -43,25 +43,28 @@ serial_device_t g_ser_dev = {
 	.base = -1ULL
 };
 
-static inline uint8_t serial_mmio_get(uint64_t base_addr, uint32_t reg)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+static uint8_t serial_mmio_get(uint64_t base_addr, uint32_t reg)
 {
 	return *(volatile uint8_t *)(base_addr + (uint64_t)reg * 4);
 }
 
-static inline void serial_mmio_set(uint64_t base_addr, uint32_t reg, uint8_t val)
+static void serial_mmio_set(uint64_t base_addr, uint32_t reg, uint8_t val)
 {
 	*(volatile uint8_t *)(base_addr + (uint64_t)reg * 4) = val;
 }
 
-static inline uint8_t serial_io_get(uint64_t base_addr, uint32_t reg)
+static uint8_t serial_io_get(uint64_t base_addr, uint32_t reg)
 {
 	return asm_in8((uint16_t)base_addr + (uint16_t)reg);
 }
 
-static inline void serial_io_set(uint64_t base_addr, uint32_t reg, uint8_t val)
+static void serial_io_set(uint64_t base_addr, uint32_t reg, uint8_t val)
 {
 	asm_out8((uint16_t)base_addr + (uint16_t)reg, val);
 }
+#pragma GCC diagnostic pop
 
 static void serial_8250_init(uint64_t serial_base)
 {
