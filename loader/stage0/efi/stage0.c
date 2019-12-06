@@ -41,6 +41,9 @@ static uint32_t call_stage1(uint64_t entry, evmm_desc_t *evmm_desc)
 	evmm_desc->guest0_gcpu0_state.rflags = asm_get_rflags();
 
 	gp_reg = &evmm_desc->guest0_gcpu0_state.gp_reg[0];
+#ifdef MODULE_TEMPLATE_TEE
+	evmm_desc->x64_cr3 = asm_get_cr3();
+#endif
 
 	/* return value: rax */
 	gp_reg[REG_RAX] = 0;

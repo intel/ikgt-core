@@ -254,7 +254,7 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 #endif
 
 	trusty_cfg.before_launching_tee = before_launching_tee;
-	trusty_cfg.tee_bsp_status = MODE_32BIT;
+	trusty_cfg.tee_bsp_status = MODE_64BIT;
 	trusty_cfg.tee_ap_status = HLT;
 
 	if (trusty_cfg.launch_tee_first) {
@@ -271,6 +271,12 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 
 		/* Set RIP RDI and RSP */
 		g_init_rip = relocate_trusty_image(&trusty_desc->tee_file);
+		/*
+		 * Add offset 0x400 from entry point of LK binary, this offset is
+		 * 64-bit entry of LK. More details please refer to start.S in
+		 * trusty/platform/sand/start.S.
+		 */
+		g_init_rip += 0x400;
 		g_init_rdi = setup_startup_info(trusty_desc->tee_file.runtime_addr,
 			trusty_desc->tee_file.runtime_total_size, offset);
 		g_init_rsp = trusty_desc->tee_file.runtime_addr + trusty_desc->tee_file.runtime_total_size;
