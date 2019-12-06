@@ -43,6 +43,7 @@ serial_device_t g_ser_dev = {
 	.base = -1ULL
 };
 
+#ifdef SERIAL_MMIO
 static inline uint8_t serial_mmio_get(uint64_t base_addr, uint32_t reg)
 {
 	return *(volatile uint8_t *)(base_addr + (uint64_t)reg * 4);
@@ -52,6 +53,7 @@ static inline void serial_mmio_set(uint64_t base_addr, uint32_t reg, uint8_t val
 {
 	*(volatile uint8_t *)(base_addr + (uint64_t)reg * 4) = val;
 }
+#endif
 
 static inline uint8_t serial_io_get(uint64_t base_addr, uint32_t reg)
 {
