@@ -54,7 +54,7 @@ $(TARGET): $(COBJS)
 
 pack:$(TARGET)
 ifneq (, $(findstring -DPACK_LK, $(EVMM_CMPL_FLAGS)))
-	if [ $(LKBIN_DIR) ]; then cp $(LKBIN_DIR)lk.elf $(BUILD_DIR); fi
+	if [ $(LKBIN_DIR) ]; then cp $(LKBIN_DIR)lk.bin $(BUILD_DIR); fi
 else
 ifneq (, $(findstring -DPACK_OPTEE, $(EVMM_CMPL_FLAGS)))
 	if [ $(OPTEEBIN_DIR) ]; then cp $(OPTEEBIN_DIR)tee-pager.bin $(BUILD_DIR); fi

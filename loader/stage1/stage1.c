@@ -139,8 +139,8 @@ uint32_t stage1_main(evmm_desc_t *xd)
 #endif
 
 #ifdef MODULE_TEMPLATE_TEE
-	if (evmm_desc->x64_cr3 == 0)
-		evmm_desc->x64_cr3 = asm_get_cr3();
+	if (xd->x64_cr3 == 0)
+		xd->x64_cr3 = asm_get_cr3();
 #endif
 
 	/* Load evmm image */

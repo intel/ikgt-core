@@ -33,7 +33,7 @@ static char* file_list[] = {
 	"stage1.bin",
 	"evmm.elf",
 #if (defined (MODULE_TRUSTY_GUEST) || defined (MODULE_TRUSTY_TEE)) && defined (PACK_LK)
-	"lk.elf",
+	"lk.bin",
 #endif
 
 #if  defined (MODULE_OPTEE_GUEST) && defined (PACK_OPTEE)
