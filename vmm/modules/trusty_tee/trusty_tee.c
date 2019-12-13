@@ -45,74 +45,13 @@ enum {
 static uint64_t g_init_rdi, g_init_rsp, g_init_rip;
 static void *dev_sec_info;
 
-/* Reserved size for dev_sec_info/trusty_startup and Stack(1 page) */
-/*
- * Trusty load size formula:
- * MEM assigned to Trusty is 16MB size in total
- * Stack size must be reserved
- * Trusty Tee runtime memory will be calculated by Trusty itself
- * The rest region can be use to load Trusty image
- * ------------------------
- *     ^     |          |
- *   Stack   |          |
- * ----------|          |
- *     ^     |          |
- *     |     |          |
- *   HEAP    |          |
- *     |     |    M     |
- *  ---------|          |
- *     ^     |    E     |
- *     |     |          |
- *   Trusty  |    M     |
- *   load    |          |
- *   size    |          |
- *     |     |          |
- *  ---------|          |
- *     ^     |          |
- *  Boot info|          |
- * ------------------------
- */
-
 static uint64_t relocate_trusty_image(module_file_info_t *tee_file)
 {
-	boolean_t ret = FALSE;
-	uint64_t entry_point;
+	memcpy((void *)tee_file->runtime_addr,
+		(void *)tee_file->loadtime_addr,
+		tee_file->loadtime_size);
 
-	/* lk region: first page is trusty info, last page is stack. */
-	tee_file->runtime_addr += PAGE_4K_SIZE;
-	tee_file->runtime_total_size -= PAGE_4K_SIZE;
-
-	ret = relocate_elf_image(tee_file, &entry_point);
-	if (!ret) {
-		print_trace("Failed to load ELF file. Try multiboot now!\n");
-		ret = relocate_multiboot_image((uint64_t *)tee_file->loadtime_addr,
-				tee_file->loadtime_size, &entry_point);
-	}
-	VMM_ASSERT_EX(ret, "Failed to relocate Trusty image!\n");
-
-	/* restore lk runtime address and total size */
-	tee_file->runtime_addr -= PAGE_4K_SIZE;
-	tee_file->runtime_total_size += PAGE_4K_SIZE;
-
-	return entry_point;
-}
-
-/* Set up trusty startup info */
-static uint64_t setup_startup_info(uint64_t runtime_addr, uint64_t runtime_total_size)
-{
-	trusty_startup_info_t *trusty_para;
-
-	/* Setup trusty startup info */
-	trusty_para = (trusty_startup_info_t *)ALIGN_F(runtime_addr, 8);
-	VMM_ASSERT_EX(((uint64_t)trusty_para + sizeof(trusty_startup_info_t)) <
-			(runtime_addr + PAGE_4K_SIZE),
-			"size of trusty_startup_info exceeds the reserved 4K size!\n");
-	trusty_para->size_of_this_struct  = sizeof(trusty_startup_info_t);
-	trusty_para->mem_size             = runtime_total_size;
-	trusty_para->calibrate_tsc_per_ms = tsc_per_ms;
-	trusty_para->trusty_mem_base      = runtime_addr;
-
-	return (uint64_t)trusty_para;
+	return tee_file->runtime_addr;
 }
 
 static void before_launching_tee(guest_cpu_handle_t gcpu_trusty)
@@ -178,6 +117,7 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	uint8_t smc_param_to_ree[] = {REG_RDI, REG_RSI, REG_RDX, REG_RBX};
 	uint64_t runtime_addr;
 	uint64_t runtime_size;
+	uint64_t barrier_size;
 
 	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
 
@@ -197,7 +137,7 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 
 	trusty_cfg.launch_tee_first = TRUE;
 	trusty_cfg.before_launching_tee = before_launching_tee;
-	trusty_cfg.tee_bsp_status = MODE_32BIT;
+	trusty_cfg.tee_bsp_status = MODE_64BIT;
 	trusty_cfg.tee_ap_status = HLT;
 
 	/* Check rowhammer mitigation for TEE */
@@ -206,14 +146,22 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 
 	runtime_addr = trusty_desc->tee_file.runtime_addr;
 	runtime_size = trusty_desc->tee_file.runtime_total_size;
-	trusty_cfg.tee_runtime_addr = runtime_addr;
-	trusty_cfg.tee_runtime_size = runtime_size;
+	barrier_size = trusty_desc->tee_file.barrier_size;
+
+	/*
+	 * When we create EPT for Trusty guest, memory region for Trusty guest
+	 * should contains Trusty memory and 2 barriers, since memory resides
+	 * in barrier region is used for Trusty guest row hammer mitigation,
+	 * normal world should never touch barriers.
+	 */
+	trusty_cfg.tee_runtime_addr = runtime_addr - barrier_size;
+	trusty_cfg.tee_runtime_size = runtime_size + 2 * barrier_size;
 
 	dev_sec_info = mov_secinfo_to_internal(trusty_desc->dev_sec_info);
 
 	/* Set RIP RDI and RSP */
 	g_init_rip = relocate_trusty_image(&trusty_desc->tee_file);
-	g_init_rdi = setup_startup_info(runtime_addr, runtime_size);
+	g_init_rdi = runtime_size;
 	g_init_rsp = runtime_addr + runtime_size;
 
 	trusty_guest = create_tee(&trusty_cfg);

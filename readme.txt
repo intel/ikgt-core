@@ -159,7 +159,7 @@ Config files
 			- DMA_FROM_CSE
 				Description: Optional, allow CSE device access multi guests' memory by DMA. This macro should take the value of PCI device id(PCI_DEV(Bus:Device:Func));
 		- PACK_LK
-			Description: pack lk.elf into evmm_pkg.bin
+			Description: pack lk.bin into evmm_pkg.bin
 			- DERIVE_KEY
 				Description: Derive key
 				Dependency: MODULE_CRYPTO
