@@ -39,9 +39,11 @@
 enum {
 	TRUSTY_VMCALL_SMC       = 0x74727500,
 	TRUSTY_VMCALL_DUMP_INIT = 0x74727507,
+	TRUSTY_VMCALL_SECINFO   = 0x74727509,
 };
 
 static uint64_t g_init_rdi, g_init_rsp, g_init_rip;
+static void *dev_sec_info;
 
 /* Reserved size for dev_sec_info/trusty_startup and Stack(1 page) */
 /*
@@ -96,15 +98,15 @@ static uint64_t relocate_trusty_image(module_file_info_t *tee_file)
 }
 
 /* Set up trusty startup info */
-static uint64_t setup_startup_info(uint64_t runtime_addr, uint64_t runtime_total_size, uint32_t offset)
+static uint64_t setup_startup_info(uint64_t runtime_addr, uint64_t runtime_total_size)
 {
 	trusty_startup_info_t *trusty_para;
 
 	/* Setup trusty startup info */
-	trusty_para = (trusty_startup_info_t *)ALIGN_F(runtime_addr + offset, 8);
+	trusty_para = (trusty_startup_info_t *)ALIGN_F(runtime_addr, 8);
 	VMM_ASSERT_EX(((uint64_t)trusty_para + sizeof(trusty_startup_info_t)) <
 			(runtime_addr + PAGE_4K_SIZE),
-			"size of (dev_sec_info+trusty_startup_info) exceeds the reserved 4K size!\n");
+			"size of trusty_startup_info exceeds the reserved 4K size!\n");
 	trusty_para->size_of_this_struct  = sizeof(trusty_startup_info_t);
 	trusty_para->mem_size             = runtime_total_size;
 	trusty_para->calibrate_tsc_per_ms = tsc_per_ms;
@@ -143,14 +145,39 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 	gcpu_set_gp_reg(gcpu, REG_RAX, 0);
 }
 
+static void trusty_vmcall_get_secinfo(guest_cpu_handle_t gcpu)
+{
+	static boolean_t fuse = FALSE;
+	boolean_t ret;
+	uint64_t gva;
+
+	D(VMM_ASSERT(gcpu));
+	D(VMM_ASSERT(GUEST_REE != gcpu->guest->id));
+
+	if (!fuse && (GUEST_REE != gcpu->guest->id)) {
+		gva = gcpu_get_gp_reg(gcpu, REG_RDI);
+		D(VMM_ASSERT(gva));
+
+		ret = mov_secinfo_to_gva(gcpu, gva, (uint64_t)dev_sec_info);
+		dev_sec_info = NULL;
+
+		if (!ret) {
+			print_panic("Failed to move secinfo\n");
+		}
+
+		fuse = TRUE;
+	}
+}
+
 void init_trusty_tee(evmm_desc_t *evmm_desc)
 {
-	uint32_t offset;
 	tee_config_t trusty_cfg;
 	tee_desc_t *trusty_desc;
 	guest_handle_t trusty_guest;
 	uint8_t smc_param_to_tee[] = {REG_RDI, REG_RSI, REG_RDX, REG_RBX};
 	uint8_t smc_param_to_ree[] = {REG_RDI, REG_RSI, REG_RDX, REG_RBX};
+	uint64_t runtime_addr;
+	uint64_t runtime_size;
 
 	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
 
@@ -177,18 +204,17 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	if (trusty_desc->tee_file.barrier_size == 0)
 		print_warn("No rawhammer mitigation for TEE\n");
 
-	trusty_cfg.tee_runtime_addr = trusty_desc->tee_file.runtime_addr
-		- trusty_desc->tee_file.barrier_size;
-	trusty_cfg.tee_runtime_size = trusty_desc->tee_file.runtime_total_size
-		+ 2 * trusty_desc->tee_file.barrier_size;
+	runtime_addr = trusty_desc->tee_file.runtime_addr;
+	runtime_size = trusty_desc->tee_file.runtime_total_size;
+	trusty_cfg.tee_runtime_addr = runtime_addr;
+	trusty_cfg.tee_runtime_size = runtime_size;
 
-	offset = mov_secinfo((void *)trusty_desc->tee_file.runtime_addr, trusty_desc->dev_sec_info);
+	dev_sec_info = mov_secinfo_to_internal(trusty_desc->dev_sec_info);
 
 	/* Set RIP RDI and RSP */
 	g_init_rip = relocate_trusty_image(&trusty_desc->tee_file);
-	g_init_rdi = setup_startup_info(trusty_desc->tee_file.runtime_addr,
-			trusty_desc->tee_file.runtime_total_size, offset);
-	g_init_rsp = trusty_desc->tee_file.runtime_addr + trusty_desc->tee_file.runtime_total_size;
+	g_init_rdi = setup_startup_info(runtime_addr, runtime_size);
+	g_init_rsp = runtime_addr + runtime_size;
 
 	trusty_guest = create_tee(&trusty_cfg);
 	VMM_ASSERT_EX(trusty_guest, "Failed to create trusty guest!\n");
@@ -200,6 +226,10 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 #endif
 
 	vmcall_register(GUEST_REE, TRUSTY_VMCALL_DUMP_INIT, trusty_vmcall_dump_init);
+
+	vmcall_register(trusty_guest->id,
+            TRUSTY_VMCALL_SECINFO,
+            trusty_vmcall_get_secinfo);
 
 	return;
 }

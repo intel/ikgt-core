@@ -12,6 +12,7 @@
 #include "vmm_objects.h"
 #include "dbg.h"
 #include "lib/util.h"
+#include "gcpu.h"
 #include "heap.h"
 #include "device_sec_info.h"
 #include "modules/security_info.h"
@@ -122,4 +123,31 @@ uint32_t mov_secinfo_from_internal(void *dest, void *handle)
 #endif
 
 	return dev_sec_info_size;
+}
+
+boolean_t mov_secinfo_to_gva(guest_cpu_handle_t gcpu,
+		uint64_t dst_gva,
+		uint64_t src_hva)
+{
+	uint32_t size;
+	boolean_t ret;
+	pf_info_t pfinfo;
+
+	D(VMM_ASSERT_EX(src_hva, "source address can't be NULL!\n"));
+
+	size = *(uint32_t *)src_hva;
+
+#ifdef DERIVE_KEY
+	if (ret) {
+		key_derive((device_sec_info_v0_t *)src_hva);
+	}
+#endif
+
+	ret = gcpu_copy_to_gva(gcpu, dst_gva, src_hva, size, &pfinfo);
+
+	memset((void *)src_hva, 0, size);
+	mem_free((void *)src_hva);
+	barrier();
+
+	return ret;
 }
