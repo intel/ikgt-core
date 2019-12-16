@@ -36,9 +36,16 @@
 #include "modules/deadloop.h"
 #endif
 
+#ifdef MODULE_VMX_TIMER
+#include "modules/vmx_timer.h"
+#endif
+
 enum {
 	TRUSTY_VMCALL_SMC       = 0x74727500,
 	TRUSTY_VMCALL_DUMP_INIT = 0x74727507,
+#ifdef MODULE_VMX_TIMER
+	TRUSTY_VMCALL_VMX_TIMER = 0x74727508,
+#endif
 	TRUSTY_VMCALL_SECINFO   = 0x74727509,
 };
 
@@ -107,6 +114,26 @@ static void trusty_vmcall_get_secinfo(guest_cpu_handle_t gcpu)
 		fuse = TRUE;
 	}
 }
+
+#ifdef MODULE_VMX_TIMER
+static void trusty_vmcall_vmx_timer(guest_cpu_handle_t gcpu)
+{
+	uint64_t timer_interval;
+	uint64_t tsc;
+
+	D(VMM_ASSERT(gcpu));
+
+	/* RDI stored the timer interval to be set */
+	timer_interval = gcpu_get_gp_reg(gcpu, REG_RDI);
+	tsc = vmx_timer_ms_to_tick(timer_interval);
+
+	if (0 == timer_interval) {
+		vmx_timer_set_mode(gcpu, TIMER_MODE_STOPPED, 0);
+	} else {
+		vmx_timer_set_mode(gcpu, TIMER_MODE_ONESHOT, tsc);
+	}
+}
+#endif
 
 void init_trusty_tee(evmm_desc_t *evmm_desc)
 {
@@ -178,6 +205,12 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	vmcall_register(trusty_guest->id,
             TRUSTY_VMCALL_SECINFO,
             trusty_vmcall_get_secinfo);
+#ifdef MODULE_VMX_TIMER
+	vmcall_register(trusty_guest->id,
+            TRUSTY_VMCALL_VMX_TIMER,
+            trusty_vmcall_vmx_timer);
+#endif
+
 
 	return;
 }

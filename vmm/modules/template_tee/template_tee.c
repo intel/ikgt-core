@@ -29,6 +29,10 @@
 #include "modules/ept_update.h"
 #endif
 
+#ifdef MODULE_VMX_TIMER
+#include "modules/vmx_timer.h"
+#endif
+
 enum {
 	TEE_INIT = 0,
 	TEE_LAUNCHED
@@ -141,6 +145,15 @@ static void tee_schedule_init_gcpu(UNUSED guest_cpu_handle_t gcpu, UNUSED void *
 
 	return;
 }
+
+#ifdef MODULE_VMX_TIMER
+static void vmx_timer_event_handler(guest_cpu_handle_t gcpu, UNUSED void *pv)
+{
+	D(VMM_ASSERT(gcpu));
+
+	gcpu_set_pending_intr(gcpu, TRUSTY_TIMER_INTR);
+}
+#endif
 
 static void smc_copy_gp_regs(guest_cpu_handle_t gcpu, guest_cpu_handle_t next_gcpu, tee_config_t *tee_cfg)
 {
@@ -262,6 +275,17 @@ static void try_launch_other_tee(guest_cpu_handle_t gcpu, tee_config_ex_t *tee_e
 	}
 }
 
+#ifdef MODULE_VMX_TIMER
+static void copy_vmx_timer(guest_cpu_handle_t gcpu)
+{
+	guest_cpu_handle_t next_gcpu;
+
+	next_gcpu = schedule_next_gcpu();
+	vmcs_read(gcpu->vmcs, VMCS_PREEMPTION_TIMER);
+	vmx_timer_copy(gcpu, next_gcpu);
+}
+#endif
+
 static void smc_handler(guest_cpu_handle_t gcpu)
 {
 	uint32_t vmcall_id;
@@ -288,6 +312,10 @@ static void smc_handler(guest_cpu_handle_t gcpu)
 	vmcs_read(gcpu->vmcs, VMCS_EXIT_INSTR_LEN); // update cache
 
 	tee_status = tee_ex->tee_status[host_cpu];
+
+#ifdef MODULE_VMX_TIMER
+	copy_vmx_timer(gcpu);
+#endif
 
 	if (tee_status == TEE_INIT) {
 		if (gcpu->guest->id == GUEST_REE) {
@@ -490,6 +518,10 @@ void template_tee_init(uint64_t x64_cr3)
 
 	event_register(EVENT_GCPU_INIT, tee_set_gcpu_state);
 	event_register(EVENT_SCHEDULE_INITIAL_GCPU, tee_schedule_init_gcpu);
+
+#ifdef MODULE_VMX_TIMER
+	event_register(EVENT_VMX_TIMER, vmx_timer_event_handler);
+#endif
 
 #ifdef MODULE_MSR_ISOLATION
 	/* Isolate below MSRs between guests and set initial value to 0 */
