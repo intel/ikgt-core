@@ -14,7 +14,7 @@
 
 #define MINIMAL_EVMM_RT_SIZE (4 MEGABYTE)
 #define MINIMAL_TEE_RT_SIZE  (16 MEGABYTE)
-#define DEFAULT_BARRIER_SIZE (1 MEGABYTE)
+#define DEFAULT_BARRIER_SIZE (2 MEGABYTE)
 /*--------------------------------------------------------------------------
  *
  * gcpu_state_t: Initial Guest CPU State
