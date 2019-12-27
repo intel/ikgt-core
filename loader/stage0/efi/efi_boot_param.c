@@ -99,6 +99,12 @@ evmm_desc_t *boot_params_parse(tos_startup_info_t *p_startup_info, uint64_t load
 	memset(evmm_desc, 0, sizeof(evmm_desc_t));
 
 	/* get evmm/stage1 runtime_addr/total_size */
+	if (((uint64_t)p_startup_info->vmm_mem_base & PAGE_2MB_MASK) ||
+		((uint64_t)p_startup_info->vmm_mem_size & PAGE_2MB_MASK)) {
+		print_panic("vmm mem address or size is not 2M align\n");
+		return NULL;
+	}
+
 	barrier_size = calulate_barrier_size(p_startup_info->vmm_mem_size, MINIMAL_EVMM_RT_SIZE);
 	if (barrier_size == (uint64_t)-1) {
 		print_panic("vmm mem size is smaller than %u\n", MINIMAL_EVMM_RT_SIZE);
@@ -134,6 +140,12 @@ evmm_desc_t *boot_params_parse(tos_startup_info_t *p_startup_info, uint64_t load
 #endif
 
 #ifdef MODULE_TRUSTY_TEE
+	if (((uint64_t)p_startup_info->trusty_mem_base & PAGE_2MB_MASK) ||
+		((uint64_t)p_startup_info->trusty_mem_size & PAGE_2MB_MASK)) {
+		print_panic("TEE memory address or size is not 2M align\n");
+		return NULL;
+	}
+
 	barrier_size = calulate_barrier_size(p_startup_info->trusty_mem_size, MINIMAL_TEE_RT_SIZE);
 	if (barrier_size == (uint64_t)-1) {
 		print_panic("TEE mem size is smaller than %u\n", MINIMAL_TEE_RT_SIZE);
