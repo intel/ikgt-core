@@ -24,6 +24,10 @@
 #include "modules/template_tee.h"
 #include "modules/security_info.h"
 
+#ifndef PACK_LK
+#error "PACK_LK is not defined"
+#endif
+
 #ifdef MODULE_VTD
 #include "modules/vtd.h"
 #endif
@@ -38,8 +42,6 @@ enum {
 };
 
 static uint64_t g_init_rdi, g_init_rsp, g_init_rip;
-static guest_handle_t trusty_guest;
-static void *dev_sec_info;
 
 /* Reserved size for dev_sec_info/trusty_startup and Stack(1 page) */
 /*
@@ -118,88 +120,6 @@ static void before_launching_tee(guest_cpu_handle_t gcpu_trusty)
 	vmcs_write(gcpu_trusty->vmcs, VMCS_GUEST_RIP, g_init_rip);
 }
 
-static uint64_t parse_trusty_boot_param(guest_cpu_handle_t gcpu, uint64_t *runtime_addr,
-					uint64_t *runtime_total_size, uint64_t *barrier_size)
-{
-	uint64_t rdi;
-	trusty_boot_params_t *boot_params;
-
-	/* avoid warning -Wbad-function-cast */
-	rdi = gcpu_get_gp_reg(gcpu, REG_RDI);
-	if (rdi == 0) {
-		print_warn("Invalid trusty boot params\n");
-		return 0;
-	}
-
-	/* trusty_boot_params is passed from OSloader */
-	boot_params = (trusty_boot_params_t *)rdi;
-	if (boot_params->version == 0) {
-		/* version 0 interface */
-		print_warn("No rawhammer mitigation for TEE\n");
-		if (boot_params->size_of_this_struct != sizeof(trusty_boot_params_t) - 2 * sizeof(uint32_t)) {
-			print_panic("struct size of version 0 doesn't match\n");
-			return 0;
-		}
-
-		*runtime_addr = boot_params->runtime_addr;
-		/* osloader alloc 16M memory for trusty */
-		*runtime_total_size = MINIMAL_TEE_RT_SIZE;
-		*barrier_size = 0;
-
-		return boot_params->entry_point;
-	} else if (boot_params->version == 1) {
-		/* Version 1 interface */
-		if (boot_params->size_of_this_struct != sizeof(trusty_boot_params_t)) {
-			print_warn("struct size of version 1 doesn't match\n");
-			return 0;
-		}
-
-		if (boot_params->runtime_size < MINIMAL_TEE_RT_SIZE) {
-			print_warn("TEE size is smaller than 0x%x\n", MINIMAL_TEE_RT_SIZE);
-			return 0;
-		}
-
-		if (boot_params->barrier_size == 0) {
-			print_warn("barrier size is 0. No rawhammer mitigation for TEE\n");
-		}
-
-		*runtime_addr = boot_params->runtime_addr;
-		*runtime_total_size = boot_params->runtime_size;
-		*barrier_size = boot_params->barrier_size;
-
-		return boot_params->entry_point;
-	} else {
-		print_panic("Interface version %u between osload and vmm is not supported\n",
-				boot_params->version);
-		return 0;
-	}
-}
-
-static void first_smc_to_tee(guest_cpu_handle_t gcpu_ree)
-{
-	uint64_t runtime_addr, runtime_total_size, barrier_size;
-	uint32_t offset;
-
-	/* 1. Get trusty info from osloader then set trusty startup&sec info.
-	 * 2. Set RIP RDI and RSP
-	 */
-	g_init_rip = parse_trusty_boot_param(gcpu_ree, &runtime_addr, &runtime_total_size, &barrier_size);
-	/* check and set the return value to osloader. 0:success, 1:fail */
-	if (g_init_rip == 0) {
-		gcpu_set_gp_reg(gcpu_ree, REG_RAX, 1);
-		return;
-	}
-	gcpu_set_gp_reg(gcpu_ree, REG_RAX, 0);
-
-	offset = mov_secinfo_from_internal((void *)runtime_addr, dev_sec_info);
-	dev_sec_info = NULL;
-
-	g_init_rdi = setup_startup_info(runtime_addr, runtime_total_size, offset);
-	g_init_rsp = runtime_addr + runtime_total_size;
-
-	launch_tee(trusty_guest, runtime_addr - barrier_size, runtime_total_size + 2 * barrier_size);
-}
-
 static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 {
 #ifdef MODULE_DEADLOOP
@@ -228,6 +148,7 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	uint32_t offset;
 	tee_config_t trusty_cfg;
 	tee_desc_t *trusty_desc;
+	guest_handle_t trusty_guest;
 	uint8_t smc_param_to_tee[] = {REG_RDI, REG_RSI, REG_RDX, REG_RBX};
 	uint8_t smc_param_to_ree[] = {REG_RDI, REG_RSI, REG_RDX, REG_RBX};
 
@@ -247,39 +168,27 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	fill_smc_param_to_tee(trusty_cfg, smc_param_to_tee);
 	fill_smc_param_from_tee(trusty_cfg, smc_param_to_ree);
 
-#ifdef PACK_LK
 	trusty_cfg.launch_tee_first = TRUE;
-#else
-	trusty_cfg.launch_tee_first = FALSE;
-#endif
-
 	trusty_cfg.before_launching_tee = before_launching_tee;
 	trusty_cfg.tee_bsp_status = MODE_32BIT;
 	trusty_cfg.tee_ap_status = HLT;
 
-	if (trusty_cfg.launch_tee_first) {
-		/* Check rowhammer mitigation for TEE */
-		if (trusty_desc->tee_file.barrier_size == 0)
-			print_warn("No rawhammer mitigation for TEE\n");
+	/* Check rowhammer mitigation for TEE */
+	if (trusty_desc->tee_file.barrier_size == 0)
+		print_warn("No rawhammer mitigation for TEE\n");
 
-		trusty_cfg.tee_runtime_addr = trusty_desc->tee_file.runtime_addr
-					- trusty_desc->tee_file.barrier_size;
-		trusty_cfg.tee_runtime_size = trusty_desc->tee_file.runtime_total_size
-					+ 2 * trusty_desc->tee_file.barrier_size;
+	trusty_cfg.tee_runtime_addr = trusty_desc->tee_file.runtime_addr
+		- trusty_desc->tee_file.barrier_size;
+	trusty_cfg.tee_runtime_size = trusty_desc->tee_file.runtime_total_size
+		+ 2 * trusty_desc->tee_file.barrier_size;
 
-		offset = mov_secinfo((void *)trusty_desc->tee_file.runtime_addr, trusty_desc->dev_sec_info);
+	offset = mov_secinfo((void *)trusty_desc->tee_file.runtime_addr, trusty_desc->dev_sec_info);
 
-		/* Set RIP RDI and RSP */
-		g_init_rip = relocate_trusty_image(&trusty_desc->tee_file);
-		g_init_rdi = setup_startup_info(trusty_desc->tee_file.runtime_addr,
+	/* Set RIP RDI and RSP */
+	g_init_rip = relocate_trusty_image(&trusty_desc->tee_file);
+	g_init_rdi = setup_startup_info(trusty_desc->tee_file.runtime_addr,
 			trusty_desc->tee_file.runtime_total_size, offset);
-		g_init_rsp = trusty_desc->tee_file.runtime_addr + trusty_desc->tee_file.runtime_total_size;
-	} else {
-		trusty_cfg.first_smc_to_tee = first_smc_to_tee;
-
-		/* Move dev_sec_info from loader to VMM's memory which will be allocated in below function */
-		dev_sec_info = mov_secinfo_to_internal(trusty_desc->dev_sec_info);
-	}
+	g_init_rsp = trusty_desc->tee_file.runtime_addr + trusty_desc->tee_file.runtime_total_size;
 
 	trusty_guest = create_tee(&trusty_cfg);
 	VMM_ASSERT_EX(trusty_guest, "Failed to create trusty guest!\n");
