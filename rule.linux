@@ -17,11 +17,11 @@ $(TARGET): $(COBJS) $(AOBJS)
 
 $(COBJS): $(CSOURCES)
 	@echo "CC $@"
-	$(CC) $(CFLAGS) -o $@ $(filter $(*F).c, $(CSOURCES))
+	$(CC) $(CFLAGS) -o $@ $(notdir $(patsubst %.o, %.c, $@))
 
 $(AOBJS): $(ASOURCES)
 	@echo "AS $@"
-	$(AS) $(AFLAGS) -o $@ $(filter $(*F).S, $(ASOURCES))
+	$(AS) $(AFLAGS) -o $@ $(notdir $(patsubst %.o, %.S, $@))
 
 $(SUBDIRS):
 	$(MAKE) -C $@

@@ -47,7 +47,7 @@ all: $(COBJS) $(TARGET)
 # 2. pack stage0.bin, stage1.bin, evmm.bin into evmm_pkg.bin
 #
 $(COBJS): $(CSOURCES)
-	$(CC) -c $(CFLAGS) -o $@ $(filter $(*F).c, $(CSOURCES))
+	$(CC) -c $(CFLAGS) -o $@ $(notdir $(patsubst %.o, %.c, $@))
 
 $(TARGET): $(COBJS)
 	$(CC) $(CFLAGS) -o $(BUILD_DIR)$@ $(wildcard $(OUTDIR)*.o)
