@@ -40,6 +40,8 @@ SECTIONS
     *(.stage0_runtime)
   } =0x90909090
 
+  . = .;
+
   /DISCARD/ :
   {
     /*
