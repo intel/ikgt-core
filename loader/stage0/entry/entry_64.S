@@ -195,7 +195,7 @@ stack_canary:
 	.quad 0
 #endif
 
-.section .stage0_runtime
+.section .stage0_runtime,"ax"
 .align 8
 stage0_runtime_base:
 	.fill STAGE0_RT_SIZE, 1, 0
