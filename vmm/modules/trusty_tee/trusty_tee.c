@@ -36,9 +36,20 @@
 #include "modules/deadloop.h"
 #endif
 
+#ifdef MODULE_VMX_TIMER
+#include "event.h"
+#include "modules/vmx_timer.h"
+#include "scheduler.h"
+
+#define TRUSTY_TIMER_INTR 0x31
+#endif
+
 enum {
 	TRUSTY_VMCALL_SMC       = 0x74727500,
 	TRUSTY_VMCALL_DUMP_INIT = 0x74727507,
+#ifdef MODULE_VMX_TIMER
+	TRUSTY_VMCALL_VMX_TIMER = 0x74727508,
+#endif
 	TRUSTY_VMCALL_SECINFO   = 0x74727509,
 };
 
@@ -108,6 +119,50 @@ static void trusty_vmcall_get_secinfo(guest_cpu_handle_t gcpu)
 	}
 }
 
+/*
+ * Pay attention to post_world_switch, since before invokes post_world_switch,
+ * SMC hanlder has already scheduled from gcpu to next gcpu on same host cpu.
+ * First paramter is destination gcpu of SMC, and second parameter is source gcpu
+ * of SMC.
+ */
+static void post_world_switch(guest_cpu_handle_t gcpu,
+		guest_cpu_handle_t gcpu_prev)
+{
+	D(VMM_ASSERT(gcpu));
+	D(VMM_ASSERT(gcpu_prev));
+
+#ifdef MODULE_VMX_TIMER
+	vmx_timer_copy(gcpu_prev, gcpu);
+#endif
+}
+
+#ifdef MODULE_VMX_TIMER
+static void trusty_vmcall_vmx_timer(guest_cpu_handle_t gcpu)
+{
+	uint64_t timer_interval;
+	uint64_t tick;
+
+	D(VMM_ASSERT(gcpu));
+
+	/* RDI stores the timer interval in millisecond to be set */
+	timer_interval = gcpu_get_gp_reg(gcpu, REG_RDI);
+
+	if (0 == timer_interval) {
+		vmx_timer_set_mode(gcpu, TIMER_MODE_STOPPED, 0);
+	} else {
+		tick = vmx_timer_ms_to_tick(timer_interval);
+		vmx_timer_set_mode(gcpu, TIMER_MODE_ONESHOT, tick);
+	}
+}
+
+static void vmx_timer_event_handler(guest_cpu_handle_t gcpu, UNUSED void* pv)
+{
+	D(VMM_ASSERT(gcpu));
+
+	gcpu_set_pending_intr(gcpu, TRUSTY_TIMER_INTR);
+}
+#endif
+
 void init_trusty_tee(evmm_desc_t *evmm_desc)
 {
 	tee_config_t trusty_cfg;
@@ -139,6 +194,7 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	trusty_cfg.before_launching_tee = before_launching_tee;
 	trusty_cfg.tee_bsp_status = MODE_64BIT;
 	trusty_cfg.tee_ap_status = HLT;
+	trusty_cfg.post_world_switch = post_world_switch;
 
 	/* Check rowhammer mitigation for TEE */
 	if (trusty_desc->tee_file.barrier_size == 0)
@@ -178,6 +234,14 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	vmcall_register(trusty_guest->id,
             TRUSTY_VMCALL_SECINFO,
             trusty_vmcall_get_secinfo);
+
+#ifdef MODULE_VMX_TIMER
+	event_register(EVENT_VMX_TIMER, vmx_timer_event_handler);
+
+	vmcall_register(trusty_guest->id,
+            TRUSTY_VMCALL_VMX_TIMER,
+            trusty_vmcall_vmx_timer);
+#endif
 
 	return;
 }
