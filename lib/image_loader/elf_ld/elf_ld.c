@@ -37,7 +37,7 @@ elf_get_segment_info(const void *p_image,
 
 boolean_t get_image_section(void *image_base, uint16_t index, image_section_info_t *info)
 {
-	elf_segment_info_t segment_info;
+	elf_segment_info_t segment_info = { NULL, 0, 0 };
 
 	if (!elf_get_segment_info(image_base, index, &segment_info))
 		return FALSE;
