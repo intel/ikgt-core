@@ -24,6 +24,11 @@ static struct guest_descriptor_t *guests;
 static uint64_t g_evmm_rt_base;
 static uint64_t g_evmm_rt_size;
 
+guest_handle_t get_guests_list(void)
+{
+	return guests;
+}
+
 guest_handle_t guest_handle(uint16_t guest_id)
 {
 	struct guest_descriptor_t *guest;
