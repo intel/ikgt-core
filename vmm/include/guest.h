@@ -31,6 +31,7 @@ struct guest_descriptor_t {
 	struct guest_descriptor_t   *next_guest;
 };
 
+guest_handle_t get_guests_list(void);
 guest_handle_t guest_handle(uint16_t guest_id);
 
 /* there're many settings for a guest, such as number of gcpu, which gcpu register to which host cpu, ept policy, guest physical mapping.
