@@ -20,6 +20,7 @@
 
 #include "lib/util.h"
 #include "modules/vtd.h"
+#include "modules/vmcall.h"
 
 #define VTD_REG_CAP     0x0008
 #define VTD_REG_ECAP    0x0010
@@ -30,9 +31,11 @@
 #define VTD_REG_IVA(IRO)   ((IRO) << 4)             // IVA_REG = VTD_REG_BASE + 16*(ECAP.IRO)
 #define VTD_REG_IOTLB(IRO) (VTD_REG_IVA(IRO) + 0x8) // IOTLB_REG = IVA_REG + 0x8
 
-/* GCMD_REG Bits */
-#define VTD_GCMD_TE   (1ULL << 31)
-#define VTD_GCMD_SRTP (1ULL << 30)
+/* GCMD_REG Bits offset */
+typedef enum {
+	VTD_GCMD_SRTP = 30,
+	VTD_GCMD_TE   = 31
+} VTD_GCMD_BIT;
 
 typedef enum {
 	IOTLB_IIRG_RESERVED = 0,
@@ -68,6 +71,7 @@ typedef struct {
 
 vtd_engine_t engine_list[DMAR_MAX_ENGINE];
 dma_remapping_t g_remapping;
+static volatile int vtd_activated = FALSE;
 
 static inline
 uint64_t vtd_read_reg64(uint64_t base_hva, uint64_t reg)
@@ -147,18 +151,23 @@ static void vtd_calculate_trans_cap(uint8_t *max_leaf, uint8_t *tm, uint8_t *sno
 		"VT-d: 3/4-level page-table is NOT supported!\n");
 }
 
-static void vtd_send_global_cmd(vtd_engine_t *engine, uint32_t cmd)
+static void vtd_send_global_cmd(vtd_engine_t *engine, VTD_GCMD_BIT bit, uint32_t v)
 {
 	volatile uint32_t value;
 	value = vtd_read_reg32(engine->reg_base_hva, VTD_REG_GSTS);
+	value &= 0x96FFFFFFU; //Reset the one-shot bits
 
-	value |= cmd;
+	if (v) {
+		value |= (1U << bit);
+	} else {
+		value &= (~(1U << bit));
+	}
 
 	vtd_write_reg32(engine->reg_base_hva, VTD_REG_GCMD, value);
 
 	while (1) {
 		value = vtd_read_reg32(engine->reg_base_hva, VTD_REG_GSTS);
-		if (value & cmd)
+		if (!!(value & ( 1U << bit)) == v)
 			break;
 		else
 			asm_pause();
@@ -349,6 +358,27 @@ static void vtd_invalidate_cache(UNUSED guest_cpu_handle_t gcpu, void *pv)
 	}
 }
 
+static void vmcall_activate_vtd(guest_cpu_handle_t gcpu UNUSED)
+{
+	uint32_t i;
+	guest_handle_t guest;
+
+	if (vtd_activated)
+		return;
+
+	/* Remove DMAR engine from Guest mapping */
+	for (i = 0; i < DMAR_MAX_ENGINE; i++) {
+		if (engine_list[i].reg_base_hpa) {
+			for (guest = get_guests_list(); guest != NULL; guest = guest->next_guest)
+				gpm_remove_mapping(guest, engine_list[i].reg_base_hpa, PAGE_4K_SIZE);
+		}
+	}
+
+	event_register(EVENT_GUEST_MODULE_INIT, vtd_guest_setup);
+
+	vtd_activate();
+}
+
 void vtd_init(void)
 {
 	uint8_t max_leaf, tm, snoop, sagaw;
@@ -363,9 +393,20 @@ void vtd_init(void)
 	vtd_init_dev_mapping();
 
 	event_register(EVENT_GPM_SET, vtd_update_domain_mapping);
-	event_register(EVENT_GUEST_MODULE_INIT, vtd_guest_setup);
 	event_register(EVENT_RESUME_FROM_S3, vtd_reactivate_from_s3);
 	event_register(EVENT_GPM_INVALIDATE, vtd_invalidate_cache);
+#ifndef ACTIVATE_VTD_BY_VMCALL
+	event_register(EVENT_GUEST_MODULE_INIT, vtd_guest_setup);
+#endif
+
+	/*
+	 * Always register this VMCALL when VT-d is enabled in regardless of
+	 * definition of ACTIVATE_VTD_BY_VMCALL. This is to make bootloader
+	 * unified/simpler to just blindly call this vmcall to activate VT-d
+	 * in eVMM. eVMM will check VT-d state and do the corresponding action.
+	 */
+#define VMCALL_ACTIVATE_VTD 0x56544400ULL        // "VTD"
+	vmcall_register(0, VMCALL_ACTIVATE_VTD, vmcall_activate_vtd);
 }
 
 static uint64_t get_root_table_hpa(void)
@@ -383,10 +424,16 @@ static void vtd_enable_dmar(vtd_engine_t *engine, uint64_t rt_hpa)
 	vtd_write_reg64(engine->reg_base_hva, VTD_REG_RTADDR, (uint64_t)rt_hpa);
 
 	/* Set Root Table Pointer*/
-	vtd_send_global_cmd(engine, VTD_GCMD_SRTP);
+	vtd_send_global_cmd(engine, VTD_GCMD_SRTP, 1U);
 
 	/* Translation Enable */
-	vtd_send_global_cmd(engine, VTD_GCMD_TE);
+	vtd_send_global_cmd(engine, VTD_GCMD_TE, 1U);
+}
+
+static void vtd_disable_dmar(vtd_engine_t *engine)
+{
+	/* Translation Disable */
+	vtd_send_global_cmd(engine, VTD_GCMD_TE, 0U);
 }
 
 void vtd_activate(void)
@@ -398,9 +445,14 @@ void vtd_activate(void)
 
 	rt_hpa = get_root_table_hpa();
 
-	for (i=0; i<DMAR_MAX_ENGINE; i++) {
+	for (i = 0; i < DMAR_MAX_ENGINE; i++) {
 		if (engine_list[i].reg_base_hva) {
+			/* Disable VT-d first in case of any in-flight DMA request */
+			vtd_disable_dmar(&engine_list[i]);
+
 			vtd_enable_dmar(&engine_list[i], rt_hpa);
 		}
 	}
+
+	vtd_activated = TRUE;
 }
