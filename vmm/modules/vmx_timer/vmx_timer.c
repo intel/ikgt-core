@@ -200,7 +200,6 @@ void vmx_timer_copy(guest_cpu_handle_t gcpu_from, guest_cpu_handle_t gcpu_to)
 	vmx_timer_from = find_vmx_timer(gcpu_from, FALSE);
 	if (vmx_timer_from == NULL) // do nothing
 	{
-		print_warn("%s(), vmx_timer_from is NULL\n", __FUNCTION__);
 		return;
 	}
 
