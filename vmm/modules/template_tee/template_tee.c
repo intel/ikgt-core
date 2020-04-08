@@ -333,7 +333,7 @@ static void remove_other_tee_range(tee_config_ex_t *this_tee)
 /* remove this tee range in other guests */
 static void remove_this_tee_range(tee_config_ex_t *this_tee)
 {
-	guest_handle_t guest = guest_handle(0);
+	guest_handle_t guest = get_guests_list();
 
 	while (guest) {
 		if (guest != this_tee->tee_guest) {
