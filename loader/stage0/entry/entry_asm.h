@@ -28,7 +28,7 @@
 
 #define STAGE1_RT_SIZE                (0xA000 + (AP_TEMP_STACK_SIZE))
 
-/* This payload memory will store evmm_desc_t and device_sec_info_t */
+/* This payload memory will store evmm_desc_t and seed */
 #define EVMM_PAYLOAD_SIZE             0x2000
 
 #endif
