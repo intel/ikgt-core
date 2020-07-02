@@ -117,7 +117,6 @@ typedef struct init_register {
 } init_register_t;
 
 void setup_32bit_env(gcpu_state_t *gcpu_state);
-void make_dummy_trusty_info(void *info);
 boolean_t get_file_params(uint64_t base, packed_file_t *packed_file);
 boolean_t file_parse(evmm_desc_t *evmm_desc, uint64_t base, uint32_t offset, uint32_t size);
 uint64_t get_top_of_memory(multiboot_info_t *mbi);

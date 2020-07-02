@@ -11,7 +11,6 @@
 #include "evmm_desc.h"
 #include "grub_boot_param.h"
 #include "ldr_dbg.h"
-#include "device_sec_info.h"
 #include "stage0_lib.h"
 
 #include "lib/util.h"
@@ -35,7 +34,7 @@ typedef struct {
 
 	evmm_desc_t xd;
 
-	device_sec_info_v0_t dev_sec_info;
+	uint8_t seed[BUP_MKHI_BOOTLOADER_SEED_LEN];
 	/* add more if any */
 } memory_layout_t;
 
@@ -177,20 +176,15 @@ static evmm_desc_t *init_evmm_desc(void)
 
 	evmm_desc->sipi_ap_wkup_addr = (uint64_t)SIPI_AP_WKUP_ADDR;
 
-	/* Use dummy info(Seed) for Grub */
-	make_dummy_trusty_info(&(loader_mem->dev_sec_info));
-
 	/*fill trusty boot params*/
 #ifdef MODULE_TRUSTY_GUEST
 	evmm_desc->trusty_desc.lk_file.runtime_addr = (uint64_t)lk_runtime_mem;
 	evmm_desc->trusty_desc.lk_file.runtime_total_size = LK_RUNTIME_SIZE;
-	evmm_desc->trusty_desc.dev_sec_info = &(loader_mem->dev_sec_info);
 #endif
 
 #ifdef MODULE_OPTEE_GUEST
 	evmm_desc->optee_desc.optee_file.runtime_addr = (uint64_t)lk_runtime_mem;
 	evmm_desc->optee_desc.optee_file.runtime_total_size = LK_RUNTIME_SIZE;
-	evmm_desc->optee_desc.dev_sec_info = &(loader_mem->dev_sec_info);
 #endif
 
 	return evmm_desc;

@@ -11,7 +11,6 @@
 #include "vmm_arch.h"
 #include "evmm_desc.h"
 #include "ldr_dbg.h"
-#include "device_sec_info.h"
 #include "stage0_lib.h"
 #include "lib/util.h"
 
@@ -51,18 +50,6 @@ void setup_32bit_env(gcpu_state_t *gcpu_state)
 	fill_segment(&gcpu_state->segment[SEG_LDTR], 0, 0, 0x10000, 0);
 
 	gcpu_state->cr0 = CR0_ET|CR0_PE;
-}
-
-void make_dummy_trusty_info(void *info)
-{
-	device_sec_info_v0_t *device_sec_info = (device_sec_info_v0_t *)info;
-
-	memset(device_sec_info, 0, sizeof(device_sec_info_v0_t));
-
-	device_sec_info->size_of_this_struct = sizeof(device_sec_info_v0_t);
-	device_sec_info->version = 0;
-	device_sec_info->platform = 0;
-	device_sec_info->num_seeds = 1;
 }
 
 static uint32_t get_file_size(file_offset_header_t *file_hdr, uint32_t file_index)

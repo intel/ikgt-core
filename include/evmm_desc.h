@@ -15,6 +15,8 @@
 #define MINIMAL_EVMM_RT_SIZE (4 MEGABYTE)
 #define MINIMAL_TEE_RT_SIZE  (16 MEGABYTE)
 #define DEFAULT_BARRIER_SIZE (2 MEGABYTE)
+#define BUP_MKHI_BOOTLOADER_SEED_LEN 64
+
 /*--------------------------------------------------------------------------
  *
  * gcpu_state_t: Initial Guest CPU State
@@ -77,19 +79,19 @@ typedef struct {
 	/* trusty or others */
 	module_file_info_t lk_file;
 	gcpu_state_t gcpu0_state;
-	void *dev_sec_info;
+	uint8_t seed[BUP_MKHI_BOOTLOADER_SEED_LEN];
 } trusty_desc_t;
 
 typedef struct {
 	/* op-tee or others */
 	module_file_info_t optee_file;
 	gcpu_state_t gcpu0_state;
-	void *dev_sec_info;
+	uint8_t seed[BUP_MKHI_BOOTLOADER_SEED_LEN];
 } optee_desc_t;
 
 typedef struct {
 	module_file_info_t tee_file;
-	void* dev_sec_info;
+	uint8_t seed[BUP_MKHI_BOOTLOADER_SEED_LEN];
 } tee_desc_t;
 
 typedef struct {

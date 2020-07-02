@@ -13,7 +13,6 @@
 #include "ldr_dbg.h"
 #include "stage0_lib.h"
 #include "efi_boot_param.h"
-#include "device_sec_info.h"
 
 #include "lib/util.h"
 #include "lib/serial.h"
@@ -25,7 +24,7 @@
 
 static void cleanup_sensetive_data(tos_startup_info_t *p_startup_info)
 {
-	memset(p_startup_info->seed_list, 0, sizeof(p_startup_info->seed_list));
+	memset(p_startup_info->seed, 0, BUP_MKHI_BOOTLOADER_SEED_LEN);
 	barrier();
 }
 
@@ -137,8 +136,8 @@ exit:
 	cleanup_sensetive_data(tos_startup_info);
 
 #ifdef MODULE_TRUSTY_TEE
-	if (evmm_desc && evmm_desc->trusty_tee_desc.dev_sec_info) {
-		memset(evmm_desc->trusty_tee_desc.dev_sec_info, 0, sizeof(device_sec_info_v0_t));
+	if (evmm_desc) {
+		memset(evmm_desc->trusty_tee_desc.seed, 0, BUP_MKHI_BOOTLOADER_SEED_LEN);
 		barrier();
 	}
 #endif
