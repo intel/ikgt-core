@@ -10,9 +10,6 @@
 #define _EFI_BOOT_PARAM_H_
 
 #include "evmm_desc.h"
-#include "device_sec_info.h"
-
-#define TRUSTY_KEYBOX_KEY_SIZE        32
 
 /*
  * This structure is used to pass data to TOS entry when calling to TOS entry to
@@ -22,8 +19,7 @@
  *   2. TOS image base address (<4G)
  *   3. Code address for sipi ap bringup/wakeup.
  *   4. Trusty/VMM regions (base/size)
- *   5. Seed List for trusty get from CSE or TPM
- *   6. Serial: MMC product name with a string representation of PSN
+ *   5. Seed from CSE or TPM
  */
 typedef struct tos_startup_info {
 	/* version of TOS startup info structure, currently set it as 1 */
@@ -53,22 +49,8 @@ typedef struct tos_startup_info {
 	uint32_t trusty_mem_size;
 	uint32_t vmm_mem_size;
 
-	/* rpmb keys, Currently HMAC-SHA256 is used in RPMB spec and 256-bit (32byte) is enough.
-	   Hence only lower 32 bytes will be used for now for each entry. But keep higher 32 bytes
-	   for future extension. Note that, RPMB keys are already tied to storage device serial number.
-	   If there are multiple RPMB partitions, then we will get multiple available RPMB keys.
-	   And if rpmb_key[n][64] == 0, then the n-th RPMB key is unavailable (Either because of no such
-	   RPMB partition, or because OSloader doesn't want to share the n-th RPMB key with Trusty)
-	*/
-	uint8_t rpmb_key[RPMB_MAX_PARTITION_NUMBER][64];
-
 	/* Seed */
-	uint32_t num_seeds;
-	seed_info_t seed_list[BOOTLOADER_SEED_MAX_ENTRIES];
-	/* Concatenation of mmc product name with a string representation of PSN */
-	uint8_t serial[MMC_PROD_NAME_WITH_PSN_LEN];
-
-	uint8_t attkb_key[TRUSTY_KEYBOX_KEY_SIZE];
+	uint8_t seed[BUP_MKHI_BOOTLOADER_SEED_LEN];
 
 	uint64_t system_table_addr;
 } __attribute__((packed))  tos_startup_info_t;

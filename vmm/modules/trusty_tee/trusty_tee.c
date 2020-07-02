@@ -16,13 +16,11 @@
 #include "guest.h"
 #include "trusty_info.h"
 #include "gcpu_inject_event.h"
-#include "device_sec_info.h"
 
 #include "lib/util.h"
 #include "lib/image_loader.h"
 #include "modules/vmcall.h"
 #include "modules/template_tee.h"
-#include "modules/security_info.h"
 
 #ifndef PACK_LK
 #error "PACK_LK is not defined"
@@ -54,7 +52,7 @@ enum {
 };
 
 static uint64_t g_init_rdi, g_init_rsp, g_init_rip;
-static void *dev_sec_info;
+static uint8_t seed[BUP_MKHI_BOOTLOADER_SEED_LEN];
 
 static uint64_t relocate_trusty_image(module_file_info_t *tee_file)
 {
@@ -95,11 +93,12 @@ static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
 	gcpu_set_gp_reg(gcpu, REG_RAX, 0);
 }
 
-static void trusty_vmcall_get_secinfo(guest_cpu_handle_t gcpu)
+static void trusty_vmcall_get_seed(guest_cpu_handle_t gcpu)
 {
 	static boolean_t fuse = FALSE;
 	boolean_t ret;
 	uint64_t gva;
+	pf_info_t pfinfo;
 
 	D(VMM_ASSERT(gcpu));
 	D(VMM_ASSERT(GUEST_REE != gcpu->guest->id));
@@ -108,12 +107,13 @@ static void trusty_vmcall_get_secinfo(guest_cpu_handle_t gcpu)
 		gva = gcpu_get_gp_reg(gcpu, REG_RDI);
 		D(VMM_ASSERT(gva));
 
-		ret = mov_secinfo_to_gva(gcpu, gva, (uint64_t)dev_sec_info);
-		dev_sec_info = NULL;
-
+		ret = gcpu_copy_to_gva(gcpu, gva, (uint64_t)seed, BUP_MKHI_BOOTLOADER_SEED_LEN, &pfinfo);
 		if (!ret) {
-			print_panic("Failed to move secinfo\n");
+			print_panic("Failed to copy security info\n");
 		}
+
+		memset((void *)seed, 0, BUP_MKHI_BOOTLOADER_SEED_LEN);
+		barrier();
 
 		fuse = TRUE;
 	}
@@ -213,7 +213,9 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	trusty_cfg.tee_runtime_addr = runtime_addr - barrier_size;
 	trusty_cfg.tee_runtime_size = runtime_size + 2 * barrier_size;
 
-	dev_sec_info = mov_secinfo_to_internal(trusty_desc->dev_sec_info);
+	memcpy(seed, trusty_desc->seed, BUP_MKHI_BOOTLOADER_SEED_LEN);
+	memset((void *)trusty_desc->seed, 0, BUP_MKHI_BOOTLOADER_SEED_LEN);
+	barrier();
 
 	/* Set RIP RDI and RSP */
 	g_init_rip = relocate_trusty_image(&trusty_desc->tee_file);
@@ -233,7 +235,7 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 
 	vmcall_register(trusty_guest->id,
             TRUSTY_VMCALL_SECINFO,
-            trusty_vmcall_get_secinfo);
+            trusty_vmcall_get_seed);
 
 #ifdef MODULE_VMX_TIMER
 	event_register(EVENT_VMX_TIMER, vmx_timer_event_handler);
