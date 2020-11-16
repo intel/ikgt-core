@@ -18,7 +18,7 @@
 #include "lib/string.h"
 
 #define RUNTIME_MEMORY_ADDR         GRUB_HEAP_ADDR
-#define EVMM_RUNTIME_SIZE           0x400000        //4M
+#define EVMM_RUNTIME_SIZE           0x800000        //8M
 #define LK_RUNTIME_SIZE             0x1000000       //16M
 #define RUNTIME_MEMORY_SIZE         0x1400000       //20M
 
@@ -102,10 +102,10 @@ static evmm_desc_t *init_evmm_desc(void)
 
 	evmm_desc->sipi_ap_wkup_addr = (uint64_t)SIPI_AP_WKUP_ADDR;
 
-#ifdef MODULE_TRUSTY_GUEST
+#ifdef MODULE_TRUSTY_TEE
 	/*fill trusty boot params*/
-	evmm_desc->trusty_desc.lk_file.runtime_addr = 0;
-	evmm_desc->trusty_desc.lk_file.runtime_total_size = LK_RUNTIME_SIZE;
+	evmm_desc->trusty_tee_desc.tee_file.runtime_addr = 0;
+	evmm_desc->trusty_tee_desc.tee_file.runtime_total_size = LK_RUNTIME_SIZE;
 #endif
 
 	return evmm_desc;

@@ -33,7 +33,6 @@ static multiboot_module_t *loader_get_module(multiboot_info_t *mbi,
 
 static char *loader_get_kernel_command_line(multiboot_info_t *mbi)
 {
-#ifdef MODULE_TRUSTY_GUEST
 	char *kernel_command_line = (char *)(long)mbi->cmdline;
 	char kernel_filename[] = "evmm_pkg.bin ";
 	int  len;
@@ -60,9 +59,6 @@ static char *loader_get_kernel_command_line(multiboot_info_t *mbi)
 	}
 
 	return kernel_command_line + len;
-#else
-	return kernel_command_line;
-#endif
 }
 
 static boolean_t loader_setup_boot_params(multiboot_info_t *mbi,

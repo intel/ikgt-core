@@ -37,6 +37,8 @@ SECTIONS
     *(.bss .bss.* .gnu.linkonce.b.* COMMON)
   } =0x90909090
 
+  . = .;
+
   /DISCARD/ :
   {
     /*

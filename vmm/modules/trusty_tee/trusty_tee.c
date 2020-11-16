@@ -22,8 +22,10 @@
 #include "modules/vmcall.h"
 #include "modules/template_tee.h"
 
+#ifndef QEMU_LK
 #ifndef PACK_LK
 #error "PACK_LK is not defined"
+#endif
 #endif
 
 #ifdef MODULE_VTD
@@ -39,7 +41,7 @@
 #include "modules/vmx_timer.h"
 #include "scheduler.h"
 
-#define TRUSTY_TIMER_INTR 0x31
+#define TRUSTY_TIMER_INTR 0x21
 #endif
 
 enum {
@@ -68,6 +70,17 @@ static void before_launching_tee(guest_cpu_handle_t gcpu_trusty)
 	gcpu_set_gp_reg(gcpu_trusty, REG_RDI, g_init_rdi);
 	gcpu_set_gp_reg(gcpu_trusty, REG_RSP, g_init_rsp);
 	vmcs_write(gcpu_trusty->vmcs, VMCS_GUEST_RIP, g_init_rip);
+
+#ifdef QEMU_LK
+	/*
+	 * Qemu lk project is used to validate Trusty + iKGT + Android
+	 * for patches which have been uploaded to Google Gerrit.
+	 *
+	 * Set RAX as MULTIBOOT MAGIC WORD, RBX as the offset from MEMBASE,
+	 */
+	gcpu_set_gp_reg(gcpu_trusty, REG_RAX, 0x2BADB002);
+	gcpu_set_gp_reg(gcpu_trusty, REG_RBX, 0x4000);
+#endif
 }
 
 static void trusty_vmcall_dump_init(guest_cpu_handle_t gcpu)
@@ -151,6 +164,20 @@ static void trusty_vmcall_vmx_timer(guest_cpu_handle_t gcpu)
 		vmx_timer_set_mode(gcpu, TIMER_MODE_STOPPED, 0);
 	} else {
 		tick = vmx_timer_ms_to_tick(timer_interval);
+#ifdef QEMU_LK
+		/*
+		 * VMX preemption timer is used on QEMU platform only for current stage.
+		 *
+		 * When Trusty runs on top of QEMU with KVM nested-VT feature enabled,
+		 * QEMU would be always scheduled out by host Linux kernel when QEMU guest
+		 * runs into sleep or set timer. In this situation, TSC in QEMU guest
+		 * increase quite slow, it makes VMX preepmtion timer quite slow.
+		 *
+		 * In order to schedule in QEMU guest more frequently, add TSC acceleration
+		 * to reduce TSC elapse when guest sets VMX preepmtion timer.
+		 */
+		tick /= 30;
+#endif
 		vmx_timer_set_mode(gcpu, TIMER_MODE_ONESHOT, tick);
 	}
 }
