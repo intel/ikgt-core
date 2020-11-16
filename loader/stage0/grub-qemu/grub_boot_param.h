@@ -31,7 +31,7 @@ typedef enum {
  * If Linux kernel is launched along with Trusty, test-runner would be
  * replaced by Linux kernel image.
  */
-#ifdef MODULE_TRUSTY_GUEST
+#ifdef MODULE_TRUSTY_TEE
 #define LINUXIMG TESTRUNNER
 #else
 #define LINUXIMG MFIRST_MODULE

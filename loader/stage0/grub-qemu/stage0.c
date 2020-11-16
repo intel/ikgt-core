@@ -23,7 +23,7 @@
 #define TOS_MAX_IMAGE_SIZE		0x100000   /* Max image size assumed to be 1 MB */
 
 /* register value ordered by: pushal, pushfl */
-typedef struct init_register {
+typedef struct init_register_protected_mode {
 	uint32_t eflags;
 	uint32_t edi;
 	uint32_t esi;
@@ -33,14 +33,14 @@ typedef struct init_register {
 	uint32_t edx;
 	uint32_t ecx;
 	uint32_t eax;
-} init_register_t;
+} init_register_protected_mode_t;
 
 #define STAGE0_RSP_TOP 0xC0000000
 /* Function: stage0_main
  * Description: Called by start() in stage0_entry.S. Jumps to stage1.
  * This function never returns back.
  */
-void stage0_main(const init_register_t *init_reg,
+void stage0_main(const init_register_protected_mode_t *init_reg,
 		uint64_t stage0_base)
 {
 	evmm_desc_t *evmm_desc = NULL;
@@ -48,7 +48,7 @@ void stage0_main(const init_register_t *init_reg,
 	uint64_t (*stage1_main) (evmm_desc_t *xd);
 	uint64_t entry = 0;
 	uint64_t boot_param_addr = 0;
-#ifdef MODULE_TRUSTY_GUEST
+#ifdef MODULE_TRUSTY_TEE
 	uint64_t file_start;
 	uint64_t file_size;
 	boolean_t ret;
@@ -82,15 +82,15 @@ void stage0_main(const init_register_t *init_reg,
 		goto fail;
 	}
 
-#ifdef MODULE_TRUSTY_GUEST
+#ifdef MODULE_TRUSTY_TEE
 	ret = parse_multiboot_module(mbi, &file_start, &file_size, TRUSTYIMG);
 	if (FALSE == ret) {
 		print_panic("Failed to parse module(%d)\n", TRUSTYIMG);
 		goto fail;
 	}
 
-	evmm_desc->trusty_desc.lk_file.loadtime_addr = file_start;
-	evmm_desc->trusty_desc.lk_file.loadtime_size = file_size;
+	evmm_desc->trusty_tee_desc.tee_file.loadtime_addr = file_start;
+	evmm_desc->trusty_tee_desc.tee_file.loadtime_size = file_size;
 
 	ret = linux_kernel_parse(mbi, &boot_param_addr, &entry);
 	if(!ret){
@@ -106,16 +106,16 @@ void stage0_main(const init_register_t *init_reg,
 	linux_kernel_parse(mbi, &boot_param_addr, &entry);
 #endif
 
-#ifdef MODULE_TRUSTY_GUEST
+#ifdef MODULE_TRUSTY_TEE
 	/*
 	 * Hardcode Trusty runtime address in QEMU project.
 	 * In general iKGT design, Trusty runtime address is specified by bootloader,
 	 * however, this information would not be provided by bootloader in QEMU project.
 	 */
-	evmm_desc->trusty_desc.lk_file.runtime_addr = TRUSTY_RUNTIME_BASE;
+	evmm_desc->trusty_tee_desc.tee_file.runtime_addr = TRUSTY_RUNTIME_BASE;
 	reserve_region_from_mmap((boot_params_t *)boot_param_addr,
-			evmm_desc->trusty_desc.lk_file.runtime_addr,
-			evmm_desc->trusty_desc.lk_file.runtime_total_size);
+			evmm_desc->trusty_tee_desc.tee_file.runtime_addr,
+			evmm_desc->trusty_tee_desc.tee_file.runtime_total_size);
 #endif
 
 	reserve_region_from_mmap((boot_params_t *)boot_param_addr,
@@ -132,10 +132,6 @@ void stage0_main(const init_register_t *init_reg,
 		print_panic("Guest[0] setup failed\n");
 		goto fail;
 	}
-
-#ifdef MODULE_TRUSTY_GUEST
-	trusty_gcpu0_setup(evmm_desc);
-#endif
 
 	if (!relocate_elf_image(&(evmm_desc->stage1_file), (uint64_t *)&stage1_main)) {
 		print_panic("relocate stage1 failed\n");
