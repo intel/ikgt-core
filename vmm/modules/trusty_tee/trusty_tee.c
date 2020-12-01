@@ -44,6 +44,10 @@
 #define TRUSTY_TIMER_INTR 0x21
 #endif
 
+#ifdef MODULE_SPM_SRV
+#include "modules/spm_srv.h"
+#endif
+
 enum {
 	TRUSTY_VMCALL_SMC       = 0x74727500,
 	TRUSTY_VMCALL_DUMP_INIT = 0x74727507,
@@ -190,6 +194,20 @@ static void vmx_timer_event_handler(guest_cpu_handle_t gcpu, UNUSED void* pv)
 }
 #endif
 
+#ifdef MODULE_SPM_SRV
+static boolean_t spm_srv_call(guest_cpu_handle_t gcpu)
+{
+	D(VMM_ASSERT(gcpu));
+
+	if (is_spm_srv_call(gcpu)) {
+		spm_mm_smc_handler(gcpu);
+		return TRUE;
+	}
+
+	return FALSE;
+}
+#endif
+
 void init_trusty_tee(evmm_desc_t *evmm_desc)
 {
 	tee_config_t trusty_cfg;
@@ -222,6 +240,10 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	trusty_cfg.tee_bsp_status = MODE_64BIT;
 	trusty_cfg.tee_ap_status = HLT;
 	trusty_cfg.post_world_switch = post_world_switch;
+
+#ifdef MODULE_SPM_SRV
+	trusty_cfg.spm_srv_call = spm_srv_call;
+#endif
 
 	/* Check rowhammer mitigation for TEE */
 	if (trusty_desc->tee_file.barrier_size == 0)
