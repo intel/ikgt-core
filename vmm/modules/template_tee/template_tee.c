@@ -289,6 +289,16 @@ static void smc_handler(guest_cpu_handle_t gcpu)
 
 	tee_status = tee_ex->tee_status[host_cpu];
 
+	/*
+	 * Dispatch SPM calls to SPM SMC handler.
+	 * If SMC is handle by SPM SMC handler, world switch will not be triggered.
+	 */
+	if (tee_ex->tee_config.spm_srv_call) {
+		if (tee_ex->tee_config.spm_srv_call(gcpu)) {
+		    return;
+		}
+	}
+
 	if (tee_status == TEE_INIT) {
 		if (gcpu->guest->id == GUEST_REE) {
 			/* First SMC call from Ree */

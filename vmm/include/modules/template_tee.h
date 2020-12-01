@@ -47,6 +47,12 @@ typedef struct {
 	void (*first_smc_to_tee)(guest_cpu_handle_t gcpu);
 	void (*pre_world_switch)(guest_cpu_handle_t gcpu);
 	void (*post_world_switch)(guest_cpu_handle_t gcpu, guest_cpu_handle_t gcpu_prev);
+	/*
+	 * Simulated Secure Partition Manager Service Call for ARM Firmware Framework.
+	 * (https://developer.arm.com/docs/den0077/a)
+	 * Currently, share memory feature is supported only.
+	 */
+	boolean_t (*spm_srv_call)(guest_cpu_handle_t gpu);
 
 	boolean_t single_gcpu; // TRUE: gcpu number = 1; FALSE: gcpu number = physical cpu number
 
