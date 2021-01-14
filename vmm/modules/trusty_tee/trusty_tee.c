@@ -213,8 +213,8 @@ void init_trusty_tee(evmm_desc_t *evmm_desc)
 	tee_config_t trusty_cfg;
 	tee_desc_t *trusty_desc;
 	guest_handle_t trusty_guest;
-	uint8_t smc_param_to_tee[] = {REG_RDI, REG_RSI, REG_RDX, REG_RBX};
-	uint8_t smc_param_to_ree[] = {REG_RDI, REG_RSI, REG_RDX, REG_RBX};
+	uint8_t smc_param_to_tee[] = {REG_RDI, REG_RSI, REG_RDX, REG_RCX};
+	uint8_t smc_param_to_ree[] = {REG_RDI, REG_RSI, REG_RDX, REG_RCX};
 	uint64_t runtime_addr;
 	uint64_t runtime_size;
 	uint64_t barrier_size;
