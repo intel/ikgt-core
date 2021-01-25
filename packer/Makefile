@@ -7,7 +7,7 @@
 ################################################
 
 #using local gcc for evmmpacker
-export CC = gcc
+export CC = clang
 
 OUTDIR = $(BUILD_DIR)packer/
 $(shell mkdir -p $(OUTDIR))
@@ -35,6 +35,7 @@ CFLAGS = $(EVMM_CMPL_FLAGS) -s -static -Werror
 endif
 
 CFLAGS += $(INCLUDES)
+CFLAGS += -Qunused-arguments
 
 COBJS = $(addprefix $(OUTDIR), $(notdir $(patsubst %.c, %.o, $(CSOURCES))))
 
