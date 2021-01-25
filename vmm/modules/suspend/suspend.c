@@ -83,7 +83,13 @@ static void prepare_s3_percpu(guest_cpu_handle_t gcpu, void *unused UNUSED)
 	if (host_cpu_id() != 0){
 		suspend_percpu_data[host_cpu_id()].slept = 1;
 		asm_wbinvd();
-		asm_hlt();
+
+		/*
+		 * Must use hlt-loop/busy-loop to stop CPU. This is because the CPU might
+		 * be waked up if there is a lapic timer set before suspend especially running
+		 * on top of KVM.
+		 */
+		__STOP_HERE__
 	}
 }
 
