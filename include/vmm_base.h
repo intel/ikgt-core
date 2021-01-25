@@ -37,7 +37,11 @@ typedef struct {
 #define FALSE 0
 #define TRUE 1
 
+// NULL is defined in prebuilts clang stl header
+// so redefining here within a include guard 
+#ifndef NULL
 #define NULL ((void *)0)
+#endif
 
 #define ALIGN_B(value, align) \
 	((uint64_t)(value) & (~((uint64_t)(align) - 1ULL)))
