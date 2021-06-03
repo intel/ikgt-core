@@ -19,7 +19,7 @@ extern efi_boot_services_t *g_bs;
 extern void EFI_API ap_start(void *arg);
 
 typedef void (*hand_over_c_func_t)(uint32_t cpu_id, void *arg, uint64_t old_rsp);
-hand_over_c_func_t hand_over_entry;
+hand_over_c_func_t efi_hand_over_entry;
 
 /* Starts from 1 since BSP will not be counted in efi_ap.S */
 volatile uint64_t cpu_num = 1;
@@ -42,7 +42,7 @@ uint64_t efi_launch_aps(uint64_t c_entry)
 	if (!c_entry) {
 		return 0;
 	}
-	hand_over_entry = (hand_over_c_func_t)c_entry;
+	efi_hand_over_entry = (hand_over_c_func_t)c_entry;
 
 	/* Locate MP_SERVICE protocol */
 	ret = g_bs->locate_protocol(&mp_service_guid, NULL, (void **)&mp);

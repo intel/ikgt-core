@@ -7,7 +7,7 @@
  */
 
 .extern cpu_num
-.extern hand_over_entry
+.extern efi_hand_over_entry
 .align 8
 .text
 
@@ -45,7 +45,7 @@ ap_start:
 	mov %rax, %rdi
 	mov %rsp, %rsi
 
-	call *hand_over_entry(%rip)
+	call *efi_hand_over_entry(%rip)
 
 	popfq
 	pop %r15

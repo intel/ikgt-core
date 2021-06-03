@@ -17,7 +17,7 @@
  * stage1.bin, and evmm.bin */
 
 /* file layout in this order */
-enum {
+typedef enum {
 	STAGE0_BIN_INDEX,
 	STAGE1_BIN_INDEX,
 	EVMM_BIN_INDEX,
