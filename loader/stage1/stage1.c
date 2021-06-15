@@ -28,7 +28,7 @@
 #error "Bad CPU_NUM definition!"
 #endif
 #endif
-
+test build fail
 typedef void (* vmm_entry_t)(uint32_t cpuid, void *evmm_desc);
 static evmm_desc_t *evmm_desc;
 static vmm_entry_t vmm_main;
