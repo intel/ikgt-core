@@ -9,17 +9,15 @@
 #ifndef _ACPI_PM_H_
 #define _ACPI_PM_H_
 
-#define ACPI_PM1_CNTRL_A        0
-#define ACPI_PM1_CNTRL_B        1
-#define ACPI_PM1_CNTRL_COUNT    2
+#define ACPI_PM1A_CNT    0U
+#define ACPI_PM1B_CNT    1U
+#define ACPI_PM1_CNT_NUM 2U
 
-typedef struct {
-	uint32_t *p_waking_vector;
-	uint16_t port_id[ACPI_PM1_CNTRL_COUNT];
-	uint32_t pad;
-} acpi_fadt_info_t;
+#include "modules/acpi.h"
 
-boolean_t acpi_pm_is_s3(uint16_t port_id ,uint32_t port_size, uint32_t value);
-void acpi_pm_init(acpi_fadt_info_t *p_acpi_fadt_info);
+boolean_t acpi_pm_is_s3(uint64_t addr, uint32_t size, uint32_t value);
+acpi_generic_address_t *get_pm1x_reg(uint32_t id);
+uint32_t *get_waking_vector(void);
+void acpi_pm_init(void);
 
 #endif
