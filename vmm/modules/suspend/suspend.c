@@ -26,6 +26,7 @@
 
 #include "modules/io_monitor.h"
 #include "modules/ipc.h"
+#include "modules/acpi.h"
 
 /*------------------------------Types and Macros---------------------------*/
 typedef struct {
@@ -44,7 +45,6 @@ typedef struct {
 /*------------------------------Local Variables-------------------------------*/
 static suspend_percpu_data_t suspend_percpu_data[MAX_CPU_NUM];
 static suspend_data_t suspend_data;
-acpi_fadt_info_t acpi_fadt_info;
 /*------------------Forward Declarations for Local Functions---------------*/
 static void main_from_s3(uint32_t apic_id);
 
@@ -109,7 +109,7 @@ static void restore_sipi_mem(void)
 	memcpy((void *)(uint64_t)suspend_data.sipi_page, suspend_data.save_area, get_startup_code_size());
 }
 
-static void prepare_s3(guest_cpu_handle_t gcpu)
+static boolean_t prepare_s3(guest_cpu_handle_t gcpu)
 {
 	uint8_t cpu_id;
 #ifdef DEBUG
@@ -127,8 +127,10 @@ static void prepare_s3(guest_cpu_handle_t gcpu)
 	VMM_ASSERT(asm_rdmsr(MSR_FS_BASE) < (1ULL << 32));
 #endif
 
-	suspend_data.orig_waking_vector = *(suspend_data.p_waking_vector);
-	*(suspend_data.p_waking_vector) = suspend_data.sipi_page;
+	suspend_data.p_waking_vector = get_waking_vector();
+
+	suspend_data.orig_waking_vector = *suspend_data.p_waking_vector;
+	*suspend_data.p_waking_vector = suspend_data.sipi_page;
 
 	print_trace("[SUSPEND] waking_vector_reg_addr=0x%llX fw_waking_vector=0x%llX sipi_page_addr=0x%llX\n",
 		suspend_data.p_waking_vector, suspend_data.orig_waking_vector, *(suspend_data.p_waking_vector));
@@ -147,6 +149,7 @@ static void prepare_s3(guest_cpu_handle_t gcpu)
 
 	print_info("VMM: Enter S3\n");
 	asm_wbinvd();
+	return TRUE;
 }
 
 static void main_from_s3(uint32_t cpu_id)
@@ -223,7 +226,7 @@ static void main_from_s3(uint32_t cpu_id)
 	gcpu_resume(gcpu);
 }
 
-void suspend_s3_io_handler(guest_cpu_handle_t gcpu,
+static void suspend_s3_io_handler(guest_cpu_handle_t gcpu,
 				uint16_t port_id,
 				uint32_t port_size,
 				uint32_t value)
@@ -243,24 +246,52 @@ void suspend_s3_io_handler(guest_cpu_handle_t gcpu,
 	}
 }
 
+static void setup_pm1x_monitor(acpi_generic_address_t *pm1x_reg)
+{
+	/*
+	 * NOTE: Currently, only IO is supported/tested, so assert here if GAS type is MEM.
+	 *       Need to revisit it if firmware use MMIO/MEM in future.
+	 */
+	switch (pm1x_reg->as_id) {
+		case ACPI_GAS_ID_MEM:
+			VMM_ASSERT("[SUSPEND] MMIO/MEM trigger is not supported!\n");
+			break;
+		case ACPI_GAS_ID_IO:
+			io_monitor_register(0, pm1x_reg->addr, NULL, suspend_s3_io_handler);
+			break;
+		default:
+			VMM_ASSERT("[SUSPEND] Invalid suspend address type\n");
+			break;
+	}
+	print_trace("[SUSPEND] Install handler at Pm1XControlBlock, ASID=%d, addr=0x%llx\n",
+			pm1x_reg->as_id, pm1x_reg->addr);
+}
+
+static void monitor_pm1x_reg(void)
+{
+	acpi_generic_address_t *pm1x_reg;
+
+	/* Monitor PM1A Control Register -- Required */
+	pm1x_reg = get_pm1x_reg(ACPI_PM1A_CNT);
+	VMM_ASSERT_EX(pm1x_reg, "PM1A_CNT/X_PM1A_CNT is required!\n");
+	setup_pm1x_monitor(pm1x_reg);
+
+	/* Monitor PM1B Control Register -- Optional */
+	pm1x_reg = get_pm1x_reg(ACPI_PM1B_CNT);
+	if (pm1x_reg)
+		setup_pm1x_monitor(pm1x_reg);
+}
+
 void suspend_bsp_init(uint32_t sipi_page)
 {
-	uint8_t i;
-
 	D(VMM_ASSERT(((sipi_page & PAGE_4K_MASK) == 0) && (sipi_page < 0x100000)));
 
-	acpi_pm_init(&acpi_fadt_info);
-	suspend_data.p_waking_vector = acpi_fadt_info.p_waking_vector;
+	acpi_pm_init();
 	suspend_data.sipi_page = sipi_page;
 
 	setup_percpu_data();
 
-	for (i = 0; i < ACPI_PM1_CNTRL_COUNT; ++i) {
-		print_trace("[SUSPEND] Install handler at Pm1%cControlBlock(0x%llX)\n",
-			'a' + i, acpi_fadt_info.port_id[i]);
-		io_monitor_register(0,acpi_fadt_info.port_id[i],
-			NULL, suspend_s3_io_handler);
-	}
+	monitor_pm1x_reg();
 }
 
 void suspend_ap_init(void)

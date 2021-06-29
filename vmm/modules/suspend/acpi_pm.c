@@ -11,6 +11,8 @@
 #include "guest.h"
 #include "acpi_pm.h"
 #include "dbg.h"
+#include "heap.h"
+#include "lib/util.h"
 
 #include "modules/acpi.h"
 
@@ -28,26 +30,35 @@
 #define ACPI_STATE_S5                   ((uint8_t)5)
 #define ACPI_S_STATE_COUNT              6
 
-#define FADT_FACS_OFFSET 36
-#define FADT_DSDT_OFFSET 40
-#define FADT_PM1A_CNT_BLK_OFFSET 64
-#define FADT_PM1B_CNT_BLK_OFFSET 68
-#define FADT_PM1_CNT_LEN_OFFSET 89
-#define FADT_XFACS_OFFSET 132
-#define FADT_XDSDT_OFFSET 140
+/* FADT Offset in bytes */
+#define FADT_FACS_OFFSET                    36U
+#define FADT_DSDT_OFFSET                    40U
+#define FADT_PM1A_CNT_BLK_OFFSET            64U
+#define FADT_PM1B_CNT_BLK_OFFSET            68U
+#define FADT_PM1_CNT_LEN_OFFSET             89U
+#define FADT_FLAGS                         112U
+#define FADT_XFACS_OFFSET                  132U
+#define FADT_XDSDT_OFFSET                  140U
+#define FADT_X_PM1A_CNT_BLK_OFFSET         172U
+#define FADT_X_PM1B_CNT_BLK_OFFSET         184U
 
-#define FACS_FW_WAKING_VECTOR_OFFSET 12
+/* FACS Offset in bytes */
+#define FACS_FW_WAKING_VECTOR_OFFSET        12U
+#define FACS_X_FW_WAKING_VECTOR_OFFSET      24U
 
 typedef struct {
-	uint32_t port_size;
-	uint16_t port_id[ACPI_PM1_CNTRL_COUNT];
-	uint8_t  sleep_type[ACPI_PM1_CNTRL_COUNT][ACPI_S_STATE_COUNT];
-	uint32_t pad;
+	acpi_generic_address_t *reg;
+	uint8_t sleep_type[ACPI_S_STATE_COUNT];
+} PACKED pm1_t;
+
+typedef struct {
+	pm1_t pm1[ACPI_PM1_CNT_NUM];
 	uint32_t *p_waking_vector;
-} acpi_fadt_data_t;
+	uint64_t *p_x_waking_vector;
+} PACKED acpi_fadt_data_t;
+
 /*------------------------------Local Variables-------------------------------*/
-acpi_fadt_data_t acpi_fadt_data;
-/*------------------Forward Declarations for Local Functions---------------*/
+static acpi_fadt_data_t acpi_fadt_data;
 /*-----------------------------C-Code Starts Here--------------------------*/
 #ifdef DEBUG
 static void acpi_print_fadt(uint64_t fadt)
@@ -62,36 +73,73 @@ static void acpi_print_fadt(uint64_t fadt)
 		*(uint32_t *)(fadt + FADT_PM1A_CNT_BLK_OFFSET),
 		*(uint32_t *)(fadt + FADT_PM1B_CNT_BLK_OFFSET),
 		*(uint8_t *)(fadt + FADT_PM1_CNT_LEN_OFFSET));
+	vmm_printf("x_pm1a_control_block=0x%x, x_pm1b_control_block=0x%x\n",
+		*(uint32_t *)(fadt + FADT_X_PM1A_CNT_BLK_OFFSET),
+		*(uint32_t *)(fadt + FADT_X_PM1B_CNT_BLK_OFFSET))
 	vmm_printf(
 		"===================================\n");
 }
 #endif
 
-boolean_t acpi_pm_is_s3(uint16_t port_id ,uint32_t port_size,  uint32_t value)
+boolean_t acpi_pm_is_s3(uint64_t addr, uint32_t size, uint32_t value)
 {
-	uint8_t sleep_type;
-	uint32_t pm_reg_id;
+	uint8_t sleep_type, sleep_en;
+	uint32_t i;
+	pm1_t *pm1x;
 
-	if (acpi_fadt_data.port_size != port_size) {
-		return FALSE;
-	}
-
-	if (port_id == acpi_fadt_data.port_id[ACPI_PM1_CNTRL_A]) {
-		pm_reg_id = ACPI_PM1_CNTRL_A;
-	} else if (port_id == acpi_fadt_data.port_id[ACPI_PM1_CNTRL_B]) {
-		pm_reg_id = ACPI_PM1_CNTRL_B;
-	} else {
-		return FALSE;
-	}
-
+	sleep_en = (uint8_t)SLP_EN(value);
 	sleep_type = (uint8_t)SLP_TYP(value);
 
-	if ((acpi_fadt_data.sleep_type[pm_reg_id][ACPI_STATE_S3] == sleep_type)
-		&& (SLP_EN(value))) {
-		return TRUE;
+	/* according to ACPI spec, the register is accessed through byte or word.  */
+	if (size != 1 && size != 2)
+		return FALSE;
+
+	if (!sleep_en)
+		return FALSE;
+
+	for (i = 0; i < ACPI_PM1_CNT_NUM; i++) {
+		pm1x = &acpi_fadt_data.pm1[i];
+		if (!pm1x->reg)
+			continue;
+		if (addr == pm1x->reg->addr) {
+			if (sleep_type == pm1x->sleep_type[ACPI_STATE_S3])
+				return TRUE;
+		}
 	}
 
 	return FALSE;
+}
+
+static void acpi_parse_pm1x_reg(uint8_t *fadt, uint32_t offset, uint32_t x_offset, acpi_generic_address_t **pm1x_cnt_reg)
+{
+	uint8_t port_len = 0U;
+	acpi_generic_address_t *x_pm1x_cnt_blk;
+	acpi_generic_address_t null_addr = { 0U };
+	uint64_t addr = 0ULL;
+
+	x_pm1x_cnt_blk = (void *)(fadt + x_offset);
+	/*
+	 * According to ACPI Spec Chapter 5.2.9:
+	 *     If X_PM1a_CNT_BLK field contains a non zero value which can be used by the OSPM,
+	 *     then PM1a_CNT_BLK must be ignored by the OSPM.
+	 */
+	if (memcmp(x_pm1x_cnt_blk, &null_addr, sizeof(acpi_generic_address_t)) != 0U) {
+		(*pm1x_cnt_reg) = mem_alloc(sizeof(acpi_generic_address_t));
+		memcpy(*pm1x_cnt_reg, x_pm1x_cnt_blk, sizeof(acpi_generic_address_t));
+	} else {
+		addr = *((uint16_t *)(void *)(fadt + offset));
+		if (!addr)
+			return;
+		*pm1x_cnt_reg = mem_alloc(sizeof(acpi_generic_address_t));
+		port_len = (*(fadt + FADT_PM1_CNT_LEN_OFFSET));
+		VMM_ASSERT_EX(port_len >= 2U, "fadt pm1x port size is invalid\n");
+
+		(*pm1x_cnt_reg)->as_id = ACPI_GAS_ID_IO;
+		(*pm1x_cnt_reg)->reg_bit_width = port_len * 8U;
+		(*pm1x_cnt_reg)->reg_bit_off = 0U;
+		(*pm1x_cnt_reg)->access_size = ACPI_GAS_AS_WORD;
+		(*pm1x_cnt_reg)->addr = *((uint16_t *)(void *)(fadt + offset));
+	}
 }
 
 /*
@@ -134,29 +182,9 @@ boolean_t acpi_pm_is_s3(uint16_t port_id ,uint32_t port_size,  uint32_t value)
 static void acpi_parse_fadt_states(uint8_t *fadt)
 {
 	acpi_table_header_t *dsdt;
-	uint8_t *facs;
 	uint8_t *aml_ptr;
 	uint8_t *end;
 	uint8_t sstate;
-
-	/*get pm1x port & port szie*/
-	acpi_fadt_data.port_size = *(fadt + FADT_PM1_CNT_LEN_OFFSET);
-	VMM_ASSERT_EX((2 == acpi_fadt_data.port_size || 4 == acpi_fadt_data.port_size),
-		"fadt pm1x port size is invalid\n");
-
-	acpi_fadt_data.port_id[ACPI_PM1_CNTRL_A] = *((uint16_t *)(void *)(fadt + FADT_PM1A_CNT_BLK_OFFSET));
-	acpi_fadt_data.port_id[ACPI_PM1_CNTRL_B] = *((uint16_t *)(void *)(fadt + FADT_PM1B_CNT_BLK_OFFSET));
-
-	/*get waking vector address*/
-	facs = (uint8_t *)(uint64_t)(*((uint32_t *)(void *)(fadt + FADT_FACS_OFFSET)));
-	if (!facs) {
-		facs = (uint8_t *)(*((uint64_t *)(void *)(fadt + FADT_XFACS_OFFSET)));
-	}
-
-	VMM_ASSERT_EX(facs,
-		"[ACPI] FACS is not detected. S3 is not supported by the platform\n");
-
-	acpi_fadt_data.p_waking_vector = (uint32_t *)(void *)(facs + FACS_FW_WAKING_VECTOR_OFFSET);
 
 	/*get s3 sleep states*/
 	VMM_ASSERT_EX(hmm_hpa_to_hva((uint64_t)*(uint32_t *)(void *)(fadt + FADT_DSDT_OFFSET), (uint64_t *)&dsdt),
@@ -205,7 +233,7 @@ static void acpi_parse_fadt_states(uint8_t *fadt)
 		}
 
 		/* This should be SLP_TYP value for PM1A_CNT_BLK */
-		acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_A][sstate] = *aml_ptr;
+		acpi_fadt_data.pm1[ACPI_PM1A_CNT].sleep_type[sstate] = *aml_ptr;
 		aml_ptr++;
 
 		/* Skip 'Byte Prefix' if found */
@@ -214,30 +242,63 @@ static void acpi_parse_fadt_states(uint8_t *fadt)
 		}
 
 		/* This should be SLP_TYP value for PM1B_CNT_BLK */
-		acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_B][sstate] = *aml_ptr;
+		acpi_fadt_data.pm1[ACPI_PM1B_CNT].sleep_type[sstate] = *aml_ptr;
 
 		print_trace("   %3d   |    %3d    |    %3d\n", sstate,
-			acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_A][sstate],
-			acpi_fadt_data.sleep_type[ACPI_PM1_CNTRL_B][sstate]);
+			acpi_fadt_data.pm1[ACPI_PM1A_CNT].sleep_type[sstate],
+			acpi_fadt_data.pm1[ACPI_PM1B_CNT].sleep_type[sstate]);
 	}
 }
 
-void acpi_pm_init(acpi_fadt_info_t *p_acpi_fadt_info)
+static void acpi_parse_fadt_waking_vector(uint8_t *fadt)
+{
+	uint8_t *facs;
+
+	/* get XFACS/FACS address */
+	facs = (uint8_t *)(*((uint64_t *)(void *)(fadt + FADT_XFACS_OFFSET)));
+	if (facs == 0)
+		facs = (uint8_t *)(uint64_t)(*((uint32_t *)(void *)(fadt + FADT_FACS_OFFSET)));
+
+	VMM_ASSERT_EX(facs,
+		"[ACPI] FACS is not detected. S3 is not supported by the platform\n");
+
+	acpi_fadt_data.p_waking_vector = (uint32_t *)(void *)(uint64_t)(uint32_t)(facs + FACS_FW_WAKING_VECTOR_OFFSET);
+	acpi_fadt_data.p_x_waking_vector = (uint64_t *)(void *)(uint64_t)(facs + FACS_X_FW_WAKING_VECTOR_OFFSET);
+}
+
+acpi_generic_address_t *get_pm1x_reg(uint32_t id)
+{
+	if (id != ACPI_PM1A_CNT && id != ACPI_PM1B_CNT)
+		return NULL;
+
+	return acpi_fadt_data.pm1[id].reg;
+}
+
+uint32_t *get_waking_vector(void)
+{
+	/*
+	 * NOTE: Currently, we do not support setting waking vector through X_FW_WAKING_VECTOR.
+	 *       We may need to revisit this in future and support 32/64 bit resume entry.
+	 */
+	VMM_ASSERT_EX(*acpi_fadt_data.p_x_waking_vector == 0ULL, "FATAL: X Waking Vector is not supported!\n");
+	VMM_ASSERT_EX(*acpi_fadt_data.p_waking_vector != 0U, "FATAL: Waking Vector is NULL!\n");
+	return acpi_fadt_data.p_waking_vector;
+}
+
+void acpi_pm_init(void)
 {
 	acpi_table_header_t *fadt;
-
-	D(VMM_ASSERT_EX(p_acpi_fadt_info, "[ACPI] p_acpi_fadt_info is NULL\n"));
 
 	fadt = acpi_locate_table(ACPI_SIG_FADT);
 	VMM_ASSERT_EX(fadt, "[ACPI] ERROR: No FADT table found\n");
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	acpi_print_fadt((uint64_t)fadt);
-	#endif
+#endif
+
+	acpi_parse_pm1x_reg((uint8_t *)fadt, FADT_PM1A_CNT_BLK_OFFSET, FADT_X_PM1A_CNT_BLK_OFFSET, &acpi_fadt_data.pm1[ACPI_PM1A_CNT].reg);
+	VMM_ASSERT_EX(acpi_fadt_data.pm1[ACPI_PM1A_CNT].reg, "[SUSPEND] X_PM1A_CNT/PM1A_CNT block register is missing!");
+	acpi_parse_pm1x_reg((uint8_t *)fadt, FADT_PM1B_CNT_BLK_OFFSET, FADT_X_PM1B_CNT_BLK_OFFSET, &acpi_fadt_data.pm1[ACPI_PM1B_CNT].reg);
 	acpi_parse_fadt_states((uint8_t *)fadt);
-
-	p_acpi_fadt_info->port_id[ACPI_PM1_CNTRL_A] = acpi_fadt_data.port_id[ACPI_PM1_CNTRL_A];
-	p_acpi_fadt_info->port_id[ACPI_PM1_CNTRL_B] = acpi_fadt_data.port_id[ACPI_PM1_CNTRL_B];
-	p_acpi_fadt_info->p_waking_vector = acpi_fadt_data.p_waking_vector;
-
+	acpi_parse_fadt_waking_vector((uint8_t *)fadt);
 }

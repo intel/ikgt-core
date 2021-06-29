@@ -45,6 +45,28 @@ typedef struct {
 	uint32_t	asl_compiler_revision;				/* ASL compiler version */
 } acpi_table_header_t;
 
+/*
+ * Generic Address Structure -- ACPI specification, Chapter 5.2.3.2 Generic Address Structure
+ */
+typedef struct {
+	uint8_t		as_id;			// Address Space ID
+	uint8_t		reg_bit_width;		// Register Bit Width
+	uint8_t		reg_bit_off;		// Register Bit Offset
+	uint8_t		access_size;		// Access Size
+	uint64_t	addr;			// Address
+} PACKED acpi_generic_address_t;
+
+/* Address Space ID enumeration */
+#define ACPI_GAS_ID_MEM      0U    //System Memory Space
+#define ACPI_GAS_ID_IO       1U    //System I/O space
+
+/* Address Space access size enumeration */
+#define ACPI_GAS_AS_UNDEF    0U
+#define ACPI_GAS_AS_BYTE     1U    // 1 byte
+#define ACPI_GAS_AS_WORD     2U    // 2 bytes
+#define ACPI_GAS_AS_DWORD    3U    // 4 bytes
+#define ACPI_GAS_AS_QWORD    4U    // 8 bytes
+
 #ifdef DEBUG
 void acpi_print_header(acpi_table_header_t *table_header);
 #endif
