@@ -24,7 +24,7 @@
 #define MULTIBOOT_HEADER_SIZE         32
 
 /* register value ordered by: pushal, pushfl */
-typedef struct init_register {
+typedef struct init_register_32 {
 	uint32_t eflags;
 	uint32_t edi;
 	uint32_t esi;
@@ -34,13 +34,13 @@ typedef struct init_register {
 	uint32_t edx;
 	uint32_t ecx;
 	uint32_t eax;
-} init_register_t;
+} init_register_32_t;
 
 /* Function: stage0_main
  * Description: Called by start() in stage0_entry.S. Jumps to stage1.
  * This function never returns back.
  */
-void stage0_main(const init_register_t *init_reg,
+void stage0_main(const init_register_32_t *init_reg,
 		uint64_t stage0_base)
 {
 	evmm_desc_t *evmm_desc = NULL;

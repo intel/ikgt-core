@@ -107,7 +107,6 @@ static void relocate_optee_image(void)
 static void setup_optee_mem(void)
 {
 	optee_startup_info_t *optee_para;
-	uint32_t dev_sec_info_size;
 #ifdef MODULE_EPT_UPDATE
 	uint64_t upper_start;
 #endif
@@ -127,16 +126,9 @@ static void setup_optee_mem(void)
 			optee_desc->optee_file.runtime_addr,
 			optee_desc->optee_file.runtime_total_size);
 
-	/* Setup op-tee boot info */
-	dev_sec_info_size = *((uint32_t *)optee_desc->dev_sec_info);
-	memcpy((void *)optee_desc->optee_file.runtime_addr, optee_desc->dev_sec_info, dev_sec_info_size);
-	memset(optee_desc->dev_sec_info, 0, dev_sec_info_size);
 
 	/* Setup op-tee startup info */
-	optee_para = (optee_startup_info_t *)ALIGN_F(optee_desc->optee_file.runtime_addr + dev_sec_info_size, 8);
-	VMM_ASSERT_EX(((uint64_t)optee_para + sizeof(optee_startup_info_t)) <
-			(optee_desc->optee_file.runtime_addr + PAGE_4K_SIZE),
-			"size of (dev_sec_info+optee_startup_info) exceeds the reserved 4K size!\n");
+	optee_para = (optee_startup_info_t *)ALIGN_F(optee_desc->optee_file.runtime_addr, 8);
 	optee_para->size_of_this_struct    = sizeof(optee_startup_info_t);
 	optee_para->mem_size               = optee_desc->optee_file.runtime_total_size;
 	optee_para->calibrate_tsc_per_ms   = tsc_per_ms;
@@ -194,7 +186,6 @@ static void launch_optee(guest_cpu_handle_t gcpu_ree, guest_cpu_handle_t gcpu_op
 	/* Get op-tee info from osloader */
 	parse_optee_boot_param(gcpu_ree);
 	setup_optee_mem();
-	mem_free(optee_desc->dev_sec_info);
 
 	/* Memory mapping is updated for Guest[0] in setup_optee_mem(),
 	 * need to do cache invalidation for Guest[0] */
@@ -281,18 +272,11 @@ static void optee_set_gcpu_state(guest_cpu_handle_t gcpu, UNUSED void *pv)
 void init_optee_guest(evmm_desc_t *evmm_desc)
 {
 	uint32_t cpu_num = 1;
-	uint32_t dev_sec_info_size;
-#if !defined(PACK_OPTEE)
-	void *dev_sec_info;
-#endif
 
 	D(VMM_ASSERT_EX(evmm_desc, "evmm_desc is NULL\n"));
 
 	optee_desc = (optee_desc_t *)&evmm_desc->optee_desc;
 	D(VMM_ASSERT(optee_desc));
-
-	dev_sec_info_size = *((uint32_t *)optee_desc->dev_sec_info);
-	VMM_ASSERT_EX(!(dev_sec_info_size & 0x3ULL), "size of optee boot info is not 32bit aligned!\n");
 
 	/* reserve shared memory for OP-TEE */
 	optee_desc->optee_file.runtime_total_size -= OPTEE_SHM_SIZE;
@@ -312,12 +296,6 @@ void init_optee_guest(evmm_desc_t *evmm_desc)
 	relocate_optee_image();
 	setup_optee_mem();
 #else
-	/* Copy dev_sec_info from loader to VMM's memory */
-	dev_sec_info = mem_alloc(dev_sec_info_size);
-	memcpy(dev_sec_info, optee_desc->dev_sec_info, dev_sec_info_size);
-	memset(optee_desc->dev_sec_info, 0, dev_sec_info_size);
-	optee_desc->dev_sec_info = dev_sec_info;
-
 	set_initial_guest(guest_handle(GUEST_REE));
 #endif
 
