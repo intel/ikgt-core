@@ -6,8 +6,13 @@
 #
 ################################################
 
+ifneq (, $(CLANG_BINDIR))
 #using local clang for evmmpacker
 export CC = clang
+else
+#using local gcc for evmmpacker
+export CC = gcc
+endif
 
 OUTDIR = $(BUILD_DIR)packer/
 $(shell mkdir -p $(OUTDIR))
@@ -35,7 +40,9 @@ CFLAGS = $(EVMM_CMPL_FLAGS) -s -static -Werror
 endif
 
 CFLAGS += $(INCLUDES)
+ifeq ($(CC), clang)
 CFLAGS += -Qunused-arguments
+endif
 
 COBJS = $(addprefix $(OUTDIR), $(notdir $(patsubst %.c, %.o, $(CSOURCES))))
 
@@ -58,7 +65,7 @@ ifneq (, $(findstring -DPACK_LK, $(EVMM_CMPL_FLAGS)))
 	if [ $(LKBIN_DIR) ]; then cp $(LKBIN_DIR)lk.bin $(BUILD_DIR); fi
 else
 ifneq (, $(findstring -DPACK_OPTEE, $(EVMM_CMPL_FLAGS)))
-	if [ $(OPTEEBIN_DIR) ]; then cp $(OPTEEBIN_DIR)tee-pager.bin $(BUILD_DIR); fi
+	if [ $(OPTEEBIN_DIR) ]; then cp $(OPTEEBIN_DIR)tee-pager_v2.bin $(BUILD_DIR); fi
 endif
 endif
 	chmod +x $(BUILD_DIR)$(TARGET) && \

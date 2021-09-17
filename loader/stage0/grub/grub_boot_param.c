@@ -17,9 +17,9 @@
 #include "lib/string.h"
 
 #define RUNTIME_MEMORY_ADDR         GRUB_HEAP_ADDR
-#define EVMM_RUNTIME_SIZE           0x400000        //4M
+#define EVMM_RUNTIME_SIZE           0xa00000        //8M
 #define LK_RUNTIME_SIZE             0x1000000       //16M
-#define RUNTIME_MEMORY_SIZE         0x1400000       //20M
+#define RUNTIME_MEMORY_SIZE         0x1a00000       //24M
 
 #define SIPI_AP_WKUP_ADDR           0x59000
 

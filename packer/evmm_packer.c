@@ -37,7 +37,7 @@ static char* file_list[] = {
 #endif
 
 #if  defined (MODULE_OPTEE_GUEST) && defined (PACK_OPTEE)
-	"tee-pager.bin",
+	"tee-pager_v2.bin",
 #endif
 };
 
