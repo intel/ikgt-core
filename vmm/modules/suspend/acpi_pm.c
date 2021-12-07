@@ -262,8 +262,8 @@ static void acpi_parse_fadt_waking_vector(uint8_t *fadt)
 	VMM_ASSERT_EX(facs,
 		"[ACPI] FACS is not detected. S3 is not supported by the platform\n");
 
-	acpi_fadt_data.p_waking_vector = (uint32_t *)(void *)(uint64_t)(uint32_t)(facs + FACS_FW_WAKING_VECTOR_OFFSET);
-	acpi_fadt_data.p_x_waking_vector = (uint64_t *)(void *)(uint64_t)(facs + FACS_X_FW_WAKING_VECTOR_OFFSET);
+	acpi_fadt_data.p_waking_vector = (uint32_t *)(void *)(facs + FACS_FW_WAKING_VECTOR_OFFSET);
+	acpi_fadt_data.p_x_waking_vector = (uint64_t *)(void *)(facs + FACS_X_FW_WAKING_VECTOR_OFFSET);
 }
 
 acpi_generic_address_t *get_pm1x_reg(uint32_t id)
