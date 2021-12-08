@@ -110,12 +110,13 @@ boolean_t acpi_pm_is_s3(uint64_t addr, uint32_t size, uint32_t value)
 	return FALSE;
 }
 
-static void acpi_parse_pm1x_reg(uint8_t *fadt, uint32_t offset, uint32_t x_offset, acpi_generic_address_t **pm1x_cnt_reg)
+static acpi_generic_address_t *acpi_parse_pm1x_reg(uint8_t *fadt, uint32_t offset, uint32_t x_offset)
 {
 	uint8_t port_len = 0U;
 	acpi_generic_address_t *x_pm1x_cnt_blk;
 	acpi_generic_address_t null_addr = { 0U };
 	uint64_t addr = 0ULL;
+	acpi_generic_address_t *pm1x_cnt_reg = NULL;
 
 	x_pm1x_cnt_blk = (void *)(fadt + x_offset);
 	/*
@@ -124,22 +125,24 @@ static void acpi_parse_pm1x_reg(uint8_t *fadt, uint32_t offset, uint32_t x_offse
 	 *     then PM1a_CNT_BLK must be ignored by the OSPM.
 	 */
 	if (memcmp(x_pm1x_cnt_blk, &null_addr, sizeof(acpi_generic_address_t)) != 0U) {
-		(*pm1x_cnt_reg) = mem_alloc(sizeof(acpi_generic_address_t));
-		memcpy(*pm1x_cnt_reg, x_pm1x_cnt_blk, sizeof(acpi_generic_address_t));
+		pm1x_cnt_reg = mem_alloc(sizeof(acpi_generic_address_t));
+		memcpy(pm1x_cnt_reg, x_pm1x_cnt_blk, sizeof(acpi_generic_address_t));
 	} else {
 		addr = *((uint16_t *)(void *)(fadt + offset));
 		if (!addr)
-			return;
-		*pm1x_cnt_reg = mem_alloc(sizeof(acpi_generic_address_t));
+			return NULL;
+		pm1x_cnt_reg = mem_alloc(sizeof(acpi_generic_address_t));
 		port_len = (*(fadt + FADT_PM1_CNT_LEN_OFFSET));
 		VMM_ASSERT_EX(port_len >= 2U, "fadt pm1x port size is invalid\n");
 
-		(*pm1x_cnt_reg)->as_id = ACPI_GAS_ID_IO;
-		(*pm1x_cnt_reg)->reg_bit_width = port_len * 8U;
-		(*pm1x_cnt_reg)->reg_bit_off = 0U;
-		(*pm1x_cnt_reg)->access_size = ACPI_GAS_AS_WORD;
-		(*pm1x_cnt_reg)->addr = *((uint16_t *)(void *)(fadt + offset));
+		pm1x_cnt_reg->as_id = ACPI_GAS_ID_IO;
+		pm1x_cnt_reg->reg_bit_width = port_len * 8U;
+		pm1x_cnt_reg->reg_bit_off = 0U;
+		pm1x_cnt_reg->access_size = ACPI_GAS_AS_WORD;
+		pm1x_cnt_reg->addr = *((uint16_t *)(void *)(fadt + offset));
 	}
+
+	return pm1x_cnt_reg;
 }
 
 /*
@@ -296,9 +299,9 @@ void acpi_pm_init(void)
 	acpi_print_fadt((uint64_t)fadt);
 #endif
 
-	acpi_parse_pm1x_reg((uint8_t *)fadt, FADT_PM1A_CNT_BLK_OFFSET, FADT_X_PM1A_CNT_BLK_OFFSET, &acpi_fadt_data.pm1[ACPI_PM1A_CNT].reg);
+	acpi_fadt_data.pm1[ACPI_PM1A_CNT].reg = acpi_parse_pm1x_reg((uint8_t *)fadt, FADT_PM1A_CNT_BLK_OFFSET, FADT_X_PM1A_CNT_BLK_OFFSET);
 	VMM_ASSERT_EX(acpi_fadt_data.pm1[ACPI_PM1A_CNT].reg, "[SUSPEND] X_PM1A_CNT/PM1A_CNT block register is missing!");
-	acpi_parse_pm1x_reg((uint8_t *)fadt, FADT_PM1B_CNT_BLK_OFFSET, FADT_X_PM1B_CNT_BLK_OFFSET, &acpi_fadt_data.pm1[ACPI_PM1B_CNT].reg);
+	acpi_fadt_data.pm1[ACPI_PM1B_CNT].reg = acpi_parse_pm1x_reg((uint8_t *)fadt, FADT_PM1B_CNT_BLK_OFFSET, FADT_X_PM1B_CNT_BLK_OFFSET);
 	acpi_parse_fadt_states((uint8_t *)fadt);
 	acpi_parse_fadt_waking_vector((uint8_t *)fadt);
 }
