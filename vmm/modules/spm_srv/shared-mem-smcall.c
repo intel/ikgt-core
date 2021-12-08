@@ -882,7 +882,7 @@ static int trusty_ffa_features(UNUSED struct trusty_shmem_client_state *client,
 			 * had been retrieved in a variable of type uint64_t.
 			 */
 			*ret3 = sizeof(uint64_t) * 8 - 1;
-			__attribute__((fallthrough));
+			FALLTHROUGH;
 
 		case SMC_FC_FFA_MEM_SHARE:
 		case SMC_FC64_FFA_MEM_SHARE:

@@ -53,7 +53,7 @@ typedef struct tos_startup_info {
 	uint8_t seed[BUP_MKHI_BOOTLOADER_SEED_LEN];
 
 	uint64_t system_table_addr;
-} __attribute__((packed))  tos_startup_info_t;
+} tos_startup_info_t;
 
 /*  TOS image header:
  *  Bootloader/Kernelflinger retrieves required info from this header.
