@@ -13,7 +13,7 @@ endif
 
 all: $(TARGET) stage0.bin
 
-$(TARGET):
+$(TARGET): $(OBJS)
 	$(LD) $(LDFLAGS) -o $(OUTDIR)/$@ $(OBJS) $(wildcard $(BUILD_DIR)common/*.o)
 
 stage0.bin: $(TARGET)
