@@ -33,6 +33,9 @@ SECTIONS
     /* merge .rodata into .text */
     *(.rodata .rodata.* .gnu.linkonce.r.*)
 
+    /* merge global variables */
+    *(.data)
+
     /* merge .bss into .text */
     *(.bss .bss.* .gnu.linkonce.b.* COMMON)
   } =0x90909090
