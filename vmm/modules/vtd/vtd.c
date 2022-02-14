@@ -44,6 +44,9 @@ typedef enum {
 	IOTLB_IIRG_PAGE,
 } VTD_IOTLB_IIRG; // IIRG: IOTLB Invalidation Request Granularity
 
+/* GSTS_REG */
+#define VTD_GSTS_TES          (1U << 31)
+
 /* IOTLB_REG */
 #define VTD_IOTLB_IVT         (1ULL << 63)
 #define VTD_IOTLB_GLOBAL_INV  (1ULL << 60)
@@ -188,10 +191,58 @@ static void vtd_guest_setup(UNUSED guest_cpu_handle_t gcpu, void *pv)
 	}
 }
 
+static uint64_t get_root_table_hpa(void)
+{
+	uint64_t hpa, hva;
+	hva = (uint64_t)g_remapping.root_table;
+	VMM_ASSERT_EX(hmm_hva_to_hpa(hva, &hpa, NULL),
+			"fail to convert hva 0x%llX to hpa\n", hva);
+	return hpa;
+}
+
+static void vtd_enable_dmar(vtd_engine_t *engine, uint64_t rt_hpa)
+{
+	/* Set Root Table Address Register */
+	vtd_write_reg64(engine->reg_base_hva, VTD_REG_RTADDR, (uint64_t)rt_hpa);
+
+	/* Set Root Table Pointer*/
+	vtd_send_global_cmd(engine, VTD_GCMD_SRTP, 1U);
+
+	/* Translation Enable */
+	vtd_send_global_cmd(engine, VTD_GCMD_TE, 1U);
+}
+
+static void vtd_disable_dmar(vtd_engine_t *engine)
+{
+	/* Translation Disable */
+	vtd_send_global_cmd(engine, VTD_GCMD_TE, 0U);
+}
+
+static void vtd_activate_internal(void)
+{
+	uint32_t i;
+	uint64_t rt_hpa;
+
+	asm_wbinvd();
+
+	rt_hpa = get_root_table_hpa();
+
+	for (i = 0; i < DMAR_MAX_ENGINE; i++) {
+		if (engine_list[i].reg_base_hva) {
+			/* Disable VT-d first in case of any in-flight DMA request */
+			vtd_disable_dmar(&engine_list[i]);
+
+			vtd_enable_dmar(&engine_list[i], rt_hpa);
+		}
+	}
+
+	vtd_activated = TRUE;
+}
+
 static void vtd_reactivate_from_s3(UNUSED guest_cpu_handle_t gcpu, UNUSED void *pv)
 {
 	if (host_cpu_id() == 0)
-		vtd_activate();
+		vtd_activate_internal();
 }
 
 void vtd_update_domain_mapping(UNUSED guest_cpu_handle_t gcpu, void *pv)
@@ -376,8 +427,27 @@ static void vmcall_activate_vtd(guest_cpu_handle_t gcpu UNUSED)
 
 	event_register(EVENT_GUEST_MODULE_INIT, vtd_guest_setup);
 
-	vtd_activate();
+	vtd_activate_internal();
+	print_info("VT-d activated(VMCALL)!\n");
 }
+
+#ifdef VTD_FORCE_ACTIVATE_ON_BOOT
+static int is_vtd_trans_enabled(void) { return FALSE; }
+#else
+static int is_vtd_trans_enabled(void)
+{
+	int i = 0;
+
+	for (i=0; i < DMAR_MAX_ENGINE; i++) {
+		if (engine_list[i].reg_base_hva) {
+			if (vtd_read_reg32(engine_list[i].reg_base_hva, VTD_REG_GSTS) & VTD_GSTS_TES)
+				return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+#endif
 
 void vtd_init(void)
 {
@@ -395,13 +465,12 @@ void vtd_init(void)
 	event_register(EVENT_GPM_SET, vtd_update_domain_mapping);
 	event_register(EVENT_RESUME_FROM_S3, vtd_reactivate_from_s3);
 	event_register(EVENT_GPM_INVALIDATE, vtd_invalidate_cache);
-#ifndef ACTIVATE_VTD_BY_VMCALL
-	event_register(EVENT_GUEST_MODULE_INIT, vtd_guest_setup);
-#endif
+	if (!is_vtd_trans_enabled())
+		event_register(EVENT_GUEST_MODULE_INIT, vtd_guest_setup);
 
 	/*
 	 * Always register this VMCALL when VT-d is enabled in regardless of
-	 * definition of ACTIVATE_VTD_BY_VMCALL. This is to make bootloader
+	 * status of is_translation_enabled(). This is to make bootloader
 	 * unified/simpler to just blindly call this vmcall to activate VT-d
 	 * in eVMM. eVMM will check VT-d state and do the corresponding action.
 	 */
@@ -409,50 +478,15 @@ void vtd_init(void)
 	vmcall_register(0, VMCALL_ACTIVATE_VTD, vmcall_activate_vtd);
 }
 
-static uint64_t get_root_table_hpa(void)
-{
-	uint64_t hpa, hva;
-	hva = (uint64_t)g_remapping.root_table;
-	VMM_ASSERT_EX(hmm_hva_to_hpa(hva, &hpa, NULL),
-			"fail to convert hva 0x%llX to hpa\n", hva);
-	return hpa;
-}
-
-static void vtd_enable_dmar(vtd_engine_t *engine, uint64_t rt_hpa)
-{
-	/* Set Root Table Address Register */
-	vtd_write_reg64(engine->reg_base_hva, VTD_REG_RTADDR, (uint64_t)rt_hpa);
-
-	/* Set Root Table Pointer*/
-	vtd_send_global_cmd(engine, VTD_GCMD_SRTP, 1U);
-
-	/* Translation Enable */
-	vtd_send_global_cmd(engine, VTD_GCMD_TE, 1U);
-}
-
-static void vtd_disable_dmar(vtd_engine_t *engine)
-{
-	/* Translation Disable */
-	vtd_send_global_cmd(engine, VTD_GCMD_TE, 0U);
-}
-
 void vtd_activate(void)
 {
-	uint32_t i;
-	uint64_t rt_hpa;
-
-	asm_wbinvd();
-
-	rt_hpa = get_root_table_hpa();
-
-	for (i = 0; i < DMAR_MAX_ENGINE; i++) {
-		if (engine_list[i].reg_base_hva) {
-			/* Disable VT-d first in case of any in-flight DMA request */
-			vtd_disable_dmar(&engine_list[i]);
-
-			vtd_enable_dmar(&engine_list[i], rt_hpa);
-		}
+	if (is_vtd_trans_enabled()) {
+		print_warn("VT-d translation is being used by BIOS,\n"
+			"thus eVMM cannot not activate VT-d during boot stage,\n"
+			"eVMM will do the activation by a VMCALL from bootloader!\n");
+		return;
 	}
 
-	vtd_activated = TRUE;
+	vtd_activate_internal();
+	print_info("VT-d activated(Boot)!\n");
 }
