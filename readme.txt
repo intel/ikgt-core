@@ -175,6 +175,8 @@ Config files
 				Description: Workaround for bug OAM-42091, conflict with GFX.
 			- MULTI_GUEST_DMA
 				Description: Optional, allow a device access multi guests' memory by DMA.
+			- VTD_FORCE_ACTIVATE_ON_BOOT
+				Description: Optional, force to activate vt-d engines on eVMM's boot stage.
 
 	- MODULE_DEV_BLK
 		Description: provide API to block access to devices from guests.

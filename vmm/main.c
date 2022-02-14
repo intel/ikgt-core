@@ -519,12 +519,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		BSP_SET_STAGE(STAGE_INIT_GUEST);
 
 #ifdef MODULE_VTD
-		/* vtd_done() will not affect AP boot.
-		 * since BSP needs to wait for AP before gcpu_resume(), put vtd_done()
+		/* vtd_activate() will not affect AP boot.
+		 * since BSP needs to wait for AP before gcpu_resume(), put vtd_activate()
 		 * here will take BSP more time and reduce the wait time for AP. */
-#ifndef ACTIVATE_VTD_BY_VMCALL
 		vtd_activate();
-#endif
 #endif
 
 #ifdef MODULE_BLOCK_NPK
