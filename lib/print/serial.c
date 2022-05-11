@@ -37,7 +37,15 @@ typedef struct serial_device {
 	uint64_t base;
 } serial_device_t;
 
-serial_device_t g_ser_dev = {
+/*
+    Note: Since the stage0/entry will only keep the code segment and strip
+          all other segment, so the global variable in serial will be also
+          been stripped when linked to stage0/entry.
+
+          Here set attribute of g_ser_dev to make it always in ".text"
+          segment so it wont be stripped when linked to stage0/entry.
+*/
+serial_device_t g_ser_dev __attribute__ ((section (".text"))) = {
 	.get = NULL,
 	.set = NULL,
 	.base = -1ULL
