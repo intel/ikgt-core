@@ -170,6 +170,10 @@
 #include "modules/ucode_update.h"
 #endif
 
+#ifdef MODULE_RESET
+#include "modules/reset.h"
+#endif
+
 typedef struct {
 	uint64_t	cpuid;
 	uint64_t	evmm_desc;
@@ -445,6 +449,10 @@ void vmm_main_continue(vmm_input_params_t *vmm_input_params)
 		 *  MODULE_IO_MONITOR,
 		 *  MODULE_ACPI */
 		suspend_bsp_init(evmm_desc->sipi_ap_wkup_addr);
+#endif
+
+#ifdef MODULE_RESET
+		reset_init();
 #endif
 
 #ifdef MODULE_PROFILE
