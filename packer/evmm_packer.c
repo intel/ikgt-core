@@ -69,6 +69,7 @@ static void *read_file_to_buf(const char *fname, uint32_t buf_size)
 {
 	FILE *f = fopen(fname, "r");
 	void *pbuf = NULL;
+	size_t num_read = 0;
 
 	if (!f) {
 		printf("!ERROR(packer): failed to open %s\r\n", fname);
@@ -81,17 +82,18 @@ static void *read_file_to_buf(const char *fname, uint32_t buf_size)
 		goto error;
 	}
 
-	fread(pbuf, buf_size, 1, f);
-	if (ferror(f) != 0 ||
-		feof(f) != 0) {
-		printf("!ERROR(packer): failed to read %d bytes in file %s\r\n",
-			buf_size,
-			fname);
+	num_read = fread(pbuf, buf_size, 1, f);
+	if (num_read != 1) {
+		if (ferror(f) != 0 || feof(f) != 0) {
+			printf("!ERROR(packer): failed to read %d bytes in file %s\r\n",
+				buf_size,
+				fname);
 
-		free(pbuf);
-		pbuf = NULL;
+			free(pbuf);
+			pbuf = NULL;
 
-		goto error;
+			goto error;
+		}
 	}
 
 error:

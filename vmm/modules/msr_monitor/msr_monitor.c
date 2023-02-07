@@ -381,7 +381,8 @@ static void msr_monitor_gcpu_init(guest_cpu_handle_t gcpu, UNUSED void *pv)
 	D(VMM_ASSERT(p_guest_msr_mon->msr_bitmap));
 
 	msr_bitmap = (uint64_t)p_guest_msr_mon->msr_bitmap;
-	hmm_hva_to_hpa(msr_bitmap, &msr_bitmap, NULL);
+	VMM_ASSERT_EX(hmm_hva_to_hpa(msr_bitmap, &msr_bitmap, NULL),
+		"MSR bitmap page for guest %d is invalid\n", gcpu->guest->id);
 	vmcs_write(p_vmcs, VMCS_MSR_BITMAP, msr_bitmap);
 }
 
