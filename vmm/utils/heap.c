@@ -413,7 +413,7 @@ static void *pool_alloc_internal(pool_node_t *node, uint8_t block_num)
 	block_id = find_avail_block(node, block_num);
 	local_print("POOL: find available block id: %d\n", block_id);
 
-	if (block_id < POOL_BLOCK_NUM_IN_NODE) {
+	if (block_id < (POOL_BLOCK_NUM_IN_NODE - 1)) {
 		/* validity check */
 		VMM_ASSERT_EX(((block_id + node->cont_num_array[block_id]) <= POOL_BLOCK_NUM_IN_NODE),
 			"POOL: the continuous block count(%u) in block(%u) is invalid\n",
